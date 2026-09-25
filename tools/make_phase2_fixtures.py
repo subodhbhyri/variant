@@ -113,8 +113,10 @@ def side_by_side(x):
            + b3.group(0) + col_break + x[b3.end():b4.start()] + add_sect(b4.group(0), sect(2)) + x[b4.end():])
     return out
 rewrite(base, "side_by_side.docx", edit_parts={"word/document.xml": side_by_side})
-expected["side_by_side.docx"] = {"accept": True, "editable": 4, "locked": {"3": "shared_lines", "4": "shared_lines"},
-                                 "note": "page count not asserted: the column break makes LibreOffice spill 3 lines"}
+expected["side_by_side.docx"] = {"accept": True, "editable": 6, "locked": {}, "lines": {"3": 3, "4": 3},
+                                 "note": ("bullets 3 and 4 render in neighbouring columns with baselines 3.9pt apart, so no "
+                                          "line is shared: both stay editable and must be measured at 3 lines each. "
+                                          "Page count not asserted (the column break spills 3 lines).")}
 
 # --- rejected: layout / content ---------------------------------------------
 save(base_document(bullet_count=2), "too_few_bullets.docx")

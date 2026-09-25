@@ -1,65 +1,14 @@
 [
   {
-    "name" : "com.tailor.cli.CorpusCheckCommand",
+    "name" : "com.tailor.cli.OnboardCommand",
     "allDeclaredConstructors" : true,
     "allPublicConstructors" : true,
     "allDeclaredMethods" : true,
     "allPublicMethods" : true,
     "fields" : [
-      { "name" : "corpusDir" },
-      { "name" : "goldenDir" },
-      { "name" : "skipT11" }
-    ]
-  },
-  {
-    "name" : "com.tailor.cli.DetectCommand",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true,
-    "fields" : [
-      { "name" : "inPath" }
-    ]
-  },
-  {
-    "name" : "com.tailor.cli.NormalizeCommand",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true,
-    "fields" : [
-      { "name" : "inPath" },
-      { "name" : "outPath" },
-      { "name" : "targetPages" }
-    ]
-  },
-  {
-    "name" : "com.tailor.cli.RenderCommand",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true,
-    "fields" : [
-      { "name" : "docxPath" },
-      { "name" : "outDir" }
-    ]
-  },
-  {
-    "name" : "com.tailor.cli.TailorCli",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true
-  },
-  {
-    "name" : "picocli.CommandLine$AutoHelpMixin",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true,
-    "fields" : [
-      { "name" : "helpRequested" },
-      { "name" : "versionRequested" }
+      { "name" : "outDir" },
+      { "name" : "skipCalibration" },
+      { "name" : "uploadPath" }
     ]
   }
 ]

@@ -51,6 +51,18 @@ public final class FontMap {
         return numberingGlyphKeep.contains(fontName);
     }
 
+    /** PHASE2_SPEC.md 4.3: true if this font is already a key (source) or value (target) of the map. */
+    public boolean isKnown(String fontName) {
+        return map.containsKey(fontName) || map.containsValue(fontName);
+    }
+
+    /** A new FontMap with {@code extra} entries layered on top (PHASE2_SPEC.md 4.3's per-upload candidates). */
+    public FontMap withAdditional(Map<String, String> extra) {
+        Map<String, String> merged = new LinkedHashMap<>(this.map);
+        merged.putAll(extra);
+        return new FontMap(Collections.unmodifiableMap(merged), numberingGlyphKeep, auditAllowed);
+    }
+
     /** Base font names (subset prefix and style suffix stripped) allowed in a rendered PDF. */
     public Set<String> auditAllowed() {
         return auditAllowed;

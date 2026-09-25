@@ -85,12 +85,13 @@
  },
  "side_by_side.docx": {
   "accept": true,
-  "editable": 4,
-  "locked": {
-   "3": "shared_lines",
-   "4": "shared_lines"
+  "editable": 6,
+  "lines": {
+   "3": 3,
+   "4": 3
   },
-  "note": "page count not asserted: the column break makes LibreOffice spill 3 lines"
+  "locked": {},
+  "note": "bullets 3 and 4 render in neighbouring columns with baselines 3.9pt apart, so no line is shared: both stay editable and must be measured at 3 lines each. Page count not asserted (the column break spills 3 lines)."
  },
  "too_few_bullets.docx": {
   "accept": false,

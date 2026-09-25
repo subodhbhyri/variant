@@ -200,15 +200,31 @@ A supported bullet becomes **locked** (visible, never edited) if:
 
 - it has an unsupported reason (Phase 1 4.4: `hyperlink`, `line_break`,
   `tab_in_text`, `field`, `tracked_change`) → lock reason is that code; or
-- **shared lines**: in the normalized render, its text can't be anchored, or
-  its anchored lines contain text other than its own (ignoring the bullet
-  glyph) → lock reason `shared_lines`. This catches bullets side by side in
-  columns, next to a sidebar, or beside a text box, without trying to guess
-  layout roles from the XML.
+- **shared lines**: in the normalized render, its text can't be anchored to a
+  contiguous run of lines, or its anchored lines contain text other than its
+  own (ignoring the bullet glyph) → lock reason `shared_lines`.
 
-Measured: all 130 corpus bullets anchor with no foreign text. The
-`side_by_side.docx` fixture (two bullets forced into neighbouring columns)
-locks exactly those two; the bullets around them stay editable.
+**What this rule does and doesn't catch (revised after the step 2.3 report).**
+It does not detect "side by side" as such; it detects any bullet whose lines
+can't be attributed to it alone. That is the property measurement depends on,
+and the rule can't pass a wrong count:
+
+- a line shared with other text → foreign text in the anchored lines → locked;
+- another column's line falling *between* a bullet's lines → its text isn't
+  contiguous → can't anchor → locked;
+- otherwise each bullet's lines really are its own, the count is right, and the
+  Verifier still guards every edit.
+
+Measured: all 130 corpus bullets pass. In `side_by_side.docx` LibreOffice puts
+bullets 3 and 4 in neighbouring columns, but 3.9pt apart (just outside the
+3pt same-line tolerance), so nothing is shared. Both stay **editable** and are
+measured at 3 lines each. The fixture asserts exactly that.
+
+LibreOffice's placement of columns inside continuous sections proved too
+unpredictable to build a reliable rendered "shared line" fixture (a column
+break at the start of a bullet moved it to the top of the page). The locking
+logic is therefore tested on constructed line lists instead (P2-T8), where
+the three cases above are exact.
 
 After locking: editable < 3 → `TOO_FEW_EDITABLE` (P2).
 
@@ -228,6 +244,14 @@ font (`Symbol`, `Wingdings*`). For each unknown font:
    the next candidate. If none fits → `NEEDS_USER`.
 4. Record every substitution in the report, marking whether it's
    metric-compatible (only Phase 1 map pairs are).
+
+Which fonts to scan: `w:rFonts` on runs and on paragraph marks, `docDefaults`,
+every style that a paragraph or run in the document actually references
+(`w:pStyle`, `w:rStyle`, table styles) plus its `basedOn` chain, and theme
+fonts those resolve to. Never scan by regex (`w:lang w:eastAsia="en-US"` is not
+a font), and never scan unused latent styles. The font audit (Phase 1 3.4)
+stays the backstop: a font the scan misses fails the audit instead of
+rendering in a silent fallback.
 
 Measured: `unknown_font.docx` (Constantia, family roman) renders in Liberation
 Serif on 1 page and passes the font audit.
@@ -278,11 +302,12 @@ code, and the user message from 2.1.2.
 | Id | Test | Pass condition |
 |---|---|---|
 | P2-T1 | Static gate | Every rejected fixture in `expected.json` whose reason is a gate reason gets exactly that reason, with **zero** renders |
-| P2-T2 | Accepted fixtures | `ok_synthetic`, `unknown_font`, `link_in_bullet`, `side_by_side` are accepted with the `editable` count and `locked` map in `expected.json` |
+| P2-T2 | Accepted fixtures | `ok_synthetic`, `unknown_font`, `link_in_bullet`, `side_by_side` are accepted with the `editable` count and `locked` map in `expected.json`; where `expected.json` gives `lines`, those slots are measured at exactly that many lines |
 | P2-T3 | Render-stage rejects | `too_many_pages` → `TOO_MANY_PAGES`; `too_few_bullets` → `TOO_FEW_EDITABLE` |
 | P2-T4 | Corpus onboarding | All 9 accepted; pages and shrink equal golden; editable count equals golden's supported count (table below); no bullet locked for `shared_lines` |
 | P2-T5 | No regressions | `tailor corpus-check /app/corpus /app/golden` still prints ALL PASS |
 | P2-T6 | Recursion | Unit test: `BodyWalker` and `DomUtil.descendants` handle a 5,000-deep in-memory DOM without a stack overflow |
+| P2-T8 | Locking logic (unit, no rendering) | On constructed `PdfLines.Line` lists: (1) a bullet whose line also holds another column's text → `shared_lines`; (2) a foreign line between two of a bullet's lines → `shared_lines` (can't anchor); (3) two columns with separate, contiguous lines per bullet → both editable with correct counts; (4) a bullet's own glyph on its line is not foreign |
 | P2-T7 | Sandbox (manual) | Onboarding all 9 inside the section 3 sandbox succeeds; `curl` inside it fails |
 
 Corpus editable counts for P2-T4 (supported bullets per golden):
