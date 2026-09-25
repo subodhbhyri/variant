@@ -1,0 +1,103 @@
+{
+ "deep_nesting.docx": {
+  "accept": false,
+  "reason": "UNSAFE_XML"
+ },
+ "doctype_entity.docx": {
+  "accept": false,
+  "reason": "UNSAFE_XML"
+ },
+ "duplicate_entry.docx": {
+  "accept": false,
+  "reason": "DUPLICATE_ENTRY"
+ },
+ "embedded_object.docx": {
+  "accept": false,
+  "reason": "EMBEDDED_OBJECT"
+ },
+ "encrypted.docx": {
+  "accept": false,
+  "reason": "ENCRYPTED_OR_LEGACY"
+ },
+ "external_image.docx": {
+  "accept": false,
+  "reason": "EXTERNAL_RESOURCE"
+ },
+ "link_in_bullet.docx": {
+  "accept": true,
+  "editable": 5,
+  "locked": {
+   "0": "hyperlink"
+  }
+ },
+ "macro_content_type.docx": {
+  "accept": false,
+  "reason": "MACROS"
+ },
+ "macros.docx": {
+  "accept": false,
+  "reason": "MACROS"
+ },
+ "malformed_xml.docx": {
+  "accept": false,
+  "reason": "UNSAFE_XML"
+ },
+ "missing_document.docx": {
+  "accept": false,
+  "reason": "NOT_A_DOCX"
+ },
+ "not_a_zip.docx": {
+  "accept": false,
+  "reason": "NOT_A_DOCX"
+ },
+ "ok_synthetic.docx": {
+  "accept": true,
+  "editable": 6,
+  "locked": {}
+ },
+ "path_traversal.docx": {
+  "accept": false,
+  "reason": "UNSAFE_PATH"
+ },
+ "side_by_side.docx": {
+  "accept": true,
+  "editable": 4,
+  "locked": {
+   "3": "shared_lines",
+   "4": "shared_lines"
+  },
+  "note": "page count not asserted: the column break makes LibreOffice spill 3 lines"
+ },
+ "too_few_bullets.docx": {
+  "accept": false,
+  "reason": "TOO_FEW_EDITABLE"
+ },
+ "too_large.docx": {
+  "accept": false,
+  "reason": "FILE_TOO_LARGE"
+ },
+ "too_many_entries.docx": {
+  "accept": false,
+  "reason": "TOO_MANY_ENTRIES"
+ },
+ "too_many_pages.docx": {
+  "accept": false,
+  "reason": "TOO_MANY_PAGES"
+ },
+ "tracked_changes.docx": {
+  "accept": false,
+  "reason": "TRACKED_CHANGES"
+ },
+ "unknown_font.docx": {
+  "accept": true,
+  "editable": 6,
+  "font_substitution": {
+   "Constantia": "serif candidate"
+  },
+  "locked": {}
+ },
+ "zip_bomb.docx": {
+  "accept": false,
+  "reason": "ZIP_BOMB"
+ }
+}

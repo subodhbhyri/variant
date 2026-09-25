@@ -16,3 +16,6 @@ corpus/
 # OS
 Thumbs.db
 .DS_Store
+
+!fixtures/
+!fixtures/**/*.docx
