@@ -20,8 +20,9 @@ public final class GateReason {
     public static final String UNSAFE_XML = "UNSAFE_XML";
     public static final String TRACKED_CHANGES = "TRACKED_CHANGES";
 
-    // Later pipeline stages (section 4) — not returned by UploadGate itself.
+    // Later pipeline stages (section 4, 5) — not returned by UploadGate itself.
     public static final String TOO_MANY_PAGES = "TOO_MANY_PAGES";
     public static final String TOO_FEW_EDITABLE = "TOO_FEW_EDITABLE";
     public static final String NEEDS_USER = "NEEDS_USER";
+    public static final String PROCESSING_TIMEOUT = "PROCESSING_TIMEOUT";
 }

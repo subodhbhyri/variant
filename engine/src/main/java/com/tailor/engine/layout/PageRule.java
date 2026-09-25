@@ -30,7 +30,8 @@ public final class PageRule {
      *                           so this result is the unshrunk original (PHASE2_SPEC.md 4.1 step 4)
      */
     public record Result(Path normalizedDocx, Path pdf, int pages, double shrinkPt,
-                          int squeezeRemoved, int positionRemoved, boolean spillNotPulledBack) {
+                          int squeezeRemoved, int positionRemoved, int trailingEmptyRemoved,
+                          boolean spillNotPulledBack) {
     }
 
     private final Renderer renderer;
@@ -41,8 +42,20 @@ public final class PageRule {
 
     public Result apply(Path src, FontMap fontMap, Path dst, Path workDir)
             throws IOException, RenderException, TooManyPagesException {
+        // Step 0: strip trailing empty paragraphs before anything else sees this file, so a
+        // blank final page never enters the spill calculation below (PHASE2_SPEC.md 4.1 step 0).
+        // Kept out of FontNormalizer.prepare()/normalize(), which Phase 1's own `tailor normalize`
+        // and its golden-matched tests also use — this stays scoped to the page rule alone.
+        DocxPackage sourcePkg = DocxPackage.open(src);
+        int trailingEmptyRemoved = TrailingEmptyParagraphs.stripFromPackage(sourcePkg);
+        Path strippedSrc = src;
+        if (trailingEmptyRemoved > 0) {
+            strippedSrc = workDir.resolve("trailing-stripped-" + System.nanoTime() + ".docx");
+            sourcePkg.save(strippedSrc);
+        }
+
         FontNormalizer normalizer = new FontNormalizer(fontMap, renderer);
-        FontNormalizer.PreparedBase prepared = normalizer.prepare(src);
+        FontNormalizer.PreparedBase prepared = normalizer.prepare(strippedSrc);
 
         DocxPackage attempt0 = normalizer.shrunkCopy(prepared, 0);
         attempt0.save(dst);
@@ -54,7 +67,7 @@ public final class PageRule {
         Path finalPdf = pdf0;
         boolean spillNotPulledBack = false;
 
-        if (p0 > 1 && lastPageLineCount(pdf0) <= SPILL_LINE_THRESHOLD) {
+        if (p0 > 1 && lastPageLineCount(pdf0, p0) <= SPILL_LINE_THRESHOLD) {
             Integer achievedSteps = null;
             Path achievedPdf = null;
             for (int steps = 1; steps <= MAX_SPILL_SHRINK_STEPS; steps++) {
@@ -84,18 +97,22 @@ public final class PageRule {
             throw new TooManyPagesException(target);
         }
         return new Result(dst, finalPdf, target, shrinkUsed,
-                prepared.squeezeRemoved(), prepared.positionRemoved(), spillNotPulledBack);
+                prepared.squeezeRemoved(), prepared.positionRemoved(), trailingEmptyRemoved, spillNotPulledBack);
     }
 
-    private static int lastPageLineCount(Path pdf) throws IOException {
+    /**
+     * Lines on page {@code pageCount - 1} (0-indexed) — the PDF's actual last page, per
+     * {@link PdfPageCounter}, not the highest page index that happens to have any extracted
+     * text. A wholly blank last page has zero {@link PdfLines.Line} entries at all (extraction
+     * only produces lines where there's text), so using "the highest page index seen in the
+     * lines" would silently skip it and never see it as a spill (PHASE2_SPEC.md 4.1 step 2).
+     */
+    private static int lastPageLineCount(Path pdf, int pageCount) throws IOException {
         List<PdfLines.Line> lines = PdfLines.extract(pdf);
-        int lastPage = -1;
-        for (PdfLines.Line line : lines) {
-            lastPage = Math.max(lastPage, line.pageIndex());
-        }
+        int lastPageIndex = pageCount - 1;
         int count = 0;
         for (PdfLines.Line line : lines) {
-            if (line.pageIndex() == lastPage) {
+            if (line.pageIndex() == lastPageIndex) {
                 count++;
             }
         }

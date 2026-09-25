@@ -34,6 +34,8 @@ public final class Phase2Fixtures {
             Map<String, String> locked,
             Map<String, String> fontSubstitution,
             Map<String, Integer> lines,
+            Integer pages,
+            Integer trailingEmptyRemoved,
             String note) {
     }
 }

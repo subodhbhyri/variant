@@ -18,6 +18,8 @@ public final class NumberingResolver {
     private final Map<String, String> numToAbstract = new HashMap<>();
     private final Map<String, Map<String, String>> abstractLevelFmt = new HashMap<>();
     private final Map<String, Map<String, String>> numLevelOverrideFmt = new HashMap<>();
+    private final Map<String, Map<String, String>> abstractLevelText = new HashMap<>();
+    private final Map<String, Map<String, String>> numLevelOverrideText = new HashMap<>();
     private final Map<String, String> styleNumId = new HashMap<>();
     private final Map<String, String> styleBasedOn = new HashMap<>();
 
@@ -37,6 +39,7 @@ public final class NumberingResolver {
             }
             String abstractId = DomUtil.attr(abstractNum, "abstractNumId");
             Map<String, String> levels = new HashMap<>();
+            Map<String, String> levelTexts = new HashMap<>();
             for (Element lvl : DomUtil.elementChildren(abstractNum)) {
                 if (!"lvl".equals(lvl.getLocalName())) {
                     continue;
@@ -46,8 +49,13 @@ public final class NumberingResolver {
                 if (numFmt != null) {
                     levels.put(ilvl, DomUtil.attr(numFmt, "val"));
                 }
+                Element lvlText = DomUtil.firstChild(lvl, "lvlText");
+                if (lvlText != null) {
+                    levelTexts.put(ilvl, DomUtil.attr(lvlText, "val"));
+                }
             }
             abstractLevelFmt.put(abstractId, levels);
+            abstractLevelText.put(abstractId, levelTexts);
         }
 
         for (Element num : DomUtil.elementChildren(root)) {
@@ -60,6 +68,7 @@ public final class NumberingResolver {
                 numToAbstract.put(numId, DomUtil.attr(abstractRef, "val"));
             }
             Map<String, String> overrides = new HashMap<>();
+            Map<String, String> overrideTexts = new HashMap<>();
             for (Element lvlOverride : DomUtil.elementChildren(num)) {
                 if (!"lvlOverride".equals(lvlOverride.getLocalName())) {
                     continue;
@@ -73,9 +82,16 @@ public final class NumberingResolver {
                 if (numFmt != null) {
                     overrides.put(ilvl, DomUtil.attr(numFmt, "val"));
                 }
+                Element lvlText = DomUtil.firstChild(lvl, "lvlText");
+                if (lvlText != null) {
+                    overrideTexts.put(ilvl, DomUtil.attr(lvlText, "val"));
+                }
             }
             if (!overrides.isEmpty()) {
                 numLevelOverrideFmt.put(numId, overrides);
+            }
+            if (!overrideTexts.isEmpty()) {
+                numLevelOverrideText.put(numId, overrideTexts);
             }
         }
     }
@@ -108,6 +124,49 @@ public final class NumberingResolver {
 
     /** Effective {@code numFmt} for this paragraph (e.g. "bullet", "decimal"), or empty if not numbered. */
     public Optional<String> resolveNumFmt(Element paragraph) {
+        NumRef ref = resolveNumRef(paragraph);
+        if (ref == null) {
+            return Optional.empty();
+        }
+        Map<String, String> overrides = numLevelOverrideFmt.get(ref.numId());
+        if (overrides != null && overrides.containsKey(ref.ilvl())) {
+            return Optional.ofNullable(overrides.get(ref.ilvl()));
+        }
+        String abstractId = numToAbstract.get(ref.numId());
+        if (abstractId == null) {
+            return Optional.empty();
+        }
+        Map<String, String> levels = abstractLevelFmt.get(abstractId);
+        return levels == null ? Optional.empty() : Optional.ofNullable(levels.get(ref.ilvl()));
+    }
+
+    /**
+     * The numbering level's own bullet glyph text (PHASE2_SPEC.md 4.2), e.g. {@code "•"}
+     * or the "o" Word uses for some second-level bullets. Empty if not numbered or the level
+     * has no {@code lvlText}.
+     */
+    public Optional<String> resolveLvlText(Element paragraph) {
+        NumRef ref = resolveNumRef(paragraph);
+        if (ref == null) {
+            return Optional.empty();
+        }
+        Map<String, String> overrides = numLevelOverrideText.get(ref.numId());
+        if (overrides != null && overrides.containsKey(ref.ilvl())) {
+            return Optional.ofNullable(overrides.get(ref.ilvl()));
+        }
+        String abstractId = numToAbstract.get(ref.numId());
+        if (abstractId == null) {
+            return Optional.empty();
+        }
+        Map<String, String> levelTexts = abstractLevelText.get(abstractId);
+        return levelTexts == null ? Optional.empty() : Optional.ofNullable(levelTexts.get(ref.ilvl()));
+    }
+
+    private record NumRef(String numId, String ilvl) {
+    }
+
+    /** Direct {@code w:numPr}, or the style chain's — shared by numFmt and lvlText resolution. */
+    private NumRef resolveNumRef(Element paragraph) {
         Element pPr = DomUtil.firstChild(paragraph, "pPr");
         Element numPr = pPr != null ? DomUtil.firstChild(pPr, "numPr") : null;
 
@@ -126,19 +185,9 @@ public final class NumberingResolver {
         }
 
         if (numId == null || "0".equals(numId)) {
-            return Optional.empty();
+            return null;
         }
-
-        Map<String, String> overrides = numLevelOverrideFmt.get(numId);
-        if (overrides != null && overrides.containsKey(ilvl)) {
-            return Optional.ofNullable(overrides.get(ilvl));
-        }
-        String abstractId = numToAbstract.get(numId);
-        if (abstractId == null) {
-            return Optional.empty();
-        }
-        Map<String, String> levels = abstractLevelFmt.get(abstractId);
-        return levels == null ? Optional.empty() : Optional.ofNullable(levels.get(ilvl));
+        return new NumRef(numId, ilvl);
     }
 
     /** Walks the w:pStyle -> w:basedOn chain (max 10 hops) for the first style that carries a numId. */

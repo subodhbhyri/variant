@@ -27,7 +27,8 @@ class OnboardFixtureTest {
         OnboardPipeline pipeline = newPipeline();
 
         StringBuilder failures = new StringBuilder();
-        for (String name : List.of("ok_synthetic.docx", "unknown_font.docx", "link_in_bullet.docx", "side_by_side.docx")) {
+        for (String name : List.of("ok_synthetic.docx", "unknown_font.docx", "link_in_bullet.docx",
+                "side_by_side.docx", "blank_trailing_page.docx")) {
             Expected exp = expected.get(name);
             OnboardReport report = runOnboard(pipeline, fixturesDir.resolve(name), name);
 
@@ -58,6 +59,15 @@ class OnboardFixtureTest {
                                 .append(" expected=").append(e.getValue()).append('\n');
                     }
                 }
+            }
+            if (exp.pages() != null && !exp.pages().equals(report.pages())) {
+                failures.append(name).append(": pages=").append(report.pages())
+                        .append(" expected=").append(exp.pages()).append('\n');
+            }
+            if (exp.trailingEmptyRemoved() != null
+                    && !exp.trailingEmptyRemoved().equals(report.trailingEmptyRemoved())) {
+                failures.append(name).append(": trailingEmptyRemoved=").append(report.trailingEmptyRemoved())
+                        .append(" expected=").append(exp.trailingEmptyRemoved()).append('\n');
             }
         }
         assertTrue(failures.isEmpty(), "P2-T2 failures:\n" + failures);

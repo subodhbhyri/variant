@@ -30,7 +30,9 @@ public final class GateMessages {
                             + "Insert the image directly and try again."),
             Map.entry(GateReason.TRACKED_CHANGES,
                     "Your resume has tracked changes. Accept or reject them in Word, then upload again."),
-            Map.entry(GateReason.TOO_MANY_PAGES, "Resumes longer than 2 pages aren't supported yet."));
+            Map.entry(GateReason.TOO_MANY_PAGES, "Resumes longer than 2 pages aren't supported yet."),
+            Map.entry(GateReason.PROCESSING_TIMEOUT,
+                    "We couldn't process this file in time. Try saving it again from Word."));
 
     private GateMessages() {
     }

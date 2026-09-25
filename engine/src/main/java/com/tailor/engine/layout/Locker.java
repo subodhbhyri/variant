@@ -16,13 +16,9 @@ import java.util.Map;
  */
 public final class Locker {
 
-    /**
-     * How many characters an anchored span may exceed the slot's own (normalized,
-     * whitespace-stripped) text by and still count as "just the bullet glyph".
-     * A real glyph contributes one character; a neighboring column's text would
-     * add many times that, so this stays strict without being fragile.
-     */
-    private static final int MAX_GLYPH_CHARS = 3;
+    /** Leftover (after removing the bullet's own text once) longer than this is foreign,
+     * regardless of content — PHASE2_SPEC.md 4.2's "more than 3 characters". */
+    private static final int MAX_LEFTOVER_CHARS = 3;
 
     public record LockedSlot(Slot slot, boolean editable, String lockReason) {
     }
@@ -30,7 +26,14 @@ public final class Locker {
     private Locker() {
     }
 
-    public static List<LockedSlot> lock(List<Slot> slots, List<PdfLines.Line> lines) {
+    /**
+     * @param glyphBySlotIndex each slot's own numbering-level glyph (lvlText), e.g. "•" or
+     *                         "o" — a letter/digit in that glyph is never treated as foreign.
+     *                         A slot missing from this map (no numbering info resolved) gets no
+     *                         glyph tolerance at all.
+     */
+    public static List<LockedSlot> lock(
+            List<Slot> slots, List<PdfLines.Line> lines, Map<Integer, String> glyphBySlotIndex) {
         List<String> slotTexts = slots.stream().map(Slot::text).toList();
         Map<Integer, int[]> spans = AnchorMeasurer.measureSpans(lines, slotTexts);
 
@@ -41,7 +44,8 @@ public final class Locker {
                 continue;
             }
             int[] span = spans.get(s.index());
-            if (span == null || hasForeignText(lines, span, s.text())) {
+            String glyph = glyphBySlotIndex.getOrDefault(s.index(), "");
+            if (span == null || hasForeignLeftover(lines, span, s.text(), glyph)) {
                 out.add(new LockedSlot(s, false, "shared_lines"));
                 continue;
             }
@@ -50,14 +54,34 @@ public final class Locker {
         return out;
     }
 
-    private static boolean hasForeignText(List<PdfLines.Line> lines, int[] span, String slotText) {
+    /**
+     * PHASE2_SPEC.md 4.2: after removing the bullet's own text once, what remains is foreign
+     * if it's longer than 3 characters, or contains a letter or digit that isn't part of the
+     * bullet's own glyph. A neighbour's text almost always contains a letter or digit, however
+     * short ("Go", "2024"); a bare length check lets those through.
+     */
+    private static boolean hasForeignLeftover(List<PdfLines.Line> lines, int[] span, String slotText, String glyph) {
         StringBuilder combined = new StringBuilder();
         for (int k = span[0]; k <= span[1]; k++) {
             combined.append(lines.get(k).normalizedText());
         }
         String normalizedSlot = normalize(slotText);
-        int extra = combined.length() - normalizedSlot.length();
-        return extra < 0 || extra > MAX_GLYPH_CHARS || !combined.toString().contains(normalizedSlot);
+        int idx = combined.indexOf(normalizedSlot);
+        if (idx < 0) {
+            return true; // shouldn't happen: AnchorMeasurer already found this span by containment
+        }
+        String leftover = combined.substring(0, idx) + combined.substring(idx + normalizedSlot.length());
+        if (leftover.length() > MAX_LEFTOVER_CHARS) {
+            return true;
+        }
+        String normalizedGlyph = normalize(glyph);
+        for (int i = 0; i < leftover.length(); i++) {
+            char c = leftover.charAt(i);
+            if (Character.isLetterOrDigit(c) && normalizedGlyph.indexOf(c) < 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Same normalization AnchorMeasurer uses: NFKC, whitespace stripped. */

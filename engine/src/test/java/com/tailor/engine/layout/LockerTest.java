@@ -20,11 +20,14 @@ class LockerTest {
 
     @Test
     void lineSharedWithAnotherColumnLocksAsSharedLines() { // case 1
+        // A short foreign snippet ("Go", 2 chars) is exactly what revision 2's plain
+        // length check let through — real neighbouring text is almost always this short
+        // at a column boundary. The letter/digit check must catch it regardless of length.
         Slot slot = supportedSlot(0, "Alpha bravo charlie");
         List<PdfLines.Line> lines = List.of(
-                new PdfLines.Line(0, 100, "Alphabravocharlie" + "ForeignColumnText"));
+                new PdfLines.Line(0, 100, "Alphabravocharlie" + "Go"));
 
-        List<LockedSlot> result = Locker.lock(List.of(slot), lines);
+        List<LockedSlot> result = Locker.lock(List.of(slot), lines, Map.of(0, "•"));
 
         assertFalse(result.get(0).editable());
         assertEquals("shared_lines", result.get(0).lockReason());
@@ -38,7 +41,7 @@ class LockerTest {
                 new PdfLines.Line(0, 112, "ForeignColumnLineInBetween"),
                 new PdfLines.Line(0, 124, "charliedelta"));
 
-        List<LockedSlot> result = Locker.lock(List.of(slot), lines);
+        List<LockedSlot> result = Locker.lock(List.of(slot), lines, Map.of());
 
         assertFalse(result.get(0).editable());
         assertEquals("shared_lines", result.get(0).lockReason());
@@ -56,7 +59,7 @@ class LockerTest {
                 new PdfLines.Line(0, 124, "Iiiijjjjkkkkllll"),
                 new PdfLines.Line(0, 136, "mmmmnnnnoooopppp"));
 
-        List<LockedSlot> result = Locker.lock(List.of(slotA, slotB), lines);
+        List<LockedSlot> result = Locker.lock(List.of(slotA, slotB), lines, Map.of(0, "•", 1, "•"));
         Map<Integer, Integer> counts = AnchorMeasurer.measure(lines, List.of(slotA.text(), slotB.text()));
 
         assertTrue(result.get(0).editable());
@@ -67,10 +70,13 @@ class LockerTest {
 
     @Test
     void ownBulletGlyphOnTheLineIsNotForeign() { // case 4
+        // Uses a LETTER glyph ("o", as Word does for some second-level bullets) rather than a
+        // punctuation bullet: that's the case revision 2 couldn't distinguish from real foreign
+        // text, since both are "a character" under a plain length check.
         Slot slot = supportedSlot(0, "Alpha bravo charlie");
-        List<PdfLines.Line> lines = List.of(new PdfLines.Line(0, 100, "•Alphabravocharlie"));
+        List<PdfLines.Line> lines = List.of(new PdfLines.Line(0, 100, "oAlphabravocharlie"));
 
-        List<LockedSlot> result = Locker.lock(List.of(slot), lines);
+        List<LockedSlot> result = Locker.lock(List.of(slot), lines, Map.of(0, "o"));
 
         assertTrue(result.get(0).editable());
         assertEquals(null, result.get(0).lockReason());

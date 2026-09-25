@@ -14,6 +14,7 @@ public record OnboardReport(
         Double shrinkPt,
         Integer squeezeRemoved,
         Integer positionRemoved,
+        Integer trailingEmptyRemoved,
         List<FontSub> fonts,
         Integer editableCount,
         List<SlotReport> slots,
@@ -27,14 +28,14 @@ public record OnboardReport(
     }
 
     public static OnboardReport rejected(String reason, String message) {
-        return new OnboardReport(false, reason, message, null, null, null, null, null, null, null, null);
+        return new OnboardReport(false, reason, message, null, null, null, null, null, null, null, null, null);
     }
 
     public static OnboardReport accepted(
-            int pages, double shrinkPt, int squeezeRemoved, int positionRemoved,
+            int pages, double shrinkPt, int squeezeRemoved, int positionRemoved, int trailingEmptyRemoved,
             List<FontSub> fonts, int editableCount, List<SlotReport> slots, String rendererVersion) {
         return new OnboardReport(true, null, null, pages, shrinkPt, squeezeRemoved, positionRemoved,
-                fonts, editableCount, slots, rendererVersion);
+                trailingEmptyRemoved, fonts, editableCount, slots, rendererVersion);
     }
 
     public void writeTo(Path jsonPath) throws IOException {

@@ -23,3 +23,24 @@ docker run --rm resume-tailor gradle --no-daemon :cli:run --args="render corpus/
 ```
 
 `corpus/` in this repo holds the 9 resumes used for golden-file testing.
+
+## Deployment (Phase 2 sandbox)
+
+Uploads are onboarded inside a restricted, non-root container, not the dev
+image above — see `PHASE2_SPEC.md` section 3. Build and run it with:
+
+```
+docker build -f docker/Dockerfile --target runtime -t variant-runtime .
+docker run --rm --network none --read-only --tmpfs /tmp:rw,size=512m \
+  --memory 1g --cpus 1 --pids-limit 256 --cap-drop ALL \
+  --security-opt no-new-privileges \
+  -v <input dir>:/in:ro -v <output dir>:/out \
+  variant-runtime java -jar /app/tailor.jar onboard /in/resume.docx /out
+```
+
+**The `/out` mount must be writable by UID 10001 (the `variant` user)
+before the container starts** — the sandbox runs read-only and non-root, so
+it cannot chown its own output directory. Whatever prepares that mount
+(the deploying orchestration, a provisioning script, …) needs to either
+create it with permissive permissions or `chown -R 10001:10001` it first;
+otherwise every onboarding run fails writing `normalized.docx`.
