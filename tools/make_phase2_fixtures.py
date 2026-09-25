@@ -157,7 +157,9 @@ expected["path_traversal.docx"] = {"accept": False, "reason": "UNSAFE_PATH"}
 rewrite(base, "duplicate_entry.docx", extra_raw=[("word/document.xml", b"<shadow/>", zipfile.ZIP_DEFLATED)])
 expected["duplicate_entry.docx"] = {"accept": False, "reason": "DUPLICATE_ENTRY"}
 
-rewrite(base, "macros.docx", add={"word/vbaProject.bin": b"\xd0\xcf\x11\xe0fake-vba"})
+rewrite(base, "macros.docx", add={"word/vbaProject.bin": b"\xd0\xcf\x11\xe0fake-vba"},
+        edit_parts={"[Content_Types].xml": lambda x: x.replace("</Types>",
+            '<Default Extension="bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>')})
 expected["macros.docx"] = {"accept": False, "reason": "MACROS"}
 
 rewrite(base, "macro_content_type.docx", edit_parts={"[Content_Types].xml": lambda x: x.replace(
@@ -165,7 +167,9 @@ rewrite(base, "macro_content_type.docx", edit_parts={"[Content_Types].xml": lamb
     "application/vnd.ms-word.document.macroEnabled.main+xml")})
 expected["macro_content_type.docx"] = {"accept": False, "reason": "MACROS"}
 
-rewrite(base, "embedded_object.docx", add={"word/embeddings/oleObject1.bin": b"\xd0\xcf\x11\xe0fake-ole"})
+rewrite(base, "embedded_object.docx", add={"word/embeddings/oleObject1.bin": b"\xd0\xcf\x11\xe0fake-ole"},
+        edit_parts={"[Content_Types].xml": lambda x: x.replace("</Types>",
+            '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/></Types>')})
 expected["embedded_object.docx"] = {"accept": False, "reason": "EMBEDDED_OBJECT"}
 
 rewrite(base, "external_image.docx", edit_parts={"word/_rels/document.xml.rels": lambda x: x.replace(
@@ -187,6 +191,96 @@ def deep_tables(x):
     return x[:s] + nest + "<w:p/>" + x[s:]
 rewrite(base, "deep_nesting.docx", edit_parts={"word/document.xml": deep_tables})
 expected["deep_nesting.docx"] = {"accept": False, "reason": "UNSAFE_XML"}
+
+# --- added after the Opus security review (revision 2) ------------------------
+def swap(src_bytes, name, parts_fn):
+    """Rebuild a zip from a dict of parts that parts_fn may edit (safe: fresh ZipInfo objects)."""
+    zin = zipfile.ZipFile(io.BytesIO(src_bytes)); parts = {n: zin.read(n) for n in zin.namelist()}
+    parts_fn(parts); buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zout:
+        for n, b in parts.items(): zout.writestr(n, b)
+    with open(os.path.join(OUT, name), "wb") as f: f.write(buf.getvalue())
+
+MAIN_CT = b"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
+W_NS = b"http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+# R1: package relationships point LibreOffice at a main document the gate never parsed
+def redirect(p):
+    p["_rels/.rels"] = p["_rels/.rels"].replace(b'Target="word/document.xml"', b'Target="word/main.bin"')
+    p["[Content_Types].xml"] = p["[Content_Types].xml"].replace(
+        b"</Types>", b'<Override PartName="/word/main.bin" ContentType="' + MAIN_CT + b'"/></Types>')
+    p["word/main.bin"] = p["word/document.xml"].replace(b"Jane Doe", b"Unchecked Content")
+    p["word/_rels/main.bin.rels"] = p["word/_rels/document.xml.rels"]
+swap(base, "main_doc_redirect.docx", redirect)
+expected["main_doc_redirect.docx"] = {"accept": False, "reason": "NOT_A_DOCX"}
+
+# R2: tracked change hidden behind a different namespace prefix
+_tc = open(os.path.join(OUT, "tracked_changes.docx"), "rb").read()
+def prefixed(p):
+    d = p["word/document.xml"]
+    d = re.sub(rb'<w:ins w:id="901" w:author="Editor" w:date="([^"]+)">',
+               b'<x:ins xmlns:x="' + W_NS + rb'" x:id="901" x:author="Editor" x:date="\1">', d, count=1)
+    p["word/document.xml"] = d.replace(b"</w:ins>", b"</x:ins>", 1)
+swap(_tc, "tracked_changes_prefixed.docx", prefixed)
+expected["tracked_changes_prefixed.docx"] = {"accept": False, "reason": "TRACKED_CHANGES"}
+
+# R2b: tracked change in a header, not the body
+_hd = base_document(); _hd.sections[0].header.paragraphs[0].text = "Jane Doe — Resume"
+_hdb = io.BytesIO(); _hd.save(_hdb)
+def tracked_header(p):
+    h = next(n for n in p if n.startswith("word/header") and n.endswith(".xml"))
+    x = p[h]; i = x.index(b"<w:r>"); j = x.index(b"</w:r>", i) + 6
+    p[h] = x[:i] + b'<w:ins w:id="902" w:author="Editor" w:date="2026-01-01T00:00:00Z">' + x[i:j] + b"</w:ins>" + x[j:]
+swap(_hdb.getvalue(), "tracked_changes_header.docx", tracked_header)
+expected["tracked_changes_header.docx"] = {"accept": False, "reason": "TRACKED_CHANGES"}
+
+# R3: same part name in different case (OPC part names are case-insensitive)
+swap(base, "case_duplicate.docx", lambda p: p.__setitem__("Word/Document.xml", p["word/document.xml"]))
+expected["case_duplicate.docx"] = {"accept": False, "reason": "DUPLICATE_ENTRY"}
+
+# R4: embedded OLE object stored outside word/embeddings/, found by relationship type
+def ole_elsewhere(p):
+    p["word/media/object1.bin"] = b"\xd0\xcf\x11\xe0fake-ole"
+    p["[Content_Types].xml"] = p["[Content_Types].xml"].replace(
+        b"</Types>", b'<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/></Types>')
+    p["word/_rels/document.xml.rels"] = p["word/_rels/document.xml.rels"].replace(b"</Relationships>",
+        b'<Relationship Id="rIdOle1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" '
+        b'Target="media/object1.bin"/></Relationships>')
+swap(base, "ole_elsewhere.docx", ole_elsewhere)
+expected["ole_elsewhere.docx"] = {"accept": False, "reason": "EMBEDDED_OBJECT"}
+
+# R4b: altChunk (imports a foreign document into the body)
+def altchunk(p):
+    p["word/afchunk.htm"] = b"<html><body><p>Imported content</p></body></html>"
+    p["[Content_Types].xml"] = p["[Content_Types].xml"].replace(
+        b"</Types>", b'<Default Extension="htm" ContentType="application/xhtml+xml"/></Types>')
+    p["word/_rels/document.xml.rels"] = p["word/_rels/document.xml.rels"].replace(b"</Relationships>",
+        b'<Relationship Id="rIdAlt1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/aFChunk" '
+        b'Target="afchunk.htm"/></Relationships>')
+swap(base, "altchunk.docx", altchunk)
+expected["altchunk.docx"] = {"accept": False, "reason": "EMBEDDED_OBJECT"}
+
+# R4c: macro content type written in lower case
+swap(base, "macro_lowercase_ct.docx", lambda p: p.__setitem__("[Content_Types].xml", p["[Content_Types].xml"].replace(
+    MAIN_CT, b"application/vnd.ms-word.document.macroenabled.main+xml")))
+expected["macro_lowercase_ct.docx"] = {"accept": False, "reason": "MACROS"}
+
+# R5: linked-content field (LibreOffice 24.2 doesn't resolve it; rejected as defense in depth)
+swap(base, "field_includetext.docx", lambda p: p.__setitem__("word/document.xml", p["word/document.xml"].replace(
+    b"<w:body>", b'<w:body><w:p><w:fldSimple w:instr=" INCLUDETEXT &quot;/etc/os-release&quot; ">'
+                 b"<w:r><w:t>cached</w:t></w:r></w:fldSimple></w:p>", 1)))
+expected["field_includetext.docx"] = {"accept": False, "reason": "EXTERNAL_RESOURCE"}
+
+# R5b: a URL target without TargetMode="External"
+swap(base, "url_target_internal_mode.docx", lambda p: p.__setitem__("word/_rels/document.xml.rels",
+    p["word/_rels/document.xml.rels"].replace(b"</Relationships>",
+        b'<Relationship Id="rIdImg9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+        b'Target="http://tracker.example.com/pixel.png"/></Relationships>')))
+expected["url_target_internal_mode.docx"] = {"accept": False, "reason": "EXTERNAL_RESOURCE"}
+
+# R6: a part with no declared content type
+swap(base, "untyped_part.docx", lambda p: p.__setitem__("word/extra.zzz", b"<x/>"))
+expected["untyped_part.docx"] = {"accept": False, "reason": "NOT_A_DOCX"}
 
 with open(os.path.join(OUT, "expected.json"), "w") as f:
     json.dump(expected, f, indent=1, sort_keys=True)

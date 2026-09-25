@@ -1,4 +1,12 @@
 {
+ "altchunk.docx": {
+  "accept": false,
+  "reason": "EMBEDDED_OBJECT"
+ },
+ "case_duplicate.docx": {
+  "accept": false,
+  "reason": "DUPLICATE_ENTRY"
+ },
  "deep_nesting.docx": {
   "accept": false,
   "reason": "UNSAFE_XML"
@@ -23,6 +31,10 @@
   "accept": false,
   "reason": "EXTERNAL_RESOURCE"
  },
+ "field_includetext.docx": {
+  "accept": false,
+  "reason": "EXTERNAL_RESOURCE"
+ },
  "link_in_bullet.docx": {
   "accept": true,
   "editable": 5,
@@ -34,9 +46,17 @@
   "accept": false,
   "reason": "MACROS"
  },
+ "macro_lowercase_ct.docx": {
+  "accept": false,
+  "reason": "MACROS"
+ },
  "macros.docx": {
   "accept": false,
   "reason": "MACROS"
+ },
+ "main_doc_redirect.docx": {
+  "accept": false,
+  "reason": "NOT_A_DOCX"
  },
  "malformed_xml.docx": {
   "accept": false,
@@ -54,6 +74,10 @@
   "accept": true,
   "editable": 6,
   "locked": {}
+ },
+ "ole_elsewhere.docx": {
+  "accept": false,
+  "reason": "EMBEDDED_OBJECT"
  },
  "path_traversal.docx": {
   "accept": false,
@@ -88,6 +112,14 @@
   "accept": false,
   "reason": "TRACKED_CHANGES"
  },
+ "tracked_changes_header.docx": {
+  "accept": false,
+  "reason": "TRACKED_CHANGES"
+ },
+ "tracked_changes_prefixed.docx": {
+  "accept": false,
+  "reason": "TRACKED_CHANGES"
+ },
  "unknown_font.docx": {
   "accept": true,
   "editable": 6,
@@ -95,6 +127,14 @@
    "Constantia": "serif candidate"
   },
   "locked": {}
+ },
+ "untyped_part.docx": {
+  "accept": false,
+  "reason": "NOT_A_DOCX"
+ },
+ "url_target_internal_mode.docx": {
+  "accept": false,
+  "reason": "EXTERNAL_RESOURCE"
  },
  "zip_bomb.docx": {
   "accept": false,

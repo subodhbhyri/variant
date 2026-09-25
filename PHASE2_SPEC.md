@@ -53,15 +53,45 @@ so the order matters.
 | 2 | Starts with `D0 CF 11 E0 A1 B1 1A E1` (OLE: encrypted .docx or legacy .doc) | — | `ENCRYPTED_OR_LEGACY` |
 | 3 | Not a readable zip | — | `NOT_A_DOCX` |
 | 4 | Entry count (central directory) | > 200 | `TOO_MANY_ENTRIES` |
-| 5 | Two entries with the same name | — | `DUPLICATE_ENTRY` |
+| 5 | Two entries whose names are equal **ignoring case** (OPC part names are case-insensitive) | — | `DUPLICATE_ENTRY` |
 | 6 | Unsafe entry name: empty, starts with `/` or `\`, contains `\`, a drive letter (`C:`), or any `.`/`..` path segment | — | `UNSAFE_PATH` |
 | 7 | Declared total unpacked > 20 MB, any entry > 10 MB, or any entry's size/compressed > 200 | — | `ZIP_BOMB` |
-| 8 | Missing `[Content_Types].xml` or `word/document.xml` | — | `NOT_A_DOCX` |
-| 9 | Any entry ending `vbaProject.bin` (case-insensitive), or content types containing `macroEnabled` | — | `MACROS` |
-| 10 | Any entry under `word/embeddings/` or `word/activeX/` | — | `EMBEDDED_OBJECT` |
-| 11 | Any relationship with `TargetMode="External"` whose type is **not** hyperlink | — | `EXTERNAL_RESOURCE` |
-| 12 | Every `.xml` / `.rels` part must parse with SafeXml: no DOCTYPE, no entities, element depth ≤ 100 | — | `UNSAFE_XML` |
-| 13 | `word/document.xml` contains `w:ins`, `w:del`, `w:moveFrom` or `w:moveTo` | — | `TRACKED_CHANGES` |
+| 8 | **A well-formed Word package:** `[Content_Types].xml`, `_rels/.rels` and `word/document.xml` exist; every part has a content type (Override by part name, else Default by extension, both case-insensitive); `_rels/.rels` has exactly one `officeDocument` relationship and its target is `word/document.xml`; that part's content type is a Word main type (document, template, or their macro-enabled variants, case-insensitive) | — | `NOT_A_DOCX` (`UNSAFE_XML` if `[Content_Types].xml` or `_rels/.rels` won't parse safely) |
+| 9 | Macros: an entry ending `vbaProject.bin`; any content type containing `macroEnabled` or `vbaProject`; any relationship type `vbaProject` or `wordVbaData` (all case-insensitive) | — | `MACROS` |
+| 10 | Embedded objects: an entry under `word/embeddings/` or `word/activeX/`; any relationship type `oleObject`, `package`, `control`, `activeXControl`, `activeXControlBinary` or `aFChunk` (case-insensitive) | — | `EMBEDDED_OBJECT` |
+| 11 | External resources: any non-hyperlink relationship with `TargetMode="External"`, **or** whose target has a URI scheme (`http:`, `file:`, …) or starts with `//` or `\\` | — | `EXTERNAL_RESOURCE` |
+| 12 | Every part whose **content type** ends in `xml`, and every `.rels` part, parses with SafeXml: no DOCTYPE, no entities, element depth ≤ 100 | — | `UNSAFE_XML` |
+| 13a | Any `word/` XML part has a field whose instruction starts with `INCLUDETEXT`, `INCLUDEPICTURE`, `LINK`, `DDE`, `DDEAUTO` or `IMPORT` (`w:instrText` text or `w:fldSimple/@w:instr`) | — | `EXTERNAL_RESOURCE` |
+| 13b | Any `word/` XML part contains `ins`, `del`, `moveFrom` or `moveTo` elements **in the WordprocessingML namespace, whatever prefix it uses** | — | `TRACKED_CHANGES` |
+
+### 2.1.0 Why revision 2 (Opus security review)
+
+Revision 1 checked names and literal strings; LibreOffice follows the
+package's own relationships, content types and namespaces. Measured:
+
+- **Main-document redirect (high):** `_rels/.rels` can point `officeDocument`
+  at any part, e.g. `word/main.bin`. Revision 1 accepted it, parsed only
+  `word/document.xml`, and LibreOffice rendered the unchecked part — which
+  could carry a DOCTYPE, since check 12 went by `.xml` extension. The
+  pipeline would also have edited the decoy. Fixed by check 8 and by check 12
+  going by content type. Fixture: `main_doc_redirect.docx`.
+- **Namespace-prefix bypass (medium):** `<x:ins xmlns:x="…wordprocessingml…">`
+  passed the `<w:ins` regex while LibreOffice still saw a tracked change. Same
+  for tracked changes in headers, which revision 1 never looked at. Fixed by
+  13b. Fixtures: `tracked_changes_prefixed.docx`, `tracked_changes_header.docx`.
+- **Detection by path only (medium):** OLE objects, `altChunk` and macro parts
+  can live anywhere and be found through relationship and content types.
+  Fixed by checks 9–10. Fixtures: `ole_elsewhere.docx`, `altchunk.docx`,
+  `macro_lowercase_ct.docx`.
+- **Linked fields (low):** `INCLUDETEXT`/`INCLUDEPICTURE` could read local
+  files at render time. LibreOffice 24.2 was measured **not** to resolve them
+  (it shows the stored text), so this is defense in depth against future
+  versions. Fixtures: `field_includetext.docx`, `url_target_internal_mode.docx`.
+- **Case-variant duplicates (low):** `word/document.xml` + `Word/Document.xml`.
+  Fixture: `case_duplicate.docx`. Untyped parts: `untyped_part.docx`.
+
+Every one of the 9 corpus resumes still passes; all 32 fixtures match
+`expected.json` in `reference/gate_ref.py`.
 
 Corpus measurements behind the limits: max 16 entries, max 583 KB unpacked,
 max ratio 40 (Subodh). All 9 corpus resumes pass the gate; the Python
@@ -90,6 +120,14 @@ reason.
 - Font normalization rewrites XML with regex. It must only ever see parts that
   already passed check 12.
 - A rejection costs **zero renders** (test P2-T1 counts them).
+- **The gate never throws.** Any unexpected exception while reading the zip
+  (including `RuntimeException`s such as `IllegalArgumentException` from a
+  malformed entry name) becomes `NOT_A_DOCX`. Only infrastructure failures
+  (e.g. the temp directory is unwritable) may propagate.
+- **Namespace-aware checks.** Checks 13a/13b match on namespace URI + local
+  name, never on a literal prefix. Note `DomUtil` matches local names only; use
+  `getNamespaceURI()`/`getElementsByTagNameNS` here.
+- Parse each XML part **once** in check 12 and reuse the trees for 13a/13b.
 
 ### 2.1.2 Messages shown to the user
 
