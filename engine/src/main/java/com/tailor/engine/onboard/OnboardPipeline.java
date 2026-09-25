@@ -48,6 +48,8 @@ public final class OnboardPipeline {
     private static final int MIN_EDITABLE = 3;
     private static final int CALIBRATION_PROSE_LENGTH = 900;
     private static final Duration DEFAULT_DEADLINE = Duration.ofSeconds(180);
+    /** Bound on waiting for the background task to actually stop after being cancelled. */
+    private static final Duration EXECUTOR_STOP_BOUND = Duration.ofSeconds(10);
 
     private final Renderer renderer;
     private final FontMap fontMap;
@@ -64,6 +66,15 @@ public final class OnboardPipeline {
         this.deadline = deadline;
     }
 
+    /** Everything the background task computes; {@code normalizedDocx}/{@code previewPdf} are
+     * workDir-local paths, non-null only for an accepted outcome, copied to outDir by the
+     * caller — never by the background task itself. */
+    private record PipelineOutcome(OnboardReport report, Path normalizedDocx, Path previewPdf) {
+        static PipelineOutcome rejected(String reason, String message) {
+            return new PipelineOutcome(OnboardReport.rejected(reason, message), null, null);
+        }
+    }
+
     public OnboardReport run(byte[] upload, Path outDir) throws IOException, RenderException {
         Files.createDirectories(outDir);
 
@@ -75,18 +86,28 @@ public final class OnboardPipeline {
         }
 
         // The whole rest of onboarding (unbounded: unknown fonts x candidates x shrink steps,
-        // plus calibration) runs under a wall-clock deadline. A separate thread is the only way
-        // to bound it regardless of *where* it's slow, since the work isn't a simple loop we can
+        // plus calibration) runs under a wall-clock deadline, on a background thread — the only
+        // way to bound it regardless of *where* it's slow, since this isn't a simple loop we can
         // sprinkle elapsed-time checks into (PHASE2_SPEC.md section 5).
+        //
+        // The background task (runPipeline) never touches outDir — only workDir. If the deadline
+        // fires, the calling thread has already stopped waiting on it; a background task that
+        // hasn't noticed its interrupt yet and is still mid-flight must not be able to race the
+        // PROCESSING_TIMEOUT write below by writing its own (stale) onboard.json afterward. Only
+        // this method writes to outDir, and only after get() has returned.
         Path workDir = Files.createTempDirectory("onboard-work");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            Future<OnboardReport> future = executor.submit(() -> runPipeline(gate, outDir, workDir));
+            Future<PipelineOutcome> future = executor.submit(() -> runPipeline(gate, workDir));
+            PipelineOutcome outcome;
             try {
-                return future.get(deadline.toMillis(), TimeUnit.MILLISECONDS);
+                outcome = future.get(deadline.toMillis(), TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 future.cancel(true);
-                return rejectAndWrite(outDir, GateReason.PROCESSING_TIMEOUT, GateMessages.forReason(GateReason.PROCESSING_TIMEOUT));
+                OnboardReport report = OnboardReport.rejected(
+                        GateReason.PROCESSING_TIMEOUT, GateMessages.forReason(GateReason.PROCESSING_TIMEOUT));
+                report.writeTo(outDir.resolve("onboard.json"));
+                return report;
             } catch (ExecutionException e) {
                 Throwable cause = e.getCause();
                 if (cause instanceof IOException io) {
@@ -102,23 +123,40 @@ public final class OnboardPipeline {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RenderException("onboarding interrupted", e);
-            } finally {
-                executor.shutdownNow();
             }
+            return writeOutputs(outcome, outDir);
         } finally {
-            // Holds copies of the user's resume at every intermediate stage; always cleaned up,
-            // whether onboarding was accepted, rejected, or timed out (PHASE2_SPEC.md section 5).
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(EXECUTOR_STOP_BOUND.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            // Only now can nothing still be reading/writing under workDir (holds copies of the
+            // user's resume at every intermediate stage) — delete it regardless of outcome.
             deleteRecursively(workDir);
         }
     }
 
-    private OnboardReport runPipeline(GateResult gate, Path outDir, Path workDir)
-            throws IOException, RenderException {
+    /** Copies the accepted outcome's artifacts into outDir and writes onboard.json — the only
+     * outDir writes for a successful run, done by the calling thread after get() returns. */
+    private static OnboardReport writeOutputs(PipelineOutcome outcome, Path outDir) throws IOException {
+        if (outcome.normalizedDocx() != null) {
+            Files.copy(outcome.normalizedDocx(), outDir.resolve("normalized.docx"), StandardCopyOption.REPLACE_EXISTING);
+        }
+        if (outcome.previewPdf() != null) {
+            Files.copy(outcome.previewPdf(), outDir.resolve("preview.pdf"), StandardCopyOption.REPLACE_EXISTING);
+        }
+        outcome.report().writeTo(outDir.resolve("onboard.json"));
+        return outcome.report();
+    }
+
+    private PipelineOutcome runPipeline(GateResult gate, Path workDir) throws IOException, RenderException {
         Path uploadDocx = workDir.resolve("upload.docx");
         DocxPackage sourcePkg = DocxPackage.fromGatedUpload(gate);
         sourcePkg.save(uploadDocx);
 
-        Path normalizedDst = outDir.resolve("normalized.docx");
+        Path normalizedDst = workDir.resolve("normalized.docx");
         PageRule pageRule = new PageRule(renderer);
 
         PageRule.Result pageResult;
@@ -129,7 +167,7 @@ public final class OnboardPipeline {
             try {
                 pageResult = pageRule.apply(uploadDocx, fontMap, normalizedDst, workDir);
             } catch (TooManyPagesException e) {
-                return rejectAndWrite(outDir, GateReason.TOO_MANY_PAGES, GateMessages.forReason(GateReason.TOO_MANY_PAGES));
+                return PipelineOutcome.rejected(GateReason.TOO_MANY_PAGES, GateMessages.forReason(GateReason.TOO_MANY_PAGES));
             }
         } else {
             FontMap effectiveMap = fontMap;
@@ -152,7 +190,7 @@ public final class OnboardPipeline {
                     }
                 }
                 if (chosenCandidate == null) {
-                    return rejectAndWrite(outDir, GateReason.NEEDS_USER, GateMessages.needsUser(MAX_PAGES));
+                    return PipelineOutcome.rejected(GateReason.NEEDS_USER, GateMessages.needsUser(MAX_PAGES));
                 }
                 // Only Phase 1 font-map pairs are metric-compatible (PHASE2_SPEC.md 4.3 point 4).
                 fontSubs.add(new OnboardReport.FontSub(font, chosenCandidate, false));
@@ -168,7 +206,7 @@ public final class OnboardPipeline {
         int editableCount = (int) locked.stream().filter(Locker.LockedSlot::editable).count();
 
         if (editableCount < MIN_EDITABLE) {
-            return rejectAndWrite(outDir, GateReason.TOO_FEW_EDITABLE, GateMessages.tooFewEditable(editableCount));
+            return PipelineOutcome.rejected(GateReason.TOO_FEW_EDITABLE, GateMessages.tooFewEditable(editableCount));
         }
 
         String prose = ProseSource.fromSlots(slots, CALIBRATION_PROSE_LENGTH);
@@ -178,8 +216,6 @@ public final class OnboardPipeline {
         } catch (Exception e) {
             throw new RenderException("calibration failed during onboarding", e);
         }
-
-        Files.copy(pageResult.pdf(), outDir.resolve("preview.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
         List<OnboardReport.SlotReport> slotReports = new ArrayList<>();
         for (int i = 0; i < slots.size(); i++) {
@@ -192,8 +228,7 @@ public final class OnboardPipeline {
         OnboardReport report = OnboardReport.accepted(
                 pageResult.pages(), pageResult.shrinkPt(), pageResult.squeezeRemoved(), pageResult.positionRemoved(),
                 pageResult.trailingEmptyRemoved(), fontSubs, editableCount, slotReports, renderer.version());
-        report.writeTo(outDir.resolve("onboard.json"));
-        return report;
+        return new PipelineOutcome(report, normalizedDst, pageResult.pdf());
     }
 
     private List<String> unknownFontsOf(DocxPackage pkg) throws IOException {
@@ -220,12 +255,6 @@ public final class OnboardPipeline {
             numbering.resolveLvlText(s.element()).ifPresent(glyph -> glyphs.put(s.index(), glyph));
         }
         return glyphs;
-    }
-
-    private static OnboardReport rejectAndWrite(Path outDir, String reason, String message) throws IOException {
-        OnboardReport report = OnboardReport.rejected(reason, message);
-        report.writeTo(outDir.resolve("onboard.json"));
-        return report;
     }
 
     private static void deleteRecursively(Path dir) {

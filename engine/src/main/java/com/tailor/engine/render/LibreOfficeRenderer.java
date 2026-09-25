@@ -69,6 +69,7 @@ public final class LibreOfficeRenderer implements Renderer {
 
     private Path renderOnce(Path docxPath, Path outDir) throws RenderException {
         Path profileDir = tmpRoot.resolve("lo-" + UUID.randomUUID());
+        Process process = null;
         try {
             Files.createDirectories(profileDir);
 
@@ -84,13 +85,14 @@ public final class LibreOfficeRenderer implements Renderer {
 
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream(true);
-            Process process = pb.start();
+            process = pb.start();
+            Process started = process; // final for the drain lambda; same object as `process`
 
             // Drain output so the process never blocks on a full pipe, and keep
             // it so a failure message can show what soffice actually said.
             java.io.ByteArrayOutputStream captured = new java.io.ByteArrayOutputStream();
             Thread drain = new Thread(() -> {
-                try (var in = process.getInputStream()) {
+                try (var in = started.getInputStream()) {
                     in.transferTo(captured);
                 } catch (IOException ignored) {
                     // process ended; nothing more to read
@@ -101,7 +103,6 @@ public final class LibreOfficeRenderer implements Renderer {
 
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
-                process.destroyForcibly();
                 throw new RenderException(
                         "soffice timed out after " + timeoutSeconds + "s: " + docxPath);
             }
@@ -128,6 +129,18 @@ public final class LibreOfficeRenderer implements Renderer {
             Thread.currentThread().interrupt();
             throw new RenderException("interrupted rendering " + docxPath, e);
         } finally {
+            // Whatever path we're leaving by — the 60s timeout above, an interrupt (e.g. an
+            // external deadline cancelling this call), or a plain exception — a still-alive
+            // subprocess must not be left running. Previously only the explicit timeout branch
+            // called destroyForcibly(); an interrupt during waitFor() left soffice orphaned.
+            if (process != null && process.isAlive()) {
+                process.destroyForcibly();
+                try {
+                    process.waitFor(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             deleteRecursively(profileDir);
         }
     }
