@@ -60,3 +60,35 @@ RUN soffice --headless --version \
     && echo "font + LibreOffice check OK"
 
 CMD ["gradle", "--no-daemon", ":cli:run"]
+
+# =============================================================================
+# Phase 2 step 2.2: sandboxed runtime image (PHASE2_SPEC.md section 3).
+# For running uploads (`docker run --network none --read-only ...`), not for
+# building — Gradle-based testing stays on the "base" stage above. Builds the
+# CLI fat jar once, at image build time, so the runtime stage never needs
+# Gradle or the source tree to actually run.
+# =============================================================================
+FROM base AS build
+RUN gradle --no-daemon :cli:jar
+
+FROM base AS runtime
+
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10001 variant
+COPY --from=build /app/cli/build/libs/tailor.jar /app/tailor.jar
+USER variant
+
+# No ENTRYPOINT: the sandbox's own `docker run` invocation supplies the full
+# `java -jar /app/tailor.jar <subcommand> ...` command (see PHASE2_SPEC.md
+# section 3's example) as trailing args, which replace CMD entirely. This CMD
+# is only the default when none are given.
+CMD ["java", "-jar", "/app/tailor.jar"]
+
+# =============================================================================
+# An untargeted `docker build` (no --target) builds whichever stage is last in
+# this file, and every existing `docker build -t resume-tailor .` / `docker
+# run resume-tailor gradle ...` invocation (this repo's whole dev/test
+# workflow) assumes that is the dev image, not the non-root sandbox above.
+# This closing, no-op stage keeps that default; build the sandbox specifically
+# with `docker build --target runtime`.
+# =============================================================================
+FROM base

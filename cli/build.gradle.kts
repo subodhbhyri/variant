@@ -17,6 +17,14 @@ application {
 }
 
 tasks.jar {
+    // `configurations.runtimeClasspath.get().filter{}.map{}` below resolves through
+    // Kotlin's own Iterable extensions, not Gradle's FileCollection ones, which loses
+    // the configuration's Buildable/TaskDependency information. Without this explicit
+    // dependsOn, `gradle :cli:jar` run on its own (as the Phase 2 sandbox image build
+    // does) never schedules `:engine:jar`, so `engine/build/libs/engine.jar` doesn't
+    // exist yet when this task runs and gets silently filtered out by `it.exists()` —
+    // producing a fat jar missing every engine class (NoClassDefFoundError at runtime).
+    dependsOn(":engine:jar")
     manifest {
         attributes["Main-Class"] = "com.tailor.cli.TailorCli"
     }
