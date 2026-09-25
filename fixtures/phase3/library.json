@@ -1,0 +1,125 @@
+{
+ "projects": [
+  {
+   "id": "quill",
+   "title": "Quill",
+   "detail": "TypeScript, Next.js, Postgres, Redis",
+   "links": [
+    {
+     "label": "GitHub",
+     "url": "https://github.com/example/quill"
+    }
+   ],
+   "date": "Feb 2024 \u2013 May 2024",
+   "bullets": [
+    {
+     "1": "Built a collaborative editor with presence and comments.",
+     "2": "Built a collaborative markdown editor with live presence, threaded comments, version history and offline drafts, used daily by four product teams at a 60-person startup."
+    },
+    {
+     "1": "Cut page load time by 45% with edge caching.",
+     "2": "Cut median page load time by 45% by moving server rendering to the edge, caching document snapshots in Redis and streaming large documents in chunks."
+    },
+    {
+     "1": "Added role-based sharing with audit logs.",
+     "2": "Added role-based sharing with per-document permissions, expiring share links and an audit log that records every access and change for compliance reviews."
+    }
+   ]
+  },
+  {
+   "id": "harbor",
+   "title": "Harbor",
+   "detail": "Rust, Tokio, SQLite",
+   "links": [
+    {
+     "label": "GitHub",
+     "url": "https://github.com/example/harbor"
+    }
+   ],
+   "date": "Sep 2022 \u2013 Dec 2022",
+   "bullets": [
+    {
+     "1": "Wrote a container registry cache in Rust.",
+     "2": "Wrote a pull-through container registry cache in Rust that serves repeat image pulls from local disk, verifies layer digests and evicts by least-recent use."
+    },
+    {
+     "1": "Cut CI image pulls by 70% across 40 runners.",
+     "2": "Cut CI image pull time by 70% across 40 build runners by deduplicating shared layers, prefetching popular tags overnight and pinning base images per branch."
+    }
+   ]
+  },
+  {
+   "id": "sprout",
+   "title": "Sprout \u2014 Habit Tracker with Smart Nudges",
+   "detail": null,
+   "links": [],
+   "date": null,
+   "bullets": [
+    {
+     "1": "Designed a habit tracker with adaptive reminders.",
+     "2": "Designed a habit tracker that adapts reminder timing to when each user actually completes their habits, learning a per-habit schedule from two weeks of history."
+    },
+    {
+     "1": "Grew weekly retention from 31% to 48%.",
+     "2": "Grew four-week retention from 31% to 48% by testing nudge timing and wording with a simple bandit model that shifts traffic toward the best variant each day."
+    },
+    {
+     "1": "Ran A/B tests on onboarding with 3K users.",
+     "2": "Ran A/B tests on onboarding flows with 3,000 beta users, instrumented every step with funnels and shipped the variant that doubled first-week completion rates."
+    }
+   ]
+  },
+  {
+   "id": "forge",
+   "title": "Forge Build Orchestrator",
+   "detail": "Go, Rust, Bazel, Kubernetes, Argo Workflows, Redis, PostgreSQL, gRPC, Prometheus, Grafana, Terraform, AWS",
+   "links": [
+    {
+     "label": "GitHub",
+     "url": "https://github.com/example/forge"
+    }
+   ],
+   "date": "Mar 2023 \u2013 Nov 2023",
+   "bullets": [
+    {
+     "1": "Built a remote build cache that cut CI time by 60%.",
+     "2": "Built a remote build cache and scheduler for a 300-service monorepo that cut median CI time by 60% and removed most flaky rebuilds."
+    },
+    {
+     "1": "Scheduled 5K builds a day across 120 workers.",
+     "2": "Scheduled 5,000 builds a day across 120 autoscaled workers, packing jobs by cache locality so most artifacts never left their node."
+    },
+    {
+     "1": "Added per-team cost reports for build minutes.",
+     "2": "Added per-team cost reports for build minutes and storage, which let two teams cut their monthly CI spend by a third within a quarter."
+    }
+   ]
+  },
+  {
+   "id": "relay",
+   "title": "Relay",
+   "detail": "Python, FastAPI, Kafka, ClickHouse, Grafana, Terraform, AWS",
+   "links": [
+    {
+     "label": "Demo",
+     "url": "https://relay.example.com"
+    }
+   ],
+   "date": "October 2021 \u2013 February 2022",
+   "bullets": [
+    {
+     "1": "Built a webhook relay with retries and replay.",
+     "2": "Built a webhook relay that retries failed deliveries with exponential backoff, signs every payload and lets customers replay any event from the last thirty days."
+    },
+    {
+     "1": "Handled 12K events per second at p99 90ms.",
+     "2": "Handled 12,000 events per second at a p99 latency of 90ms by batching writes to ClickHouse partitions and backpressuring producers when queues grew too deep."
+    },
+    {
+     "1": "Wrote dashboards for delivery health.",
+     "2": "Wrote Grafana dashboards for delivery health per customer and paged the owning team automatically whenever a customer endpoint degraded for more than five minutes."
+    }
+   ]
+  }
+ ]
+}

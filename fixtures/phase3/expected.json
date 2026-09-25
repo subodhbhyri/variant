@@ -1,0 +1,161 @@
+{
+ "sections": [
+  {
+   "heading": "Experience",
+   "role": "experience"
+  },
+  {
+   "heading": "Projects",
+   "role": "projects"
+  },
+  {
+   "heading": "Education",
+   "role": "other"
+  }
+ ],
+ "projects_section": "Projects",
+ "positions": [
+  {
+   "kind": "paragraph",
+   "swappable": true,
+   "bullets": 3,
+   "header": {
+    "fields": [
+     "TITLE",
+     "SEP",
+     "DETAIL",
+     "TAB",
+     "DATE"
+    ],
+    "detail_is_list": true,
+    "links": 0,
+    "date_mode": "tab"
+   }
+  },
+  {
+   "kind": "paragraph",
+   "swappable": true,
+   "bullets": 2,
+   "header": {
+    "fields": [
+     "TITLE",
+     "SEP",
+     "DETAIL",
+     "SEP",
+     "LINK",
+     "TAB",
+     "DATE"
+    ],
+    "detail_is_list": true,
+    "links": 1,
+    "date_mode": "tab"
+   }
+  },
+  {
+   "kind": "paragraph",
+   "swappable": true,
+   "bullets": 2,
+   "header": {
+    "fields": [
+     "TITLE"
+    ],
+    "detail_is_list": false,
+    "links": 0,
+    "date_mode": null
+   }
+  },
+  {
+   "kind": "inline",
+   "swappable": true,
+   "bullets": 3,
+   "segments_per_bullet": [
+    1,
+    2,
+    1
+   ]
+  },
+  {
+   "kind": "paragraph",
+   "swappable": false,
+   "bullets": 1,
+   "reason": "multi_paragraph_header"
+  }
+ ],
+ "swaps": {
+  "quill->P0": {
+   "outcome": "OK",
+   "stack_items_kept": 4
+  },
+  "quill->P1": {
+   "outcome": "OK",
+   "stack_items_kept": 4
+  },
+  "quill->P2": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "quill->P3": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "harbor->P0": {
+   "outcome": "INSUFFICIENT_BULLETS"
+  },
+  "harbor->P1": {
+   "outcome": "OK",
+   "stack_items_kept": 3
+  },
+  "harbor->P2": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "harbor->P3": {
+   "outcome": "INSUFFICIENT_BULLETS"
+  },
+  "sprout->P0": {
+   "outcome": "OK"
+  },
+  "sprout->P1": {
+   "outcome": "OK"
+  },
+  "sprout->P2": {
+   "outcome": "OK"
+  },
+  "sprout->P3": {
+   "outcome": "OK"
+  },
+  "forge->P0": {
+   "outcome": "OK",
+   "stack_items_kept": 7
+  },
+  "forge->P1": {
+   "outcome": "OK",
+   "stack_items_kept": 6
+  },
+  "forge->P2": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "forge->P3": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "relay->P0": {
+   "outcome": "OK",
+   "stack_items_kept": 7
+  },
+  "relay->P1": {
+   "outcome": "OK",
+   "stack_items_kept": 7
+  },
+  "relay->P2": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  },
+  "relay->P3": {
+   "outcome": "OK",
+   "stack_items_kept": "not_shown"
+  }
+ },
+ "note": "Run on the fixture after Phase 1/2 normalization. Swap outcomes: every library project into every swappable position, one swap per render. OK = header keeps its line count (stack trimmed to the largest prefix that fits, found by binary search), every bullet keeps its line count (the library variant for that line count, padded if shorter), and no line outside the position moves more than 0.5pt."
+}

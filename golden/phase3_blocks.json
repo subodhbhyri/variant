@@ -1,0 +1,630 @@
+{
+ "Abhinav_SDE_Intern_Latest": {
+  "sections": [
+   {
+    "heading": "EDUCATION",
+    "role": "other"
+   },
+   {
+    "heading": "TECHNICAL SKILLS",
+    "role": "other"
+   },
+   {
+    "heading": "EXPERIENCE",
+    "role": "experience"
+   },
+   {
+    "heading": "PROJECTS",
+    "role": "projects"
+   }
+  ],
+  "projects_section": "PROJECTS",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": true,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": true,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": true,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   }
+  ]
+ },
+ "DurgaSrithaDongla_Resume_New": {
+  "sections": [
+   {
+    "heading": "EDUCATION",
+    "role": "other"
+   },
+   {
+    "heading": "SKILLS",
+    "role": "other"
+   },
+   {
+    "heading": "WORK EXPERIENCE",
+    "role": "experience"
+   },
+   {
+    "heading": "RESEARCH PAPERS",
+    "role": "projects"
+   }
+  ],
+  "projects_section": "RESEARCH PAPERS",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 1,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 1,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   }
+  ]
+ },
+ "Mohan_Resume_Final": {
+  "sections": [
+   {
+    "heading": "Education",
+    "role": "other"
+   },
+   {
+    "heading": "Experience",
+    "role": "experience"
+   },
+   {
+    "heading": "Certifications",
+    "role": "other"
+   },
+   {
+    "heading": "Projects",
+    "role": "projects"
+   },
+   {
+    "heading": "Technical Skills",
+    "role": "other"
+   }
+  ],
+  "projects_section": "Projects",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 1,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "SEP",
+      "LINK",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": true,
+     "links": 1,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 1,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "SEP",
+      "LINK",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": true,
+     "links": 1,
+     "date_mode": "tab"
+    }
+   }
+  ]
+ },
+ "My_resume1": {
+  "sections": [
+   {
+    "heading": "Education",
+    "role": "other"
+   },
+   {
+    "heading": "Experience",
+    "role": "experience"
+   },
+   {
+    "heading": "Projects",
+    "role": "projects"
+   },
+   {
+    "heading": "Skills",
+    "role": "other"
+   },
+   {
+    "heading": "Positions of Responsibility",
+    "role": "other"
+   },
+   {
+    "heading": "Achievements",
+    "role": "other"
+   },
+   {
+    "heading": "Extracurriculars & Hobbies",
+    "role": "other"
+   }
+  ],
+  "projects_section": "Projects",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": false,
+    "bullets": 3,
+    "reason": "multi_paragraph_header"
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "LIT",
+      "LINK",
+      "LIT",
+      "LINK",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": false,
+     "links": 2,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 2,
+    "header": {
+     "fields": [
+      "TITLE",
+      "LIT",
+      "LINK",
+      "LIT",
+      "LINK",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": false,
+     "links": 2,
+     "date_mode": "tab"
+    }
+   }
+  ]
+ },
+ "Rakesh_Resume": {
+  "sections": [
+   {
+    "heading": "Education",
+    "role": "other"
+   },
+   {
+    "heading": "Relevant Coursework",
+    "role": "other"
+   },
+   {
+    "heading": "Projects",
+    "role": "projects"
+   },
+   {
+    "heading": "Technical Skills",
+    "role": "other"
+   },
+   {
+    "heading": "Leadership / Extracurricular",
+    "role": "other"
+   },
+   {
+    "heading": "Coding Profiles",
+    "role": "other"
+   }
+  ],
+  "projects_section": "Projects",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "LIT",
+      "LINK"
+     ],
+     "detail_is_list": true,
+     "links": 1,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "LIT",
+      "LINK"
+     ],
+     "detail_is_list": false,
+     "links": 1,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "SEP",
+      "DETAIL",
+      "TAB",
+      "LIT",
+      "LINK"
+     ],
+     "detail_is_list": true,
+     "links": 1,
+     "date_mode": "tab"
+    }
+   }
+  ]
+ },
+ "Subodh_Ashok_Bhyri": {
+  "sections": [
+   {
+    "heading": "EDUCATION",
+    "role": "other"
+   },
+   {
+    "heading": "OPEN-SOURCE CONTRIBUTIONS",
+    "role": "projects"
+   },
+   {
+    "heading": "SKILLS",
+    "role": "other"
+   }
+  ],
+  "projects_section": "OPEN-SOURCE CONTRIBUTIONS",
+  "positions": [
+   {
+    "kind": "inline",
+    "swappable": true,
+    "bullets": 3,
+    "segments_per_bullet": [
+     1,
+     2,
+     1
+    ]
+   },
+   {
+    "kind": "inline",
+    "swappable": true,
+    "bullets": 3,
+    "segments_per_bullet": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "kind": "inline",
+    "swappable": true,
+    "bullets": 2,
+    "segments_per_bullet": [
+     1,
+     1
+    ]
+   },
+   {
+    "kind": "inline",
+    "swappable": true,
+    "bullets": 3,
+    "segments_per_bullet": [
+     1,
+     1,
+     1
+    ]
+   }
+  ]
+ },
+ "Talakanti_Sravan_Kumar_Reddy_Resume": {
+  "sections": [
+   {
+    "heading": "INTERNSHIP EXPERIENCE",
+    "role": "experience"
+   },
+   {
+    "heading": "PROJECTS",
+    "role": "projects"
+   },
+   {
+    "heading": "SKILLS",
+    "role": "other"
+   },
+   {
+    "heading": "HONORS AND ACHIEVEMENTS",
+    "role": "other"
+   }
+  ],
+  "projects_section": "PROJECTS",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE",
+      "TAB",
+      "DATE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": "tab"
+    }
+   }
+  ]
+ },
+ "resume_EHR": {
+  "sections": [
+   {
+    "heading": "SUMMARY",
+    "role": "other"
+   },
+   {
+    "heading": "EDUCATION",
+    "role": "other"
+   },
+   {
+    "heading": "Work Experience",
+    "role": "experience"
+   },
+   {
+    "heading": "SKILLS",
+    "role": "other"
+   },
+   {
+    "heading": "CERTIFICATIONS",
+    "role": "other"
+   },
+   {
+    "heading": "PROJECTS",
+    "role": "projects"
+   }
+  ],
+  "projects_section": "PROJECTS",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   }
+  ]
+ },
+ "resume_ajitesh__": {
+  "sections": [
+   {
+    "heading": "EDUCATION",
+    "role": "other"
+   },
+   {
+    "heading": "SKILLS",
+    "role": "other"
+   },
+   {
+    "heading": "EXPERIENCE",
+    "role": "experience"
+   },
+   {
+    "heading": "PROJECTS",
+    "role": "projects"
+   }
+  ],
+  "projects_section": "PROJECTS",
+  "positions": [
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 3,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   },
+   {
+    "kind": "paragraph",
+    "swappable": true,
+    "bullets": 2,
+    "header": {
+     "fields": [
+      "TITLE"
+     ],
+     "detail_is_list": false,
+     "links": 0,
+     "date_mode": null
+    }
+   }
+  ]
+ },
+ "_rotation": {
+  "note": "Rotate every swappable position's content to the next position (content i+1 -> position i), bullets fitted to each slot; positions whose incoming project has fewer bullets are skipped. Every line outside the rotated positions must stay within 0.5pt (measured 0.00pt on all). Measured on all 9 resumes.",
+  "skipped": {
+   "resume_ajitesh__": [
+    1
+   ],
+   "Subodh_Ashok_Bhyri": [
+    1
+   ],
+   "My_resume1": [
+    0
+   ]
+  }
+ }
+}
