@@ -1,6 +1,7 @@
 package com.tailor.engine.docx;
 
-import java.io.BufferedInputStream;
+import com.tailor.engine.gate.GateResult;
+import com.tailor.engine.gate.UploadGate;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,7 +9,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -24,6 +24,12 @@ import java.util.zip.ZipOutputStream;
  * object-model mutation (no {@code XWPFRun.setText}, etc.) — still holds.
  * Callers only see byte[], so this can be swapped for OPCPackage later
  * without changing anything above it.
+ *
+ * <p>PHASE2_SPEC.md 2.1.1: {@link #open} goes through {@link UploadGate}'s
+ * limits — the same central-directory read LibreOffice's own zip reader
+ * would see — so a file that never reaches the upload endpoint (a local
+ * corpus file, an intermediate pipeline file) is held to the same safety
+ * limits as an actual upload.
  */
 public final class DocxPackage {
 
@@ -33,20 +39,21 @@ public final class DocxPackage {
     }
 
     public static DocxPackage open(Path docxPath) throws IOException {
+        byte[] bytes = Files.readAllBytes(docxPath);
+        GateResult result = UploadGate.check(bytes);
+        if (!result.accepted()) {
+            throw new IOException("rejected (" + result.reason() + "): " + docxPath);
+        }
+        return fromGatedUpload(result);
+    }
+
+    /** Builds a package from an already-accepted {@link GateResult}, without re-reading the zip. */
+    public static DocxPackage fromGatedUpload(GateResult result) {
+        if (!result.accepted()) {
+            throw new IllegalArgumentException("cannot open a rejected upload: " + result.reason());
+        }
         DocxPackage pkg = new DocxPackage();
-        try (ZipInputStream zin = new ZipInputStream(
-                new BufferedInputStream(Files.newInputStream(docxPath)))) {
-            ZipEntry entry;
-            while ((entry = zin.getNextEntry()) != null) {
-                if (entry.isDirectory()) {
-                    continue;
-                }
-                pkg.parts.put(entry.getName(), zin.readAllBytes());
-            }
-        }
-        if (!pkg.parts.containsKey("word/document.xml")) {
-            throw new IOException("not a .docx (no word/document.xml): " + docxPath);
-        }
+        pkg.parts.putAll(result.parts());
         return pkg;
     }
 
