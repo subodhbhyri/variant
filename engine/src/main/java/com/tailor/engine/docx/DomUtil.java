@@ -1,6 +1,8 @@
 package com.tailor.engine.docx;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -35,20 +37,25 @@ public final class DomUtil {
         return null;
     }
 
-    /** All descendant Elements with the given local name, in document order. */
+    /**
+     * All descendant Elements with the given local name, in document order.
+     * Explicit-stack DFS (PHASE2_SPEC.md 2.1.1): a crafted part can nest
+     * elements deep enough to overflow the call stack, so this must not
+     * recurse. The depth gate (SafeXml) keeps real input shallow; this is the
+     * fallback if something ever reaches here without going through it.
+     */
     public static List<Element> descendants(Element root, String localName) {
         List<Element> out = new ArrayList<>();
-        collectDescendants(root, localName, out);
-        return out;
-    }
-
-    private static void collectDescendants(Element node, String localName, List<Element> out) {
-        for (Element child : elementChildren(node)) {
-            if (localName.equals(child.getLocalName())) {
-                out.add(child);
+        Deque<Element> stack = new ArrayDeque<>();
+        pushChildrenReversed(stack, root);
+        while (!stack.isEmpty()) {
+            Element el = stack.pop();
+            if (localName.equals(el.getLocalName())) {
+                out.add(el);
             }
-            collectDescendants(child, localName, out);
+            pushChildrenReversed(stack, el);
         }
+        return out;
     }
 
     /** True if any element in root's subtree (root included) has the given local name. */
@@ -56,12 +63,26 @@ public final class DomUtil {
         if (localName.equals(root.getLocalName())) {
             return true;
         }
-        for (Element child : elementChildren(root)) {
-            if (containsDescendant(child, localName)) {
-                return true;
+        Deque<Element> stack = new ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            Element el = stack.pop();
+            for (Element child : elementChildren(el)) {
+                if (localName.equals(child.getLocalName())) {
+                    return true;
+                }
+                stack.push(child);
             }
         }
         return false;
+    }
+
+    /** Pushes parent's children onto stack right-to-left, so popping yields document order. */
+    private static void pushChildrenReversed(Deque<Element> stack, Element parent) {
+        List<Element> children = elementChildren(parent);
+        for (int i = children.size() - 1; i >= 0; i--) {
+            stack.push(children.get(i));
+        }
     }
 
     /** Attribute value ignoring namespace prefix (matches by local attribute name "val" etc.), or null. */
