@@ -19,3 +19,6 @@ Thumbs.db
 
 !fixtures/
 !fixtures/**/*.docx
+# IDE build output (VS Code Java / Eclipse)
+bin/
+**/bin/
