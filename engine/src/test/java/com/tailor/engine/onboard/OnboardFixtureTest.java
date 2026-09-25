@@ -49,6 +49,16 @@ class OnboardFixtureTest {
                 failures.append(name).append(": locked=").append(gotLocked)
                         .append(" expected=").append(exp.locked()).append('\n');
             }
+            if (exp.lines() != null) {
+                for (var e : exp.lines().entrySet()) {
+                    int index = Integer.parseInt(e.getKey());
+                    Integer got = report.slots().get(index).lines();
+                    if (!e.getValue().equals(got)) {
+                        failures.append(name).append(": slot ").append(index).append(" lines=").append(got)
+                                .append(" expected=").append(e.getValue()).append('\n');
+                    }
+                }
+            }
         }
         assertTrue(failures.isEmpty(), "P2-T2 failures:\n" + failures);
     }

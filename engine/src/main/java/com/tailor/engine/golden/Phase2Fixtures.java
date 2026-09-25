@@ -33,6 +33,7 @@ public final class Phase2Fixtures {
             Integer editable,
             Map<String, String> locked,
             Map<String, String> fontSubstitution,
+            Map<String, Integer> lines,
             String note) {
     }
 }

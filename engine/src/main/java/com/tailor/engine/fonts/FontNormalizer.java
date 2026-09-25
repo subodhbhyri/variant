@@ -9,8 +9,12 @@ import com.tailor.engine.render.Renderer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -107,95 +111,208 @@ public final class FontNormalizer {
     }
 
     private static final List<String> RFONTS_ATTRS = List.of("ascii", "hAnsi", "cs", "eastAsia");
+    private static final List<String> STYLE_REF_TAGS = List.of("pStyle", "rStyle", "tblStyle");
+    private static final int MAX_STYLE_CLOSURE = 2000; // generous global cap against a cyclic basedOn chain
 
     /**
-     * Every literal font name that would actually be applied to some visible run (spec
-     * 3.1's right-hand targets, i.e. before mapping) — PHASE2_SPEC.md 4.3's input for
-     * "named in the document". DOM-based, not regex: a run/style/theme scan must not match
-     * {@code <w:lang w:eastAsia="en-US">} (a locale code, not a font, on an attribute name
-     * that collides with {@code <w:rFonts>}'s), and must not pick up fonts declared only on
-     * Word's built-in latent styles (e.g. the default "MacroText" style, never applied to
-     * any paragraph here) — so this reads actual {@code <w:rFonts>} elements, scoped to
-     * docDefaults, the "Normal" style, and direct run overrides in document.xml/headers/
-     * footers. Does not look in word/numbering.xml: that part's fonts are usually bullet
-     * glyphs, which have their own glyph-font exclusion (PHASE1_SPEC.md 3.1's numberingGlyphKeep).
+     * Every literal (or theme-resolved) font name that would actually be applied to some
+     * visible run — PHASE2_SPEC.md 4.3's input for "named in the document". DOM-based, not
+     * regex: a scan must not match {@code <w:lang w:eastAsia="en-US">} (a locale code, not a
+     * font, on an attribute name that collides with {@code <w:rFonts>}'s). Scans {@code
+     * <w:rFonts>} wherever it can apply to visible text: run and paragraph-mark overrides in
+     * document.xml/headers/footers, docDefaults, and every style a paragraph or run actually
+     * references (pStyle/rStyle/tblStyle) plus its basedOn chain — never every style in
+     * styles.xml, since most are Word's built-in latent styles nothing applies (e.g. the
+     * default "MacroText" style). A {@code w:asciiTheme}/{@code w:cstheme}/etc. reference is
+     * resolved against the theme's font scheme. Does not look in word/numbering.xml: that
+     * part's fonts are usually bullet glyphs, which have their own glyph-font exclusion
+     * (PHASE1_SPEC.md 3.1's numberingGlyphKeep). The font audit (3.4) is the backstop for
+     * whatever this heuristic still misses.
      */
     public Set<String> namedFonts(DocxPackage pkg) throws IOException {
         Set<String> names = new LinkedHashSet<>();
-        collectRunLevelFonts(pkg, "word/document.xml", names);
+        ThemeFonts theme = ThemeFonts.load(pkg);
+
+        collectRunLevelFonts(pkg, "word/document.xml", theme, names);
         for (String prefix : FONT_PART_PREFIXES) {
             for (String partName : pkg.partNamesStartingWith(prefix)) {
                 if (partName.endsWith(".xml")) {
-                    collectRunLevelFonts(pkg, partName, names);
+                    collectRunLevelFonts(pkg, partName, theme, names);
                 }
             }
         }
-        collectDefaultAndNormalStyleFonts(pkg, names);
-        for (String partName : pkg.partNamesStartingWith("word/theme/")) {
-            collectThemeFontNames(pkg, partName, names);
-        }
+        collectUsedStyleFonts(pkg, theme, names);
         return names;
     }
 
-    private void collectRunLevelFonts(DocxPackage pkg, String partName, Set<String> out) throws IOException {
+    private void collectRunLevelFonts(DocxPackage pkg, String partName, ThemeFonts theme, Set<String> out)
+            throws IOException {
         byte[] bytes = pkg.readPart(partName);
         if (bytes == null) {
             return;
         }
         Document doc = SafeXml.parse(bytes);
         for (Element rFonts : DomUtil.descendants(doc.getDocumentElement(), "rFonts")) {
-            addRFontsAttrs(rFonts, out);
+            addRFontsAttrs(rFonts, theme, out);
         }
     }
 
-    /** docDefaults' rPrDefault (the ultimate fallback) and the "Normal" style — every unstyled
-     * or Normal-based paragraph's effective font, without pulling in unused named/latent styles. */
-    private void collectDefaultAndNormalStyleFonts(DocxPackage pkg, Set<String> out) throws IOException {
+    /** docDefaults, "Normal", and every style actually referenced (plus its basedOn chain). */
+    private void collectUsedStyleFonts(DocxPackage pkg, ThemeFonts theme, Set<String> out) throws IOException {
         if (!pkg.hasPart("word/styles.xml")) {
             return;
         }
-        Document doc = SafeXml.parse(pkg.readPart("word/styles.xml"));
-        Element root = doc.getDocumentElement();
+        Document stylesDoc = SafeXml.parse(pkg.readPart("word/styles.xml"));
+        Element stylesRoot = stylesDoc.getDocumentElement();
 
-        Element docDefaults = DomUtil.firstChild(root, "docDefaults");
+        Map<String, Element> styleById = new HashMap<>();
+        for (Element style : DomUtil.elementChildren(stylesRoot)) {
+            if ("style".equals(style.getLocalName())) {
+                String id = DomUtil.attr(style, "styleId");
+                if (id != null) {
+                    styleById.put(id, style);
+                }
+            }
+        }
+
+        Set<String> usedIds = new LinkedHashSet<>();
+        usedIds.add("Normal"); // the implicit default for any paragraph without its own pStyle
+        collectReferencedStyleIds(pkg, "word/document.xml", usedIds);
+        for (String prefix : FONT_PART_PREFIXES) {
+            for (String partName : pkg.partNamesStartingWith(prefix)) {
+                if (partName.endsWith(".xml")) {
+                    collectReferencedStyleIds(pkg, partName, usedIds);
+                }
+            }
+        }
+
+        Set<String> closure = new LinkedHashSet<>();
+        Deque<String> queue = new ArrayDeque<>(usedIds);
+        int hops = 0;
+        while (!queue.isEmpty() && hops < MAX_STYLE_CLOSURE) {
+            String id = queue.poll();
+            hops++;
+            if (!closure.add(id)) {
+                continue; // already resolved (or mid-cycle); basedOn already queued
+            }
+            Element style = styleById.get(id);
+            Element basedOn = style != null ? DomUtil.firstChild(style, "basedOn") : null;
+            String parentId = basedOn != null ? DomUtil.attr(basedOn, "val") : null;
+            if (parentId != null) {
+                queue.add(parentId);
+            }
+        }
+
+        Element docDefaults = DomUtil.firstChild(stylesRoot, "docDefaults");
         if (docDefaults != null) {
             Element rPrDefault = DomUtil.firstChild(docDefaults, "rPrDefault");
-            addRFontsFromRPr(rPrDefault != null ? DomUtil.firstChild(rPrDefault, "rPr") : null, out);
+            addRFontsFromRPr(rPrDefault != null ? DomUtil.firstChild(rPrDefault, "rPr") : null, theme, out);
         }
-        for (Element style : DomUtil.elementChildren(root)) {
-            if ("style".equals(style.getLocalName()) && "Normal".equals(DomUtil.attr(style, "styleId"))) {
-                addRFontsFromRPr(DomUtil.firstChild(style, "rPr"), out);
+        for (String id : closure) {
+            Element style = styleById.get(id);
+            if (style != null) {
+                addRFontsFromRPr(DomUtil.firstChild(style, "rPr"), theme, out);
             }
         }
     }
 
-    private void addRFontsFromRPr(Element rPr, Set<String> out) {
-        Element rFonts = rPr != null ? DomUtil.firstChild(rPr, "rFonts") : null;
-        if (rFonts != null) {
-            addRFontsAttrs(rFonts, out);
-        }
-    }
-
-    private void addRFontsAttrs(Element rFonts, Set<String> out) {
-        for (String attr : RFONTS_ATTRS) {
-            String v = DomUtil.attr(rFonts, attr);
-            if (v != null) {
-                out.add(v);
-            }
-        }
-    }
-
-    private void collectThemeFontNames(DocxPackage pkg, String partName, Set<String> out) throws IOException {
+    private void collectReferencedStyleIds(DocxPackage pkg, String partName, Set<String> out) throws IOException {
         byte[] bytes = pkg.readPart(partName);
         if (bytes == null) {
             return;
         }
         Document doc = SafeXml.parse(bytes);
-        for (Element latin : DomUtil.descendants(doc.getDocumentElement(), "latin")) {
-            String v = DomUtil.attr(latin, "typeface");
-            if (v != null) {
-                out.add(v);
+        Element root = doc.getDocumentElement();
+        for (String tag : STYLE_REF_TAGS) {
+            for (Element el : DomUtil.descendants(root, tag)) {
+                String v = DomUtil.attr(el, "val");
+                if (v != null) {
+                    out.add(v);
+                }
             }
+        }
+    }
+
+    private void addRFontsFromRPr(Element rPr, ThemeFonts theme, Set<String> out) {
+        Element rFonts = rPr != null ? DomUtil.firstChild(rPr, "rFonts") : null;
+        if (rFonts != null) {
+            addRFontsAttrs(rFonts, theme, out);
+        }
+    }
+
+    private void addRFontsAttrs(Element rFonts, ThemeFonts theme, Set<String> out) {
+        for (String attr : RFONTS_ATTRS) {
+            String literal = nonBlank(DomUtil.attr(rFonts, attr));
+            if (literal != null) {
+                out.add(literal);
+                continue;
+            }
+            String resolved = theme.resolve(DomUtil.attr(rFonts, attr.equals("cs") ? "cstheme" : attr + "Theme"));
+            if (resolved != null) {
+                out.add(resolved);
+            }
+        }
+    }
+
+    /** Null for a missing or empty value — a theme's east-asian/complex-script slot is
+     * routinely present but empty ({@code <a:ea typeface=""/>}) for a Latin-only theme. */
+    private static String nonBlank(String value) {
+        return value == null || value.isEmpty() ? null : value;
+    }
+
+    /** The theme's font scheme (minor/major x latin/ea/cs), for resolving {@code w:*Theme} attributes. */
+    private record ThemeFonts(
+            String minorLatin, String majorLatin, String minorEa, String majorEa, String minorCs, String majorCs) {
+
+        private static final ThemeFonts EMPTY = new ThemeFonts(null, null, null, null, null, null);
+
+        static ThemeFonts load(DocxPackage pkg) throws IOException {
+            for (String partName : pkg.partNamesStartingWith("word/theme/")) {
+                if (!partName.endsWith(".xml")) {
+                    continue;
+                }
+                byte[] bytes = pkg.readPart(partName);
+                if (bytes == null) {
+                    continue;
+                }
+                Document doc = SafeXml.parse(bytes);
+                List<Element> schemes = DomUtil.descendants(doc.getDocumentElement(), "fontScheme");
+                if (schemes.isEmpty()) {
+                    continue;
+                }
+                Element scheme = schemes.get(0);
+                Element minorFont = DomUtil.firstChild(scheme, "minorFont");
+                Element majorFont = DomUtil.firstChild(scheme, "majorFont");
+                return new ThemeFonts(
+                        typefaceOf(minorFont, "latin"), typefaceOf(majorFont, "latin"),
+                        typefaceOf(minorFont, "ea"), typefaceOf(majorFont, "ea"),
+                        typefaceOf(minorFont, "cs"), typefaceOf(majorFont, "cs"));
+            }
+            return EMPTY;
+        }
+
+        private static String typefaceOf(Element fontGroup, String tag) {
+            Element el = fontGroup != null ? DomUtil.firstChild(fontGroup, tag) : null;
+            String typeface = el != null ? DomUtil.attr(el, "typeface") : null;
+            return typeface == null || typeface.isEmpty() ? null : typeface;
+        }
+
+        /** {@code "minorHAnsi"/"majorBidi"/...} -> the theme's actual typeface name, or null. */
+        String resolve(String themeValue) {
+            if (themeValue == null || themeValue.length() <= 5) {
+                return null;
+            }
+            boolean minor = themeValue.startsWith("minor");
+            boolean major = !minor && themeValue.startsWith("major");
+            if (!minor && !major) {
+                return null;
+            }
+            return switch (themeValue.substring(5)) {
+                case "Ascii", "HAnsi" -> minor ? minorLatin : majorLatin;
+                case "EastAsia" -> minor ? minorEa : majorEa;
+                case "Bidi" -> minor ? minorCs : majorCs;
+                default -> null;
+            };
         }
     }
 
