@@ -1,5 +1,6 @@
 package com.tailor.engine.docx;
 
+import com.tailor.engine.gate.GateReason;
 import com.tailor.engine.gate.GateResult;
 import com.tailor.engine.gate.UploadGate;
 import java.io.BufferedOutputStream;
@@ -39,6 +40,11 @@ public final class DocxPackage {
     }
 
     public static DocxPackage open(Path docxPath) throws IOException {
+        // Check the file's size before reading it in, so an oversized local file is
+        // rejected without first pulling the whole thing into memory (PHASE2_SPEC.md 2.1.1).
+        if (Files.size(docxPath) > UploadGate.MAX_UPLOAD_BYTES) {
+            throw new IOException("rejected (" + GateReason.FILE_TOO_LARGE + "): " + docxPath);
+        }
         byte[] bytes = Files.readAllBytes(docxPath);
         GateResult result = UploadGate.check(bytes);
         if (!result.accepted()) {
