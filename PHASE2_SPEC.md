@@ -173,6 +173,22 @@ retry from Phase 1 stay.
 Gradle-based testing stays in the existing dev image; the sandbox is for
 running uploads, not for building.
 
+**The runtime image must not inherit the dev image.** The dev stage copies the
+whole build context into `/app`, which on a developer machine includes
+`corpus/` (real resumes), `golden/`, the source, Gradle and curl. Structure the
+Dockerfile as:
+
+- `os`: Ubuntu + LibreOffice + the fonts + Gelasio RT (patch Gelasio in a
+  throwaway stage and `COPY --from` only the patched `.ttf` files, so Python,
+  curl and unzip don't remain);
+- `dev` (default, last stage as today): `os` + JDK + Gradle + `COPY . /app`;
+- `build`: `dev` running `gradle :cli:jar`;
+- `runtime`: `os` + a Java **runtime** (JRE, not JDK) + the non-root user + only
+  `/app/tailor.jar` copied from `build`.
+
+Deployment note: the `/out` mount must be writable by UID 10001 (the
+`variant` user) before the container starts; the container can't fix that.
+
 ---
 
 ## 4. Step 2.3 — Layout gate
@@ -181,9 +197,20 @@ Runs after font normalization, on the normalized file.
 
 ### 4.1 Page rule (P6)
 
+0. **Remove trailing empty paragraphs** at the end of the body (before the
+   body `w:sectPr`): paragraphs with no non-blank text, no `drawing`, `pict`,
+   `object`, `br`, `sym` or `tab`, and no `w:pPr/w:sectPr`. Stop at the first
+   paragraph that doesn't qualify, and never remove a paragraph that directly
+   follows a table (Word requires one there). Record the count in the report.
+   Measured: a resume with 30 trailing empty paragraphs renders a blank page 2;
+   removing them gives 1 page. On the corpus this removes exactly one invisible
+   paragraph (EHR) and changes no page count or line count.
 1. Normalize fonts (Phase 1 section 3, plus 4.3 below) and render. Pages = `P`.
 2. **Spill rule:** if `P > 1` and the last page holds **5 lines or fewer**,
-   it's a spill. Try the shrink steps (0.5 pt, 1.0 pt) to reach `P − 1`.
+   it's a spill. "The last page" is page `P` as counted by the PDF, **not** the
+   highest page that has text: a blank last page holds 0 lines and is a spill.
+   (Revision 2 of the code used the highest page with text, so a blank page 2
+   was never seen as a spill.) Try the shrink steps (0.5 pt, 1.0 pt) to reach `P − 1`.
    Measured: the 3 converted resumes spill 3, 2 and 1 lines and all pull back
    to 1 page at 0.5 pt, matching golden `shrink_pt`. Real second pages hold
    far more (the too-many-pages fixture: 17 lines on its last page).
@@ -202,7 +229,14 @@ A supported bullet becomes **locked** (visible, never edited) if:
   `tab_in_text`, `field`, `tracked_change`) → lock reason is that code; or
 - **shared lines**: in the normalized render, its text can't be anchored to a
   contiguous run of lines, or its anchored lines contain text other than its
-  own (ignoring the bullet glyph) → lock reason `shared_lines`.
+  own → lock reason `shared_lines`. "Other than its own" means: after removing
+  the bullet's own text once, what remains is more than 3 characters, **or**
+  contains a letter or digit that isn't part of the bullet's own glyph (the
+  `lvlText` of its numbering level, e.g. the "o" Word uses for second-level
+  bullets). A neighbour's text almost always contains a letter or digit,
+  however short ("Go", "2024"); revision 2's "any 3 characters" let those
+  through. Measured on the corpus: every bullet's leftover is `•`, `–` or
+  nothing.
 
 **What this rule does and doesn't catch (revised after the step 2.3 report).**
 It does not detect "side by side" as such; it detects any bullet whose lines
@@ -268,6 +302,14 @@ Pipeline: gate (2.1) → normalize (Phase 1 §3 + 4.3) → page rule (4.1) →
 detect → lock (4.2) → min-editable check → calibrate hints (Phase 1 §7.3) →
 write outputs.
 
+- **Deadline:** the whole onboarding has a wall-clock limit of **180 s**
+  (renders are 60 s each, and unknown fonts × candidates × shrink steps plus
+  calibration can otherwise add up to dozens). Past it, stop and reject with
+  reason `PROCESSING_TIMEOUT`, message "We couldn't process this file in time.
+  Try saving it again from Word."
+- **Cleanup:** delete the onboarding work directory in a `finally` block. It
+  holds copies of the user's resume.
+
 Outputs in `outDir`:
 
 - `normalized.docx` — the file every later step starts from
@@ -283,6 +325,7 @@ Outputs in `outDir`:
   "shrinkPt": 0.5,
   "squeezeRemoved": 759,
   "positionRemoved": 0,
+  "trailingEmptyRemoved": 0,
   "fonts": [{"from": "Georgia", "to": "Gelasio RT", "metricCompatible": true}],
   "editableCount": 14,
   "slots": [
@@ -302,12 +345,14 @@ code, and the user message from 2.1.2.
 | Id | Test | Pass condition |
 |---|---|---|
 | P2-T1 | Static gate | Every rejected fixture in `expected.json` whose reason is a gate reason gets exactly that reason, with **zero** renders |
-| P2-T2 | Accepted fixtures | `ok_synthetic`, `unknown_font`, `link_in_bullet`, `side_by_side` are accepted with the `editable` count and `locked` map in `expected.json`; where `expected.json` gives `lines`, those slots are measured at exactly that many lines |
+| P2-T2 | Accepted fixtures | `ok_synthetic`, `unknown_font`, `link_in_bullet`, `side_by_side`, `blank_trailing_page` are accepted with the `editable` count and `locked` map in `expected.json`; where `expected.json` gives `lines`, those slots are measured at exactly that many lines; where it gives `pages` or `trailing_empty_removed`, the report matches |
 | P2-T3 | Render-stage rejects | `too_many_pages` → `TOO_MANY_PAGES`; `too_few_bullets` → `TOO_FEW_EDITABLE` |
 | P2-T4 | Corpus onboarding | All 9 accepted; pages and shrink equal golden; editable count equals golden's supported count (table below); no bullet locked for `shared_lines` |
 | P2-T5 | No regressions | `tailor corpus-check /app/corpus /app/golden` still prints ALL PASS |
 | P2-T6 | Recursion | Unit test: `BodyWalker` and `DomUtil.descendants` handle a 5,000-deep in-memory DOM without a stack overflow |
 | P2-T8 | Locking logic (unit, no rendering) | On constructed `PdfLines.Line` lists: (1) a bullet whose line also holds another column's text → `shared_lines`; (2) a foreign line between two of a bullet's lines → `shared_lines` (can't anchor); (3) two columns with separate, contiguous lines per bullet → both editable with correct counts; (4) a bullet's own glyph on its line is not foreign |
+| P2-T9 | Runtime image contents | In the `runtime` image: `/app` holds only `tailor.jar`; `gradle`, `curl`, `python3` and `javac` are absent; no `corpus/` or `golden/` anywhere |
+| P2-T10 | Deadline and cleanup | A unit test with a renderer that sleeps past the deadline gets `PROCESSING_TIMEOUT`; after any onboarding (accepted, rejected, or timed out) the work directory no longer exists |
 | P2-T7 | Sandbox (manual) | Onboarding all 9 inside the section 3 sandbox succeeds; `curl` inside it fails |
 
 Corpus editable counts for P2-T4 (supported bullets per golden):

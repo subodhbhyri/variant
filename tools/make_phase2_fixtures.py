@@ -284,6 +284,14 @@ expected["url_target_internal_mode.docx"] = {"accept": False, "reason": "EXTERNA
 swap(base, "untyped_part.docx", lambda p: p.__setitem__("word/extra.zzz", b"<x/>"))
 expected["untyped_part.docx"] = {"accept": False, "reason": "NOT_A_DOCX"}
 
+# R7 (Phase 2 review): 30 trailing empty paragraphs push a blank page 2
+def blank_tail(p):
+    d = p["word/document.xml"]; i = d.rindex(b"<w:sectPr")
+    p["word/document.xml"] = d[:i] + b"<w:p/>" * 30 + d[i:]
+swap(base, "blank_trailing_page.docx", blank_tail)
+expected["blank_trailing_page.docx"] = {"accept": True, "editable": 6, "locked": {}, "pages": 1,
+                                        "trailing_empty_removed": 30}
+
 with open(os.path.join(OUT, "expected.json"), "w") as f:
     json.dump(expected, f, indent=1, sort_keys=True)
 print("wrote", len(expected), "fixtures to", OUT)

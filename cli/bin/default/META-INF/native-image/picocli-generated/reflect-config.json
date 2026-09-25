@@ -1,14 +1,14 @@
 [
   {
-    "name" : "com.tailor.cli.OnboardCommand",
+    "name" : "com.tailor.cli.NormalizeCommand",
     "allDeclaredConstructors" : true,
     "allPublicConstructors" : true,
     "allDeclaredMethods" : true,
     "allPublicMethods" : true,
     "fields" : [
-      { "name" : "outDir" },
-      { "name" : "skipCalibration" },
-      { "name" : "uploadPath" }
+      { "name" : "inPath" },
+      { "name" : "outPath" },
+      { "name" : "targetPages" }
     ]
   }
 ]

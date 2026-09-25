@@ -3,6 +3,13 @@
   "accept": false,
   "reason": "EMBEDDED_OBJECT"
  },
+ "blank_trailing_page.docx": {
+  "accept": true,
+  "editable": 6,
+  "locked": {},
+  "pages": 1,
+  "trailing_empty_removed": 30
+ },
  "case_duplicate.docx": {
   "accept": false,
   "reason": "DUPLICATE_ENTRY"
