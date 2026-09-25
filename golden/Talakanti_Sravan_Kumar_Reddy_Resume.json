@@ -1,0 +1,265 @@
+{
+ "file": "Talakanti_Sravan_Kumar_Reddy_Resume.docx",
+ "squeeze_removed": 285,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    8
+   ],
+   "text": "Involved in the backend development of the application, which focuses on addressing code errors and resolving issues by leveraging OpenAI GPT models through API integration.",
+   "chars": 173,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 200,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    9
+   ],
+   "text": "Assisting in the development of an application that takes a GitHub repository as input, generates a runme file, and automatically identifies errors, resolving them.",
+   "chars": 164,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 200,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    10
+   ],
+   "text": "Actively contributing to the development of a comprehensive coding tool, with a focus on enhancing issue resolution, code quality, and addressing bugs/issues..",
+   "chars": 159,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 200,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    14
+   ],
+   "text": "The project aims to detect specific hand signs (LiveLong, ThankYou, ThumbsUp, and ThumbsDown) and then accurately draw bounding boxes around them.",
+   "chars": 146,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 200,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    15
+   ],
+   "text": "The model exhibited exceptional accuracy in detecting and distinguishing the four designated signs.",
+   "chars": 99,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    16
+   ],
+   "text": "A Transfer Learning approach is employed for model training, utilizing the ssd mobilenet v2 fpnlite 320x320 coco17 tpu-8 model.",
+   "chars": 127,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 200,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    18
+   ],
+   "text": "The model is developed to perform sentiment analysis on movies based on provided reviews",
+   "chars": 88,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    19
+   ],
+   "text": "Word2Vec was used in the development of this model with an artificial neural network (ANN) architecture.",
+   "chars": 104,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    20
+   ],
+   "text": "The model achieved impressive accuracy rates of for 86.98% training data and 86.36% for test data.",
+   "chars": 98,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    22
+   ],
+   "text": "Developed a waste management Deep Learning model employing CNN architectures.",
+   "chars": 77,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    23
+   ],
+   "text": "Designed a high-performing model for precise classification of organic and recyclable waste",
+   "chars": 91,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 104,
+   "max_chars_tech": 96,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    24
+   ],
+   "text": "Employing MobileNet-V2 for transfer learning, the model achieved remarkable accuracy: 90.73% on the training data and 84.44% on the test data.",
+   "chars": 142,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 201,
+   "max_chars_tech": 183,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    32
+   ],
+   "text": "MSME Idea Hackathon 2.0: One of my notable achievements is representing our college Incubation Centre AIC-IIITKottayam at the national level in the MSME Idea Hackathon 2.0, a government-organized event focusing on idea submissions for startup initiatives.",
+   "chars": 255,
+   "lines": 3,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 4,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 4,
+     "end": 5,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 5,
+     "end": 9,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 9,
+     "end": 10,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 10,
+     "end": 19,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 19,
+     "end": 20,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 20,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 303,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    33
+   ],
+   "text": "SIH2023 : The winner of the SIH 2023 Internal Hackathon tackled the problem statement on sentiment analysis of incoming calls at the help desk.",
+   "chars": 143,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 7,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 7,
+     "end": 8,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 201,
+   "max_chars_tech": 183,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

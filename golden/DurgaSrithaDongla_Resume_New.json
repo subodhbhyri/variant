@@ -1,0 +1,265 @@
+{
+ "file": "DurgaSrithaDongla_Resume_New.docx",
+ "squeeze_removed": 169,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    17
+   ],
+   "text": "Built a Java-based metering system to track usage of EMR clusters running release versions under Extended Support, enabling billing across thousands of AWS customer environments and integrated this with the existing EMR distributed system",
+   "chars": 238,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    18
+   ],
+   "text": "Designed and implemented RESTful APIs to enable opt-in/opt-out control for Extended Support at the account and cluster level",
+   "chars": 124,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 128,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    19
+   ],
+   "text": "Created a scalable data model with a new entity and logical table to persist user preferences, ensuring high availability, fast query performance, and extensibility for future feature enhancements",
+   "chars": 196,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    20
+   ],
+   "text": "Achieved 98%+ test coverage through comprehensive unit, integration, and end-to-end testing",
+   "chars": 91,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 128,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    22
+   ],
+   "text": "Developed a modular micro service-based pipeline for the segmentation and classification of Peritubular Capillaries (PTCs) from IHC-stained kidney tissue images, improving analysis efficiency by 60% and enabling accurate Immune Peritubular Capillary Ratio (IPTCR) calculations",
+   "chars": 276,
+   "lines": 3,
+   "emphasis": [],
+   "max_chars_prose": 360,
+   "max_chars_tech": 301,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    23
+   ],
+   "text": "Engineered and integrated deep learning models for PTC segmentation and classification, achieving segmentation accuracy of 92% and classification accuracy of 88%, while containerizing workflows using docker for scalability and reproducibility",
+   "chars": 242,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    24
+   ],
+   "text": "Optimized image processing workflows through REST APIs, processing over 1000 high resolution images with 99.8% uptime",
+   "chars": 117,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 128,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    26
+   ],
+   "text": "Deployed a Siamese Neural Network built with PyTorch having 96.38% facial recognition accuracy, reducing authentication errors by 45%, and integrating this into ELITE Solutions' LMS with the help of Django and AWS Sagemaker",
+   "chars": 223,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    27
+   ],
+   "text": "Overhauled the web interface using ReactJS boosting user satisfaction by 30%, and orchestrated scalable model deployment pipelines to support increased user demand",
+   "chars": 163,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    28
+   ],
+   "text": "Conducted AI/ML and DSA training programs at two universities, mentoring over 2,000 students through hands-on projects, achieving a 92% project completion rate and facilitating 680 successful placements at tech companies",
+   "chars": 220,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    30
+   ],
+   "text": "Accomplished the automated extraction of 1,000 Business Responsibility and Sustainability Reports (BRSR) by implementing workflows in Power Automate and storing the data securely in AWS S3 for efficient processing and scalability",
+   "chars": 229,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    31
+   ],
+   "text": "Achieved trend analysis of female representation across organizational structures by performing EDA on the S3-stored data and developing an interactive PowerBI dashboard with 25+ key metrics, reducing stakeholder report generation time by 65%",
+   "chars": 242,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    32
+   ],
+   "text": "Increased data accessibility by 40% by integrating the dashboard into the SAMA website using ReactJS, Django, and PowerBI Web Services",
+   "chars": 134,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    34
+   ],
+   "text": "Engineered a production-ready text summarization software using HuggingFace's T5 and BART, achieving a 35% coherence improvement (ROUGE-L: 0.42, BLEU: 38.5) and reduced inference costs by 50%",
+   "chars": 191,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 14,
+   "locator": [
+    35
+   ],
+   "text": "Designed and brought to fruition an innovative RAG architecture leveraging LangChain and LlamaIndex, enabling efficient processing of documents up to 25,000 words with 1-minute latency and reducing manual summarization time by 70%",
+   "chars": 230,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 15,
+   "locator": [
+    36
+   ],
+   "text": "Scaled the system using AWS Sagemaker to serve 1,000+ daily users, increasing platform engagement by 25% and ensuring seamless high-availability operations",
+   "chars": 155,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 16,
+   "locator": [
+    40
+   ],
+   "text": "Implemented an advanced Tensorflow CNN architecture for skin lesion classification achieving 98.47% success rate across 9 dermatological conditions, leveraging dilated convolution and feature fusion techniques for enhanced diagnostic precision",
+   "chars": 243,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 17,
+   "locator": [
+    42
+   ],
+   "text": "Led development of an enhanced Mask RCNN model achieving 99.83% accuracy in crop image segmentation, delivering a 13.3% improvement over baseline FCN methods through novel optimized network architecture",
+   "chars": 202,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

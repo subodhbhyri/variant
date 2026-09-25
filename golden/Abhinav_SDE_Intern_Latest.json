@@ -1,0 +1,328 @@
+{
+ "file": "Abhinav_SDE_Intern_Latest.docx",
+ "squeeze_removed": 79,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    17
+   ],
+   "text": "Developed scalable evaluation pipelines and software tools in Python to process 1,500+ video samples from the ViBe dataset, detecting inconsistencies in text-to-video generative models and improving efficiency by 35%.",
+   "chars": 217,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 110,
+     "end": 114,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 114,
+     "end": 115,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 213,
+     "end": 216,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    18
+   ],
+   "text": "Implemented automated testing, logging, and data processing mechanisms, enhancing reproducibility, robustness, and reliability of AI research pipelines for large-scale generative model evaluation.",
+   "chars": 196,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    21
+   ],
+   "text": "Extracted key sales trends and seasonal patterns from over 600k transactions using in-depth time-series analysis and feature engineering to shape targeted marketing strategy and campaigns.",
+   "chars": 188,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    22
+   ],
+   "text": "Benchmarked SARIMAX, Prophet, and LSTM models, achieving 18–25% lower error rates than Na¨ıve baselines and minimizing procurement resource waste by 10%.",
+   "chars": 153,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    25
+   ],
+   "text": "Engineered a backend architecture for an AutoERP system in Node.js, improving scalability and supporting a 30% increase in concurrent users while ensuring seamless integration with enterprise-grade modules.",
+   "chars": 206,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 107,
+     "end": 119,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 119,
+     "end": 120,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 120,
+     "end": 122,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 122,
+     "end": 123,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 123,
+     "end": 133,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 133,
+     "end": 134,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 134,
+     "end": 139,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 139,
+     "end": 140,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    26
+   ],
+   "text": "Improved RESTful APIs and database queries, reducing average response time by 35% for 500+ daily operations with optimized indexing, caching strategies, and asynchronous request handling.",
+   "chars": 187,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 78,
+     "end": 82,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 86,
+     "end": 90,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 90,
+     "end": 91,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 91,
+     "end": 96,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 96,
+     "end": 97,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 97,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 206,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    29
+   ],
+   "text": "Embedded and indexed 1,000+ documents (PDFs, text) with LangChain, improving retrieval accuracy by 40%.",
+   "chars": 103,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 116,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    30
+   ],
+   "text": "Built FastAPI backend handling 100+ concurrent requests, enabling real-time contextual Q&A with sub-second latency.",
+   "chars": 115,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 116,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    31
+   ],
+   "text": "Integrated FAISS vector store with transformer embeddings, optimizing retrieval algorithms, ensuring scalable architecture, and boosting response accuracy by 30% in context-aware retrieval tasks.",
+   "chars": 195,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 206,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    33
+   ],
+   "text": "Implemented backend system in Go for authentication, book management, and reviews, handling 1000+ records.",
+   "chars": 106,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 116,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    34
+   ],
+   "text": "Developed APIs with Swagger, enabling 50% faster team-wide integration during agile development cycles.",
+   "chars": 103,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 117,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    35
+   ],
+   "text": "Enhanced data tracking with advanced search and filters, improving query efficiency by 40% overall.",
+   "chars": 99,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 117,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    37
+   ],
+   "text": "Designed modular ML pipeline on 10,000+ agricultural samples, implementing reusable and maintainable components for preprocessing, feature engineering, model training, ensuring scalability, integration, and code for production deployment.",
+   "chars": 238,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 239,
+   "max_chars_tech": 239,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    38
+   ],
+   "text": "Performed feature engineering, hyperparameter tuning, and cross-validation, improving predictive performance by 22%.",
+   "chars": 116,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 117,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 14,
+   "locator": [
+    39
+   ],
+   "text": "Visualized feature importance and yield predictions, enabling stakeholders to make decisions 15% faster.",
+   "chars": 104,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 117,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

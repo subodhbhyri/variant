@@ -1,0 +1,223 @@
+{
+ "file": "resume_EHR.docx",
+ "squeeze_removed": 0,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    12
+   ],
+   "text": "Built React.js frontend components from Figma designs and integrated them with Node.js backend REST APIs for My Surgical Risk, a clinical web application predicting postoperative surgical risk",
+   "chars": 192,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    13
+   ],
+   "text": "Worked with real-time backend systems using Kafka (streaming) and Redis (caching); managed clinical data with Cassandra DB and containerized the application using Docker",
+   "chars": 169,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    14
+   ],
+   "text": "Implemented authentication upgrades and password recovery functionality, improving security and usability for clinical staff",
+   "chars": 124,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 133,
+   "max_chars_tech": 137,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    16
+   ],
+   "text": "Researched novel graph algorithms for smart city routing problems, tackling the NP-complete Hamiltonian path challenge of visiting every location in a city-scale graph",
+   "chars": 167,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    17
+   ],
+   "text": "Reframed the problem using Eulerian paths — traversing every edge (road) exactly once rather than every vertex — replacing NP-complete hardness with a computationally efficient, always-solvable alternative",
+   "chars": 205,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    18
+   ],
+   "text": "Delivered a practical, scalable solution for real-world smart city use cases (e.g., garbage collection, road inspection) where full road coverage matters more than avoiding vertex revisits",
+   "chars": 188,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    30
+   ],
+   "text": "Built a Natural Language to SQL Query system (React, Go, Python LLM microservice) letting non-technical users query any structured dataset in plain English; applicable across finance, healthcare, and e-commerce",
+   "chars": 210,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    31
+   ],
+   "text": "Designed the Go backend as four decoupled modules (Analyzer, Generator, Validator, Executor) enforcing schema compliance and safety before execution; built for the UF CISE Software Engineering course",
+   "chars": 199,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    32
+   ],
+   "text": "Implemented query caching and input sanitization to prevent SQL injection; Built a natural language-to-SQL system with query validation and safety checks, supporting multiple databases including PostgreSQL, MySQL, and SQLite",
+   "chars": 224,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    34
+   ],
+   "text": "Engineered an ML pipeline predicting ICU sepsis risk up to 6 hours before clinical onset using ensemble models (Random Forest, XGBoost) trained on patient vitals and lab data with end-to-end feature engineering",
+   "chars": 210,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 276,
+   "max_chars_tech": 271,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    35
+   ],
+   "text": "Evaluated with AUROC and precision-recall curves to minimize false negatives in a high-stakes clinical setting; built a real-time risk score dashboard for clinician use",
+   "chars": 168,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 277,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    36
+   ],
+   "text": "Deployed model as a REST API (FastAPI) with an interactive Streamlit dashboard; applied SHAP explainability to surface top contributing features per prediction, supporting clinical trust and interpretability",
+   "chars": 207,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 277,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    38
+   ],
+   "text": "Built an open-source system that converts raw longitudinal EHR data into structured 4-hour time-bin timelines and applies temporal sequence models (GRU, Transformer) to predict 30-day readmission and 48-hour ICU mortality risk",
+   "chars": 226,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 277,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    39
+   ],
+   "text": "Engineered a full explainability layer with feature attribution and natural language explanations tied to specific time windows; evaluated using AUROC, AUPRC, and Brier score; designed for compatibility with MIMIC-IV",
+   "chars": 216,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 277,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 14,
+   "locator": [
+    40
+   ],
+   "text": "Deployed a full-stack system (Next.js, FastAPI, PyTorch, Docker Compose) serving real-time predictions via REST API with Swagger docs; built a synthetic EHR data generator to support open development without requiring MIMIC-IV access",
+   "chars": 233,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 277,
+   "max_chars_tech": 272,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

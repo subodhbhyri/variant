@@ -1,0 +1,2020 @@
+{
+ "file": "Mohan_Resume_Final.docx",
+ "squeeze_removed": 129,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    8
+   ],
+   "text": "Built a robot using ROS 2 with kinematic modeling, Gazebo simulation, and integrated LiDAR and depth sensors",
+   "chars": 108,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 20,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 23,
+     "end": 24,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 24,
+     "end": 26,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 51,
+     "end": 57,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 57,
+     "end": 58,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 58,
+     "end": 68,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 85,
+     "end": 90,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 90,
+     "end": 91,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 91,
+     "end": 94,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 94,
+     "end": 95,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 95,
+     "end": 100,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 100,
+     "end": 101,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 101,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    9
+   ],
+   "text": "Configured behavior trees with lifecycle management enabling deterministic autonomous navigation(SLAM & Nav2)",
+   "chars": 109,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 11,
+     "end": 19,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 19,
+     "end": 20,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 20,
+     "end": 25,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 25,
+     "end": 26,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 31,
+     "end": 40,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 40,
+     "end": 41,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 41,
+     "end": 51,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 51,
+     "end": 52,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 61,
+     "end": 74,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 74,
+     "end": 75,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 86,
+     "end": 101,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 101,
+     "end": 102,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 102,
+     "end": 103,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 103,
+     "end": 104,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 104,
+     "end": 109,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    10
+   ],
+   "text": "Developed a conversational medical RAG agent using Quantized Meditron-7B on edge enabling secure, voice-based retrieval of OMOP standardized clinical records without cloud dependencies to ensure HIPAA compliance",
+   "chars": 211,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 35,
+     "end": 38,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 38,
+     "end": 39,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 39,
+     "end": 44,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 44,
+     "end": 45,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 61,
+     "end": 72,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 72,
+     "end": 73,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 123,
+     "end": 127,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 127,
+     "end": 128,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 128,
+     "end": 140,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 140,
+     "end": 141,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 141,
+     "end": 149,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 149,
+     "end": 150,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 150,
+     "end": 157,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 157,
+     "end": 158,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 195,
+     "end": 200,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 200,
+     "end": 201,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 201,
+     "end": 211,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 230,
+   "max_chars_tech": 234,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    11
+   ],
+   "text": "Implemented Model Context Protocol (MCP) to define standardized agentic interfaces, enforcing strict type safety for autonomous robotic hardware control and backend task orchestration",
+   "chars": 183,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 12,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 17,
+     "end": 18,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 18,
+     "end": 25,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 25,
+     "end": 26,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 34,
+     "end": 35,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 51,
+     "end": 63,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 63,
+     "end": 64,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 64,
+     "end": 71,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 71,
+     "end": 72,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 72,
+     "end": 82,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 128,
+     "end": 135,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 135,
+     "end": 136,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 136,
+     "end": 144,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 144,
+     "end": 145,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 145,
+     "end": 152,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 152,
+     "end": 153,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 157,
+     "end": 164,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 164,
+     "end": 165,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 165,
+     "end": 169,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 169,
+     "end": 170,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 170,
+     "end": 183,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 230,
+   "max_chars_tech": 234,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    12
+   ],
+   "text": "Established a CI/CD pipeline using GitHub Actions for automated testing and containerized deployment of ROS 2 nodes and inference services across edge hardware, reducing deployment time by 55%",
+   "chars": 192,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 14,
+     "end": 19,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 19,
+     "end": 20,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 20,
+     "end": 28,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 28,
+     "end": 29,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 35,
+     "end": 41,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 41,
+     "end": 42,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 42,
+     "end": 49,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 49,
+     "end": 50,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 104,
+     "end": 107,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 107,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 108,
+     "end": 109,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 109,
+     "end": 110,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 161,
+     "end": 169,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 169,
+     "end": 180,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 180,
+     "end": 185,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 185,
+     "end": 188,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 188,
+     "end": 192,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 230,
+   "max_chars_tech": 234,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    15
+   ],
+   "text": "Designed asynchronous job processing pipelines reducing CPU timeouts by 40%, improving throughput under peak load",
+   "chars": 113,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 9,
+     "end": 21,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 21,
+     "end": 22,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 22,
+     "end": 25,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 25,
+     "end": 26,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 26,
+     "end": 36,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 36,
+     "end": 37,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 37,
+     "end": 46,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 46,
+     "end": 47,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 72,
+     "end": 75,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 115,
+   "max_chars_tech": 116,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    16
+   ],
+   "text": "Engineered Java microservices for loan lifecycle management, unit-tested with JUnit and deployed on AWS ECS, which streamlined the data integration across distributed systems and reduced API latency by 30%",
+   "chars": 205,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 11,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 15,
+     "end": 16,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 16,
+     "end": 29,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 29,
+     "end": 30,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 78,
+     "end": 83,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 83,
+     "end": 84,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 100,
+     "end": 103,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 103,
+     "end": 104,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 104,
+     "end": 107,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 155,
+     "end": 166,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 166,
+     "end": 175,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 187,
+     "end": 190,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 190,
+     "end": 191,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 191,
+     "end": 198,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 198,
+     "end": 201,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 201,
+     "end": 205,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    17
+   ],
+   "text": "Led efforts to reduce memory footprint by 50% through data partitioning, indexing, and workflow refactoring, while optimizing queries with Salesforce Big Objects, boosting processing capacity",
+   "chars": 191,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 22,
+     "end": 28,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 28,
+     "end": 29,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 29,
+     "end": 38,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 38,
+     "end": 39,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 39,
+     "end": 41,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 41,
+     "end": 42,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 42,
+     "end": 45,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 45,
+     "end": 46,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 54,
+     "end": 58,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 58,
+     "end": 59,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 59,
+     "end": 71,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 73,
+     "end": 81,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 139,
+     "end": 149,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 149,
+     "end": 153,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 153,
+     "end": 161,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 163,
+     "end": 171,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 171,
+     "end": 182,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 182,
+     "end": 183,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    18
+   ],
+   "text": "Developed an enterprise-scale RAG chatbot on AWS handling 100K+ monthly queries; integrated Salesforce via Event-Bridge to automate loan Q&A, reducing ticket volume by 65% and saving ≈$380K/year",
+   "chars": 194,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 30,
+     "end": 33,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 33,
+     "end": 34,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 34,
+     "end": 41,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 41,
+     "end": 42,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 45,
+     "end": 48,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 48,
+     "end": 49,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 58,
+     "end": 63,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 63,
+     "end": 64,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 64,
+     "end": 71,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 71,
+     "end": 72,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 72,
+     "end": 79,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 107,
+     "end": 119,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 119,
+     "end": 120,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 142,
+     "end": 150,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 150,
+     "end": 151,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 151,
+     "end": 157,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 157,
+     "end": 158,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 158,
+     "end": 164,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 164,
+     "end": 165,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 165,
+     "end": 167,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 167,
+     "end": 168,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 168,
+     "end": 171,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 171,
+     "end": 172,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 176,
+     "end": 182,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 182,
+     "end": 183,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 183,
+     "end": 184,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 184,
+     "end": 185,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 185,
+     "end": 194,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    21
+   ],
+   "text": "Engineered a financial computation engine with PV-based amortization logic, reducing schedule generation time by 73%",
+   "chars": 116,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 10,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 10,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 47,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 55,
+     "end": 56,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 56,
+     "end": 68,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 68,
+     "end": 69,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 69,
+     "end": 74,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 76,
+     "end": 84,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 84,
+     "end": 85,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 113,
+     "end": 116,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 115,
+   "max_chars_tech": 116,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    22
+   ],
+   "text": "Pioneered an OCR-driven system utilizing Python and AWS Lambda to automate customer data extraction and verification from uploaded documents, accelerating fin-tech on-boarding by 80%",
+   "chars": 182,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 13,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 23,
+     "end": 24,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 24,
+     "end": 31,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 52,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 55,
+     "end": 56,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 56,
+     "end": 63,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 142,
+     "end": 154,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 154,
+     "end": 155,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 164,
+     "end": 175,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 175,
+     "end": 176,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 179,
+     "end": 182,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 231,
+   "max_chars_tech": 230,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    23
+   ],
+   "text": "Designed user interfaces using LWC and Aura components with GraphQL optimized data layer, conducting A/B testing to refine UX workflows which resulted in an 18% increase in CSAT scores across 450+ enterprise customers",
+   "chars": 217,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 9,
+     "end": 24,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 24,
+     "end": 25,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 31,
+     "end": 35,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 35,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 54,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 60,
+     "end": 67,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 67,
+     "end": 68,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 101,
+     "end": 105,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 105,
+     "end": 113,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 157,
+     "end": 160,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 160,
+     "end": 170,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 173,
+     "end": 177,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 177,
+     "end": 178,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 178,
+     "end": 185,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 192,
+     "end": 196,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 196,
+     "end": 207,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 207,
+     "end": 217,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 218,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    24
+   ],
+   "text": "Coded Batch jobs to identify irregularities in loan repayment schedules, processing around 1 Million records and saving an estimated 10 hours per week",
+   "chars": 150,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 6,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 11,
+     "end": 12,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 12,
+     "end": 16,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 16,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 91,
+     "end": 92,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 92,
+     "end": 93,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 93,
+     "end": 100,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 100,
+     "end": 101,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 101,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 108,
+     "end": 109,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 113,
+     "end": 119,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 119,
+     "end": 120,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 133,
+     "end": 135,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 135,
+     "end": 141,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 141,
+     "end": 145,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 145,
+     "end": 150,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 231,
+   "max_chars_tech": 230,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    27
+   ],
+   "text": "Managed the complete pipeline, leading OCR development, dataset creation, and deployment to ensure timely delivery and technical accuracy under Prof. Ganesh Ramakrishnan",
+   "chars": 169,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 8,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 21,
+     "end": 29,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 39,
+     "end": 42,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 42,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 138,
+     "end": 143,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 143,
+     "end": 149,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 149,
+     "end": 150,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 150,
+     "end": 156,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 156,
+     "end": 169,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 231,
+   "max_chars_tech": 230,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 14,
+   "locator": [
+    28
+   ],
+   "text": "Engineered an OCR model using Attention LSTM to detect Sanskrit text, achieving 92.4% word-level accuracy",
+   "chars": 105,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 14,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 17,
+     "end": 18,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 23,
+     "end": 24,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 30,
+     "end": 39,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 39,
+     "end": 40,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 40,
+     "end": 45,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 80,
+     "end": 85,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 85,
+     "end": 86,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 86,
+     "end": 96,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 96,
+     "end": 97,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 97,
+     "end": 105,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 116,
+   "max_chars_tech": 112,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 15,
+   "locator": [
+    29
+   ],
+   "text": "Created a data augmentation pipeline to generate 100K+ synthetic bilingual samples (Sanskrit-English), reducing model training time by 35% through improved data diversity",
+   "chars": 170,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 10,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 14,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 15,
+     "end": 27,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 27,
+     "end": 28,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 28,
+     "end": 36,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 36,
+     "end": 37,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 49,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 54,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 55,
+     "end": 64,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 64,
+     "end": 65,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 65,
+     "end": 74,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 74,
+     "end": 75,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 75,
+     "end": 82,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 82,
+     "end": 83,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 103,
+     "end": 117,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 117,
+     "end": 126,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 126,
+     "end": 131,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 131,
+     "end": 134,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 134,
+     "end": 139,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 218,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 16,
+   "locator": [
+    30
+   ],
+   "text": "Employed agile methods and a CI/CD pipeline to deploy a Django application on AWS EC2, cutting release time by 30%",
+   "chars": 114,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 9,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 14,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 15,
+     "end": 22,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 22,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 29,
+     "end": 34,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 34,
+     "end": 35,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 56,
+     "end": 62,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 62,
+     "end": 63,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 63,
+     "end": 74,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 74,
+     "end": 75,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 78,
+     "end": 81,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 81,
+     "end": 82,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 82,
+     "end": 85,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 111,
+     "end": 114,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 104,
+   "max_chars_tech": 112,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 17,
+   "locator": [
+    36
+   ],
+   "text": "An interactive web tool that simplifies bioinformatics algorithms through step-by-step visualizations. Currently used in class by the professor for course - CAP5510",
+   "chars": 164,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 3,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 14,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 15,
+     "end": 18,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 18,
+     "end": 19,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 19,
+     "end": 23,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 23,
+     "end": 24,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 40,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 54,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 55,
+     "end": 65,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 65,
+     "end": 66,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 87,
+     "end": 101,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 113,
+     "end": 117,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 117,
+     "end": 118,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 157,
+     "end": 164,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 231,
+   "max_chars_tech": 230,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 18,
+   "locator": [
+    38
+   ],
+   "text": "Delivered 10+ API endpoints using Go and the Gin framework, writing over 4000+ lines of clean, well-documented code to enhance backend maintainability",
+   "chars": 150,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 10,
+     "end": 13,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 13,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 34,
+     "end": 36,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 36,
+     "end": 37,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 45,
+     "end": 48,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 48,
+     "end": 49,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 73,
+     "end": 78,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 78,
+     "end": 79,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 79,
+     "end": 84,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 84,
+     "end": 85,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 231,
+   "max_chars_tech": 230,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

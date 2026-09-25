@@ -1,0 +1,222 @@
+{
+ "file": "resume_ajitesh__.docx",
+ "squeeze_removed": 320,
+ "shrink_pt": 0.5,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    12
+   ],
+   "text": "Built and maintained a modular Python pipeline on Linux – data loaders, model architecture, training scripts, SLURM job configs – processing 35,704 simulation frames on UF’s HiPerGator HPC cluster with NVIDIA L4/T4 GPUs, collaborating with researchers and faculty in weekly technical meetings.",
+   "chars": 293,
+   "lines": 3,
+   "emphasis": [],
+   "max_chars_prose": 355,
+   "max_chars_tech": 301,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    13
+   ],
+   "text": "Engineered and evaluated 3 conditional diffusion model architectures in PyTorch, debugging a 5× encoding-decoding performance gap and integrating the optimal architecture to improve system accuracy.",
+   "chars": 198,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 94,
+     "end": 95,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 95,
+     "end": 96,
+     "bold": false,
+     "italic": true
+    }
+   ],
+   "max_chars_prose": 235,
+   "max_chars_tech": 223,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    14
+   ],
+   "text": "Replaced ground truth guidance with a physics-based dynamics model trained on 30,000 self-collected trajectories, achieving within 5.4% of ground-truth-guided performance across 6,318 test frames without simulator state access.",
+   "chars": 227,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    17
+   ],
+   "text": "Scaled RESTful microservices for a Django-based SaaS platform serving 5,000+ daily users, improving performance by 25% through query optimization, indexing, and caching – ensuring high reliability and low-latency response times.",
+   "chars": 228,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    18
+   ],
+   "text": "Designed optimized PostgreSQL schemas and integrated Celery for asynchronous tasks, collaborating with senior engineers to ensure high responsiveness and zero downtime during migrations.",
+   "chars": 186,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    19
+   ],
+   "text": "Containerized backend services with Docker, automated CI/CD pipelines in Jenkins, and wrote unit and integration tests for API endpoints – ensuring deployment reliability and maintainability.",
+   "chars": 191,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    22
+   ],
+   "text": "Engineered a scalable commerce platform with Spring Boot, React and MySQL – implementing Stripe payment processing, JWT authentication, role-based authorization, shopping cart, checkout, and product catalog supporting 10K+ products.",
+   "chars": 232,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    23
+   ],
+   "text": "Containerized services with Docker and deployed to a Kubernetes cluster for multi-service orchestration.",
+   "chars": 104,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    24
+   ],
+   "text": "Provisioned AWS infrastructure (EC2, RDS) using Terraform, implemented CI/CD pipelines for automated deployments and wrote unit and integration tests for API endpoints and authentication flows.",
+   "chars": 193,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    26
+   ],
+   "text": "Built an agentic SRE system using LangGraph that detects anomalies, reasons over live telemetry, and remediates failures across an 11-service Kubernetes environment – achieving 85% success rate and 4.3-min MTTR across 20 chaos scenarios.",
+   "chars": 237,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 235,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    27
+   ],
+   "text": "Implemented a RAG pipeline using ChromaDB to retrieve operational context from historical incidents, grounding LLM root-cause analysis in Prometheus metrics, Loki logs, and GitHub deployment history.",
+   "chars": 199,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    28
+   ],
+   "text": "Exposed Kubernetes, Prometheus, Loki, GitHub, and Slack as MCP tool servers in a 5-node remediation pipeline – with human-in-the-loop approval for high-risk actions and PostgreSQL audit logging.",
+   "chars": 194,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    30
+   ],
+   "text": "Built a four-phase NLP pipeline for paraphrase detection on 5,800+ adversarial sentence pairs, progressing from Word2Vec baselines (53%) through fine-tuned RoBERTa cross-encoder (84%) to Gemini-based LLM reasoning (91%).",
+   "chars": 220,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 13,
+   "locator": [
+    31
+   ],
+   "text": "Identified independent sentence encoding as the non-obvious root cause of bi-encoder failure and resolved it through cross-encoder fine-tuning, improving accuracy by 38 percentage points over baseline.",
+   "chars": 201,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 236,
+   "max_chars_tech": 198,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

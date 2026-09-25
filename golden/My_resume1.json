@@ -1,0 +1,701 @@
+{
+ "file": "My_resume1.docx",
+ "squeeze_removed": 759,
+ "shrink_pt": 0.5,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    17
+   ],
+   "text": "Assisted in developing Spinov’s merchant side for sport betting, enabling points to redeem restaurant discounts upto $5 to $10.",
+   "chars": 127,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 23,
+     "end": 31,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 31,
+     "end": 32,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 117,
+     "end": 119,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 119,
+     "end": 120,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 123,
+     "end": 126,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    18
+   ],
+   "text": "Developed code for Firebase notifications, sending live upcoming match alerts to multiple users, and built a FastAPI and MySQL backend for 24-hour upcoming and past 1-month match database management.",
+   "chars": 199,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 19,
+     "end": 27,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 27,
+     "end": 28,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 109,
+     "end": 116,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 116,
+     "end": 117,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 121,
+     "end": 126,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 126,
+     "end": 127,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 268,
+   "max_chars_tech": 249,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    19
+   ],
+   "text": "Implemented a queuing-based scheduler for daily API calls of match information using API-SPORTS and RapidAPI platforms, along with data aggregator code.",
+   "chars": 152,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 14,
+     "end": 38,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 85,
+     "end": 96,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 100,
+     "end": 109,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 294,
+   "max_chars_tech": 263,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    25
+   ],
+   "text": "Teamed up with 3 other students as part of HASOC 2023, resulting in a submission to the FIRE Community CEUR workshop.",
+   "chars": 117,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 15,
+     "end": 16,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 16,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 43,
+     "end": 48,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 48,
+     "end": 49,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 49,
+     "end": 53,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 88,
+     "end": 92,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 92,
+     "end": 93,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 103,
+     "end": 107,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 107,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    26
+   ],
+   "text": "Managed preprocessing tasks, including emoji handling, translation, and URL/username handling, laying the project’s foundation.",
+   "chars": 127,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    27
+   ],
+   "text": "Implemented various neural network and BERT-based approaches, resulting in top scores for Indicbert (69.7% F1 for Assamese), Bengali MuRIL",
+   "chars": 138,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 90,
+     "end": 99,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 99,
+     "end": 100,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 101,
+     "end": 106,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 106,
+     "end": 107,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 125,
+     "end": 132,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 132,
+     "end": 133,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 133,
+     "end": 138,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    30
+   ],
+   "text": "The device connects to the Wi-Fi network, establishes a real-time WebSocket connection, and manages over 100 incoming messages using C++.",
+   "chars": 137,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 27,
+     "end": 32,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 32,
+     "end": 33,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 66,
+     "end": 75,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 75,
+     "end": 76,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 105,
+     "end": 108,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 108,
+     "end": 109,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 133,
+     "end": 136,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    31
+   ],
+   "text": "Handled ArduinoWebsockets library in C++ to handle WebSocket communication and enable real-time messaging.",
+   "chars": 106,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 8,
+     "end": 25,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 25,
+     "end": 26,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 146,
+   "max_chars_tech": 137,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    32
+   ],
+   "text": "Customized the WebSocket functionality with a FastAPI server and shaped a front-end using HTML, CSS, and JavaScript.",
+   "chars": 116,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 46,
+     "end": 53,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 53,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 90,
+     "end": 94,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 96,
+     "end": 99,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 105,
+     "end": 115,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    34
+   ],
+   "text": "Trained the model using ResNet-50 transfer learning model, achieving high training accuracy of 90% and validation accuracy of 92%.",
+   "chars": 130,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 24,
+     "end": 33,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 33,
+     "end": 34,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 95,
+     "end": 98,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 98,
+     "end": 99,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 126,
+     "end": 129,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 133,
+   "max_chars_tech": 127,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    35
+   ],
+   "text": "Allocated a weightage of 70% to the content-based filtering approach and 30% to collaborative filtering to recommend 5 similar games, lever-aging database of 20,000 similar games from IMDB.",
+   "chars": 189,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 25,
+     "end": 29,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 36,
+     "end": 60,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 73,
+     "end": 77,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 80,
+     "end": 104,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 158,
+     "end": 165,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 184,
+     "end": 188,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 277,
+   "max_chars_tech": 264,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    56
+   ],
+   "text": "Grand Master, stood 2nd runner up once 3rd runner-up twice in Advanced Level 2 at the regional SIP Abacus Competition in Hyderabad.",
+   "chars": 131,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 39,
+     "end": 42,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 42,
+     "end": 43,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 62,
+     "end": 70,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 70,
+     "end": 71,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 71,
+     "end": 76,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 76,
+     "end": 77,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 77,
+     "end": 78,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 78,
+     "end": 79,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 86,
+     "end": 94,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 94,
+     "end": 95,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 134,
+   "max_chars_tech": 128,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 12,
+   "locator": [
+    57
+   ],
+   "text": "Secured 6th position out of 50 teams in NPCI Hackathon (A Hackathon based on Data Science and AI).",
+   "chars": 98,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 8,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 11,
+     "end": 12,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 28,
+     "end": 30,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 30,
+     "end": 31,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 40,
+     "end": 44,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 44,
+     "end": 45,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 45,
+     "end": 54,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 54,
+     "end": 55,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 147,
+   "max_chars_tech": 134,
+   "supported": false,
+   "unsupported_reasons": [
+    "hyperlink"
+   ]
+  },
+  {
+   "index": 13,
+   "locator": [
+    60
+   ],
+   "text": "Participating in Cricket consistently across local matches for IIT Goa, and handled 2 cricket-based events in college.",
+   "chars": 118,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 84,
+     "end": 85,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 85,
+     "end": 86,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 134,
+   "max_chars_tech": 128,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 14,
+   "locator": [
+    61
+   ],
+   "text": "Devoted to improving physical health and overall well-being by hitting the gym 5 days a week.",
+   "chars": 93,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 79,
+     "end": 80,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 80,
+     "end": 81,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 134,
+   "max_chars_tech": 128,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

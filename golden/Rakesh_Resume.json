@@ -1,0 +1,220 @@
+{
+ "file": "Rakesh_Resume.docx",
+ "squeeze_removed": 258,
+ "shrink_pt": 0.5,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    20
+   ],
+   "text": "Data Structures• Operating Systems• Algorithms• Computer Networks",
+   "chars": 65,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 15,
+     "end": 16,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 16,
+     "end": 17,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 34,
+     "end": 35,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 35,
+     "end": 36,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 46,
+     "end": 47,
+     "bold": false,
+     "italic": true
+    },
+    {
+     "start": 47,
+     "end": 48,
+     "bold": false,
+     "italic": true
+    }
+   ],
+   "max_chars_prose": 115,
+   "max_chars_tech": 104,
+   "supported": false,
+   "unsupported_reasons": [
+    "tab_in_text"
+   ]
+  },
+  {
+   "index": 1,
+   "locator": [
+    23
+   ],
+   "text": "Engineered a dynamic Fitness App using the MERN stack, showcasing expertise in MongoDB, Express, React, and Node.js.",
+   "chars": 116,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    24
+   ],
+   "text": "Implemented CRUD operations, API routes, and integrated with MongoDB.",
+   "chars": 69,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    25
+   ],
+   "text": "Elevated development standards with the incorporation of TypeScript and NextJS, ensuring code integrity and future scalability.",
+   "chars": 127,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 230,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    27
+   ],
+   "text": "Built an interactive Anime Memory Game using React, HTML, and CSS.",
+   "chars": 66,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    28
+   ],
+   "text": "Designed and implemented a React-based Anime Memory Game for an enhanced user experience.",
+   "chars": 89,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    29
+   ],
+   "text": "Incorporated animations for a dynamic user interface.",
+   "chars": 53,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    32
+   ],
+   "text": "Developed a visually appealing React JS portfolio, incorporating Tailwind CSS for a modern and polished look.",
+   "chars": 109,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 8,
+   "locator": [
+    33
+   ],
+   "text": "Implemented smooth transitions and interactive components to captivate user engagement.",
+   "chars": 87,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 9,
+   "locator": [
+    34
+   ],
+   "text": "Ensured optimal performance and responsiveness for seamless navigation.",
+   "chars": 71,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 115,
+   "max_chars_tech": 111,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 10,
+   "locator": [
+    42
+   ],
+   "text": "Chosen by the Director to serve as the Director’s Nominee for the Student’s Gymkhana.",
+   "chars": 85,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 112,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 11,
+   "locator": [
+    43
+   ],
+   "text": "Actively participated as an Executive and Head in all of IIITA’s fests, including Technical, Sports, and Cultural events.",
+   "chars": 121,
+   "lines": 1,
+   "emphasis": [],
+   "max_chars_prose": 116,
+   "max_chars_tech": 112,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}

@@ -1,0 +1,25 @@
+{
+  "map": {
+    "Calibri": "Carlito",
+    "Calibri Light": "Carlito",
+    "Aptos": "Carlito",
+    "Aptos Display": "Carlito",
+    "Cambria": "Caladea",
+    "Times New Roman": "Liberation Serif",
+    "Arial": "Liberation Sans",
+    "Helvetica": "Liberation Sans",
+    "Courier New": "Liberation Mono",
+    "Georgia": "Gelasio RT",
+    "Book Antiqua": "TeX Gyre Pagella",
+    "Palatino Linotype": "TeX Gyre Pagella",
+    "Bookman Old Style": "TeX Gyre Bonum",
+    "Verdana": "DejaVu Sans",
+    "Lucida Sans Unicode": "DejaVu Sans"
+  },
+  "numberingGlyphKeep": ["Symbol", "Wingdings", "Wingdings 2", "Wingdings 3", "Courier New"],
+  "auditAllowed": [
+    "Carlito", "Caladea", "LiberationSerif", "LiberationSans", "LiberationMono",
+    "GelasioRT", "TeXGyrePagella", "TeXGyreBonum", "DejaVuSans",
+    "OpenSymbol", "LMRoman10", "SymbolMT", "Wingdings"
+  ]
+}

@@ -1,0 +1,340 @@
+{
+ "file": "Subodh_Ashok_Bhyri.docx",
+ "squeeze_removed": 234,
+ "shrink_pt": 0.0,
+ "pages": 1,
+ "bullets": [
+  {
+   "index": 0,
+   "locator": [
+    7
+   ],
+   "text": "Architected and delivered a centralized admin screen for real-time monitoring of transmission line health, aggregating sensor data to improve operational visibility and reduce incident response time ",
+   "chars": 199,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 1,
+   "locator": [
+    8
+   ],
+   "text": "Designed and implemented a scalable RBAC system using React and Node.js, enabling secure user management for 500+ users across multi-tier enterprise environments ",
+   "chars": 162,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 2,
+   "locator": [
+    9
+   ],
+   "text": "Secured user authentication by integrating OAuth2 and JWT, resulting in a 99.9% success rate for secure token-based access and an improved user authentication workflow ",
+   "chars": 168,
+   "lines": 2,
+   "emphasis": [],
+   "max_chars_prose": 206,
+   "max_chars_tech": 182,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 3,
+   "locator": [
+    18
+   ],
+   "text": "Languages & Frameworks: Python, Java, TypeScript, JavaScript, FastAPI, Spring Boot, Node.js, React, gRPC",
+   "chars": 104,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 9,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 9,
+     "end": 10,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 10,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 11,
+     "end": 12,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 12,
+     "end": 13,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 13,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 14,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 17,
+     "end": 18,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 18,
+     "end": 20,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 20,
+     "end": 22,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 103,
+   "max_chars_tech": 95,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 4,
+   "locator": [
+    19
+   ],
+   "text": "AI & Evaluation: LangChain, LangGraph, MCP, RAGAS, RAG pipelines, Vector Databases, Prompt Engineering, LLM APIs ",
+   "chars": 113,
+   "lines": 2,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 2,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 2,
+     "end": 3,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 3,
+     "end": 4,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 4,
+     "end": 5,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 5,
+     "end": 7,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 7,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 217,
+   "max_chars_tech": 197,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 5,
+   "locator": [
+    20
+   ],
+   "text": "Backend: Distributed Systems, REST APIs, Kafka, Redis, OAuth2/JWT, Docker, Kubernetes",
+   "chars": 85,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 4,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 4,
+     "end": 7,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 103,
+   "max_chars_tech": 100,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 6,
+   "locator": [
+    21
+   ],
+   "text": "Databases & Cloud: PostgreSQL, MongoDB, Apache Cassandra, MySQL, AWS, Supabase",
+   "chars": 78,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 3,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 3,
+     "end": 5,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 5,
+     "end": 9,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 9,
+     "end": 10,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 10,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 11,
+     "end": 12,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 12,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 103,
+   "max_chars_tech": 100,
+   "supported": true,
+   "unsupported_reasons": []
+  },
+  {
+   "index": 7,
+   "locator": [
+    22
+   ],
+   "text": "Observability & Tools: Prometheus, Grafana, OpenTelemetry, Airflow, Git, GitHub Actions",
+   "chars": 87,
+   "lines": 1,
+   "emphasis": [
+    {
+     "start": 0,
+     "end": 5,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 5,
+     "end": 6,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 6,
+     "end": 11,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 11,
+     "end": 12,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 12,
+     "end": 13,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 13,
+     "end": 14,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 14,
+     "end": 15,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 15,
+     "end": 16,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 16,
+     "end": 17,
+     "bold": true,
+     "italic": false
+    },
+    {
+     "start": 17,
+     "end": 21,
+     "bold": true,
+     "italic": false
+    }
+   ],
+   "max_chars_prose": 103,
+   "max_chars_tech": 100,
+   "supported": true,
+   "unsupported_reasons": []
+  }
+ ],
+ "environment": {
+  "libreoffice": "24.2.7.2",
+  "font_map": "Phase 1 spec section 3",
+  "note": "line counts must match exactly; max_chars_* are hints and may differ by a few chars across LibreOffice versions"
+ }
+}
