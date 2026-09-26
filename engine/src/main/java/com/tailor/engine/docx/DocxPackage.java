@@ -85,6 +85,21 @@ public final class DocxPackage {
         parts.put(partName, content);
     }
 
+    /**
+     * Adds a part that doesn't already exist (PHASE3_SPEC.md 4: a header's first added link
+     * relationship, when the document had none — {@code word/_rels/document.xml.rels} is
+     * absent iff the document never had any relationship at all). Every extension this can
+     * plausibly apply to (.rels itself, chiefly) already has a {@code Default} entry in
+     * {@code [Content_Types].xml} in any package that passed the upload gate, so no content-type
+     * bookkeeping is needed here.
+     */
+    public void addPart(String partName, byte[] content) {
+        if (parts.containsKey(partName)) {
+            throw new IllegalArgumentException("part already exists: " + partName);
+        }
+        parts.put(partName, content);
+    }
+
     public List<String> partNamesStartingWith(String prefix) {
         return parts.keySet().stream().filter(n -> n.startsWith(prefix)).toList();
     }

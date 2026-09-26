@@ -147,9 +147,12 @@ width − left/right margins − the paragraph's right indent). Store the measur
 edge per header at onboarding (`dateEdgeTwips`) so swaps don't re-measure.
 Tab positions are measured from the left margin.
 
-Measured: converting all tab-date headers in 5 resumes moves no character more
-than **0.1pt** vertically or horizontally; with it, Mohan's rotation succeeds
-in one render. Untouched headers are never converted.
+Measured: converting tab-date headers moves nothing vertically and leaves every
+other line in place. On the converted header line itself, characters may move
+horizontally by a few twips (LibreOffice positions text in whole twips; the
+measured edge is converted to twips for the tab stop): 2 twips = 0.10pt on
+Abhinav. With it, Mohan's rotation succeeds in one render. Untouched headers are
+never converted.
 
 ---
 
@@ -240,7 +243,7 @@ tailor project-check fixtures/phase3                   # runs P3-T3 and prints t
 | P3-T2 | Corpus detection | All 9 resumes equal `golden/phase3_blocks.json` (projects section, positions, swappable/reason, header token list) |
 | P3-T3 | Fixture swaps | Every library project into every swappable position gives the `swaps` outcome in `expected.json`; for `OK`, `stack_items_kept` and `padded_bullets` match, and the Verifier passes |
 | P3-T4 | Corpus rotation | In each corpus project section, content of position i+1 → position i with bullets fitted (library built from the resume's own blocks, shortened/padded to fit); skips exactly as `golden/phase3_blocks.json` `_rotation.skipped`; Verifier passes (measured 0.00pt on all) |
-| P3-T5 | Date-tab conversion | Converting every tab-date header in the corpus changes no character position by more than 0.1pt |
+| P3-T5 | Date-tab conversion | Converting every tab-date header in the corpus: (1) no character moves vertically by more than 0.05pt; (2) no character on any line other than a converted header line moves by more than 0.05pt; (3) characters on converted header lines move horizontally by at most 0.25pt (5 twips). Report the three maxima per resume. |
 | P3-T6 | Inline break rule | Unit test: rebuilding Subodh's LLM Eval block with its own content moves no line; the same rebuild with breaks in unformatted runs moves lines (proves the test can fail) |
 | P3-T7 | No regressions | All Phase 1 and Phase 2 tests, `corpus-check` ALL PASS |
 
