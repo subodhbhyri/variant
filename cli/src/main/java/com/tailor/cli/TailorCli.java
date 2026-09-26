@@ -12,7 +12,7 @@ import picocli.CommandLine.Command;
         mixinStandardHelpOptions = true,
         version = "tailor 0.1 (Phase 1, step 1.1)",
         subcommands = {RenderCommand.class, NormalizeCommand.class, DetectCommand.class, CorpusCheckCommand.class,
-                OnboardCommand.class, BlocksCommand.class})
+                OnboardCommand.class, BlocksCommand.class, SwapCommand.class, ProjectCheckCommand.class})
 public final class TailorCli implements Runnable {
 
     @Override

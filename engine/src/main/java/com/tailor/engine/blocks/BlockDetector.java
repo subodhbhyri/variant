@@ -16,7 +16,7 @@ public final class BlockDetector {
 
     /** Bullet glyph characters a block-detected paragraph segment may start with, including the
      * two private-use-area codepoints old PDF/Word-to-docx converters emit for Wingdings bullets. */
-    private static final String GLYPHS = "•●▪◦‣➢❖■□►✓";
+    static final String GLYPHS = "•●▪◦‣➢❖■□►✓";
 
     private BlockDetector() {
     }

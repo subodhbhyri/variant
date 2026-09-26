@@ -90,7 +90,8 @@ public final class HeaderRenderer {
         }
     }
 
-    private static Element renderLink(Element original, NewLink link, LinkRelWriter linkRelWriter) {
+    /** Package-visible: {@link InlineRenderer} reuses this for an inline block's header-segment link. */
+    static Element renderLink(Element original, NewLink link, LinkRelWriter linkRelWriter) {
         Element copy = (Element) original.cloneNode(true);
         copy.removeAttributeNS(W_NS, "anchor");
 

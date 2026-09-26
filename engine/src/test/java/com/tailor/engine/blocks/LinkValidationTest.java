@@ -35,7 +35,13 @@ class LinkValidationTest {
                 "data:text/html,x",
                 "some/relative/path",
                 "https://example.com/a b",
-                "https://example.com/" + "a".repeat(3000));
+                "https://example.com/" + "a".repeat(3000),
+                // Opus review of step 3.2: user-info spoofing, a non-ASCII look-alike domain
+                // character, an empty host, and a mailto with no @domain.
+                "https://github.com@evil.example",
+                "https://githаb.com/x/y", // Cyrillic 'а' looks like Latin 'a'
+                "https:///path",
+                "mailto:not-an-email");
 
         for (String url : invalid) {
             assertFalse(LinkValidator.isValid(url), "expected invalid: " + url);
