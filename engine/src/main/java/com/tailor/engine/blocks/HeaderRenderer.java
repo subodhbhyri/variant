@@ -21,6 +21,7 @@ public final class HeaderRenderer {
      * between words — measured to give 0.0pt drift where a single long run doesn't. */
     private static final Pattern WORD_TOKEN = Pattern.compile("\\S+|\\s+");
     private static final String R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    private static final String W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
     public interface LinkRelWriter {
         String addHyperlink(String url);
@@ -37,9 +38,14 @@ public final class HeaderRenderer {
 
     public static void render(Element headerParagraph, List<HeaderToken> template, NewFields fields,
             LinkRelWriter linkRelWriter) {
+        List<NewLink> links = fields.links() != null ? fields.links() : List.of();
+        for (NewLink link : links) {
+            LinkValidator.validate(link.url());
+        }
+
         XmlBuild.removeAllExceptPPr(headerParagraph);
 
-        Deque<NewLink> remainingLinks = new ArrayDeque<>(fields.links() != null ? fields.links() : List.of());
+        Deque<NewLink> remainingLinks = new ArrayDeque<>(links);
         boolean hasDetail = fields.detail() != null && !fields.detail().isEmpty();
 
         for (int k = 0; k < template.size(); k++) {
@@ -86,6 +92,7 @@ public final class HeaderRenderer {
 
     private static Element renderLink(Element original, NewLink link, LinkRelWriter linkRelWriter) {
         Element copy = (Element) original.cloneNode(true);
+        copy.removeAttributeNS(W_NS, "anchor");
 
         String newRid = linkRelWriter.addHyperlink(link.url());
         Attr idAttr = copy.getAttributeNodeNS(R_NS, "id");

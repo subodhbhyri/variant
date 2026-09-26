@@ -131,6 +131,16 @@ to SQL" is one TITLE.
   `word/_rels/document.xml.rels`. Never modify or reuse existing relationships.
   Label: the project's label, except when the original label looks like a URL,
   in which case the label is the new URL.
+- **Link URLs are validated before anything renders.** A library link's `url`
+  must be an absolute `http://`, `https://` or `mailto:` URL, at most 2,048
+  characters, with no whitespace or control characters. Anything else fails the
+  swap with `INVALID_LINK` (e.g. `javascript:`, `file:`, `data:`, relative
+  paths). The upload gate doesn't cover these: they're created after it runs.
+- Relationship ids: `rIdVariant{N}` with N one more than the highest existing
+  `rIdVariant` number, checked against **all** ids in the part (never reuse an
+  id, even one that looks free). A header link that uses `w:anchor` (an
+  internal bookmark) instead of `r:id` gets its `w:anchor` removed and an
+  `r:id` added.
 - `DATE`: add parentheses if the original had them.
 
 ### 4.1 Date tabs (measured)
@@ -246,6 +256,8 @@ tailor project-check fixtures/phase3                   # runs P3-T3 and prints t
 | P3-T5 | Date-tab conversion | Converting every tab-date header in the corpus: (1) no character moves vertically by more than 0.05pt; (2) no character on any line other than a converted header line moves by more than 0.05pt; (3) characters on converted header lines move horizontally by at most 0.25pt (5 twips). Report the three maxima per resume. |
 | P3-T6 | Inline break rule | Unit test: rebuilding Subodh's LLM Eval block with its own content moves no line; the same rebuild with breaks in unformatted runs moves lines (proves the test can fail) |
 | P3-T7 | No regressions | All Phase 1 and Phase 2 tests, `corpus-check` ALL PASS |
+| P3-T8 | Header rewrite | For every swappable corpus header and the fixture headers: rewrite with new fields (title, a 3-item detail, one link, a date) and with an empty detail and no links. The token sequence rendered matches the reference `render_header`; every new link gets a fresh `rIdVariant{N}` pointing at its URL with TargetMode External; no existing relationship is modified; the upload gate accepts the saved file. |
+| P3-T9 | Link validation | `javascript:alert(1)`, `file:///etc/passwd`, `data:text/html,x`, a relative path, a URL with a space, and a 3,000-character URL each fail with `INVALID_LINK` before any render (zero renders); `https://github.com/x/y` and `mailto:a@b.co` pass |
 
 For P3-T4 the fitting step may shorten a bullet (drop trailing words) until it
 fits, or pad it; that only exists to build test content. Real content comes from
