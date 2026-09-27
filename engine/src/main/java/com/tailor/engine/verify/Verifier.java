@@ -68,6 +68,68 @@ public final class Verifier {
             Path workDir) throws Exception {
 
         List<String> sourceTexts = DocxBulletDetection.detect(originalSource).stream().map(Slot::text).toList();
+        return verifyCore(originalSource, assembledOutput, renderer, fontMap, sourceTexts, targetLineCounts,
+                assembledSlotTexts, edits, workDir);
+    }
+
+    /**
+     * One anchored edit region, keyed by document position rather than a bullet-detection slot
+     * index. PHASE3_SPEC.md section 7 step 4: a swap's edit can be a whole paragraph (a rewritten
+     * header or inline block), not just a bullet slot — {@code beforeText}/{@code afterText} are
+     * that region's own anchor text on the pre-edit and assembled renders, {@code targetLines} is
+     * the line count it must keep ({@code SUBSTITUTED}) or already holds by construction
+     * ({@code PADDED}/{@code BLANKED}), and a {@code null edit} means unchanged.
+     */
+    public record Region(String beforeText, String afterText, Integer targetLines, SlotEdit edit) {
+        public static Region unchanged(String text) {
+            return new Region(text, text, null, null);
+        }
+    }
+
+    /**
+     * Like {@link #verify}, but the caller supplies every region directly instead of relying on
+     * {@link DocxBulletDetection}, so a whole paragraph can be an edited region alongside bullet
+     * slots. Every region — edited or not — is anchored together in {@code regions}' own order,
+     * in one pass, with the production {@link AnchorMeasurer} and no search windows; the caller
+     * is responsible for that order matching the document's.
+     */
+    public static VerifyReport verifyRegions(
+            Path originalSource,
+            Path assembledOutput,
+            Renderer renderer,
+            FontMap fontMap,
+            List<Region> regions,
+            Path workDir) throws Exception {
+
+        List<String> beforeTexts = new ArrayList<>();
+        List<String> afterTexts = new ArrayList<>();
+        Map<Integer, Integer> targetLineCounts = new LinkedHashMap<>();
+        Map<Integer, SlotEdit> edits = new LinkedHashMap<>();
+        for (int i = 0; i < regions.size(); i++) {
+            Region r = regions.get(i);
+            beforeTexts.add(r.beforeText());
+            afterTexts.add(r.afterText());
+            if (r.edit() != null) {
+                edits.put(i, r.edit());
+            }
+            if (r.targetLines() != null) {
+                targetLineCounts.put(i, r.targetLines());
+            }
+        }
+        return verifyCore(originalSource, assembledOutput, renderer, fontMap, beforeTexts, targetLineCounts,
+                afterTexts, edits, workDir);
+    }
+
+    private static VerifyReport verifyCore(
+            Path originalSource,
+            Path assembledOutput,
+            Renderer renderer,
+            FontMap fontMap,
+            List<String> sourceTexts,
+            Map<Integer, Integer> targetLineCounts,
+            List<String> assembledSlotTexts,
+            Map<Integer, SlotEdit> edits,
+            Path workDir) throws Exception {
 
         Path pdf0 = renderer.render(originalSource, workDir);
         int pagesBefore = PdfPageCounter.count(pdf0);

@@ -50,7 +50,8 @@ class BlockSwapFixtureTest {
                 fixturesDir.resolve("library.json").toFile(), LibraryProject.Library.class);
 
         Renderer renderer = new LibreOfficeRenderer();
-        OnboardPipeline onboard = new OnboardPipeline(renderer, FontMap.loadDefault());
+        FontMap fontMap = FontMap.loadDefault();
+        OnboardPipeline onboard = new OnboardPipeline(renderer, fontMap);
         Path outDir = Files.createTempDirectory("swap-fixture-onboard");
         byte[] upload = Files.readAllBytes(fixturesDir.resolve("projects_synthetic.docx"));
         OnboardReport onboardReport = onboard.run(upload, outDir);
@@ -76,11 +77,15 @@ class BlockSwapFixtureTest {
                 Path workDir = Files.createTempDirectory("swap-" + key.replace("->", "-"));
                 Path outputDocx = workDir.resolve("swapped.docx");
                 BlockSwapper.Result result =
-                        BlockSwapper.swap(basePkg, posIndex, project, renderer, workDir, outputDocx);
+                        BlockSwapper.swap(basePkg, posIndex, project, renderer, fontMap, workDir, outputDocx);
 
                 if (!exp.outcome().equals(result.outcome().name())) {
                     failures.append(key).append(": expected outcome ").append(exp.outcome())
-                            .append(", got ").append(result.outcome()).append('\n');
+                            .append(", got ").append(result.outcome());
+                    if (result.detail() != null) {
+                        failures.append(" (").append(result.detail()).append(')');
+                    }
+                    failures.append('\n');
                     continue;
                 }
                 if (!"OK".equals(exp.outcome())) {

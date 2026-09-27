@@ -229,10 +229,22 @@ Each bullet has one variant per line count. Putting project P into position Q:
 3. Bullet j of Q (L lines) gets P's bullet j variant `"L"`. Missing → `MISSING_VARIANT`.
    Render-check: more lines than L → `BULLET_TOO_LONG`; fewer → pad (Phase 1 5.4 /
    section 6).
-4. Verify (Phase 1 section 8, extended): the position counts as edited
-   (header `SUBSTITUTED`; bullets `SUBSTITUTED` or `PADDED`; an inline position
-   is one edited paragraph whose total line count must equal the original).
-   Every other line must stay within 0.5pt.
+4. **Verify with the production Verifier; `OK` depends on it.** After
+   assembling, `BlockSwapper` runs the production `Verifier` (Phase 1 section 8)
+   on the onboarded document vs the output, and returns `OK` only if it passes;
+   otherwise `VERIFY_FAILED` with the report's detail. `tailor swap` writes
+   output only on `OK`. The Verifier is extended for swaps: an edit can be a
+   whole paragraph, not just a bullet slot:
+   - a rewritten **header paragraph** counts as `SUBSTITUTED`, and its line
+     count must equal the original header's;
+   - a rewritten **inline paragraph** counts as one edited region, and its total
+     line count must equal the original's;
+   - bullets stay `SUBSTITUTED` or `PADDED` as before.
+   Edited regions are anchored in **one pass, in document order**, with the
+   production `AnchorMeasurer` (no search windows). Every line outside the
+   edited regions must stay within 0.5pt, pages and font audit as before.
+   Tests P3-T3 and P3-T4 assert on this production verdict; `LayoutDiff` may
+   stay as an extra, stricter cross-check.
 
 ---
 

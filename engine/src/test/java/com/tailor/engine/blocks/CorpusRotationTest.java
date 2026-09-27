@@ -20,6 +20,9 @@ import com.tailor.engine.render.Renderer;
 import com.tailor.engine.slots.BulletDetector;
 import com.tailor.engine.slots.BulletText;
 import com.tailor.engine.slots.Slot;
+import com.tailor.engine.verify.SlotEdit;
+import com.tailor.engine.verify.Verifier;
+import com.tailor.engine.verify.VerifyReport;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -59,7 +62,8 @@ class CorpusRotationTest {
                 "My_resume1", List.of(0));
 
         Renderer renderer = new LibreOfficeRenderer();
-        OnboardPipeline onboard = new OnboardPipeline(renderer, FontMap.loadDefault());
+        FontMap fontMap = FontMap.loadDefault();
+        OnboardPipeline onboard = new OnboardPipeline(renderer, fontMap);
 
         StringBuilder failures = new StringBuilder();
         StringBuilder report = new StringBuilder();
@@ -75,7 +79,7 @@ class CorpusRotationTest {
             }
             Path normalizedDocx = workDir.resolve("normalized.docx");
 
-            RotationResult result = rotate(base, normalizedDocx, onboardReport, renderer, workDir);
+            RotationResult result = rotate(base, normalizedDocx, onboardReport, renderer, fontMap, workDir);
             if (result == null) {
                 report.append(base).append(": no projects section / nothing swappable — skipped entirely\n");
                 continue;
@@ -85,6 +89,10 @@ class CorpusRotationTest {
             if (!result.skipped.equals(expected)) {
                 failures.append(base).append(": expected skipped=").append(expected)
                         .append(", got ").append(result.skipped).append('\n');
+            }
+            if (result.verify != null && !result.verify.ok()) {
+                failures.append(base).append(": production Verifier disagrees: ")
+                        .append(BlockSwapper.detailOf(result.verify)).append('\n');
             }
             if (!result.diag.ok()) {
                 failures.append(base).append(": ").append(result.diag.problem()).append('\n');
@@ -100,11 +108,21 @@ class CorpusRotationTest {
         assertTrue(failures.isEmpty(), "P3-T4 failures:\n" + failures);
     }
 
-    private record RotationResult(int rotatedCount, List<Integer> skipped, LayoutDiff.Result diag) {
+    private record RotationResult(int rotatedCount, List<Integer> skipped, LayoutDiff.Result diag,
+                                   VerifyReport verify) {
     }
 
     private record Adapter(String title, String detail, String date, List<LibraryProject.Link> links,
                             List<String> bulletTexts) {
+    }
+
+    private record HeaderEditInfo(String afterText, int targetLines) {
+    }
+
+    private record BulletEditInfo(String afterText, int targetLines, boolean padded) {
+    }
+
+    private record InlineEditInfo(String afterText, int targetLines, boolean padded) {
     }
 
     /** {@code locator}: for a paragraph bullet, its (stable) Slot index; for an inline bullet,
@@ -118,7 +136,7 @@ class CorpusRotationTest {
     }
 
     private static RotationResult rotate(String base, Path normalizedDocx, OnboardReport onboardReport,
-            Renderer renderer, Path workDir) throws Exception {
+            Renderer renderer, FontMap fontMap, Path workDir) throws Exception {
         DocxPackage basePkg = DocxPackage.open(normalizedDocx);
         Document doc = SafeXml.parse(basePkg.readPart("word/document.xml"));
         Element numberingRoot = basePkg.hasPart("word/numbering.xml")
@@ -171,7 +189,7 @@ class CorpusRotationTest {
         Collections.sort(skipped);
 
         if (receivingToIncoming.isEmpty()) {
-            return new RotationResult(0, skipped, new LayoutDiff.Result(true, 0, null));
+            return new RotationResult(0, skipped, new LayoutDiff.Result(true, 0, null), null);
         }
 
         Path baselinePdf = renderer.render(normalizedDocx, workDir);
@@ -236,6 +254,13 @@ class CorpusRotationTest {
         Document finalDoc = SafeXml.parse(finalPkg.readPart("word/document.xml"));
         RelationshipWriter relWriter = RelationshipWriter.forPackage(finalPkg);
 
+        // For the final production-Verifier check (PHASE3_SPEC.md section 7 step 4): each edited
+        // region's own after-render anchor text, captured before any padding is applied — a padded
+        // bullet's trailing <w:br/>+nbsp normalizes to nothing (spec 5.4), so anchoring the padded
+        // DOM text would under-measure its span by the padded amount.
+        Map<Integer, HeaderEditInfo> headerEdits = new LinkedHashMap<>();
+        Map<Integer, Map<Integer, BulletEditInfo>> bulletEdits = new LinkedHashMap<>();
+
         for (var e : receivingToIncoming.entrySet()) {
             int receivingPosIdx = e.getKey();
             Position receiving = positions.get(receivingPosIdx);
@@ -294,8 +319,10 @@ class CorpusRotationTest {
                 if (isTabDate && dateEdgeTwips != null) {
                     DateTabConverter.rightAlignDateTab(finalDoc, header, dateEdgeTwips);
                 }
+                headerEdits.put(receivingPosIdx, new HeaderEditInfo(DomUtil.allText(header), targetHeaderLines));
 
                 List<Element> originalBulletParas = receiving.block().bulletParas;
+                Map<Integer, BulletEditInfo> bulletEditsForPos = new LinkedHashMap<>();
                 for (int j = 0; j < originalBulletParas.size(); j++) {
                     int bIdx = bodyChildIndex(doc, originalBulletParas.get(j));
                     Element bulletP = resolveBodyChild(finalDoc, bIdx);
@@ -303,19 +330,22 @@ class CorpusRotationTest {
                     Substituter.substitute(bulletP, new BulletText(tf.text(), List.of()));
                     Integer measured = tf.measuredLines();
                     int targetL = targets.get(tIndices.get(j)).targetLines();
-                    if (measured != null && measured < targetL) {
+                    boolean padded = measured != null && measured < targetL;
+                    if (padded) {
                         Padder.pad(bulletP, targetL - measured);
                     }
+                    bulletEditsForPos.put(j, new BulletEditInfo(tf.text(), targetL, padded));
                 }
+                bulletEdits.put(receivingPosIdx, bulletEditsForPos);
             }
         }
         relWriter.flush();
         finalPkg.writePart("word/document.xml", XmlSerialize.toBytes(finalDoc));
 
         // Inline positions: their whole paragraph is one edited unit — probe once, pad if short.
-        boolean anyInlinePadded = padInlineRotatedPositions(
+        Map<Integer, InlineEditInfo> inlineEdits = padInlineRotatedPositions(
                 base, doc, finalDoc, finalPkg, positions, receivingToIncoming, baselineLines, renderer, workDir);
-        if (anyInlinePadded) {
+        if (inlineEdits.values().stream().anyMatch(InlineEditInfo::padded)) {
             finalPkg.writePart("word/document.xml", XmlSerialize.toBytes(finalDoc));
         }
 
@@ -323,6 +353,10 @@ class CorpusRotationTest {
         finalPkg.save(assembledDocx);
         Path finalPdf = renderer.render(assembledDocx, workDir);
         List<PdfLines.Line> finalLines = PdfLines.extract(finalPdf);
+
+        List<Verifier.Region> regions = buildOrderedRegions(positions, headerEdits, bulletEdits, inlineEdits);
+        VerifyReport verifyReport =
+                Verifier.verifyRegions(normalizedDocx, assembledDocx, renderer, fontMap, regions, workDir);
 
         PositionAnchors beforeAnchors = buildOrderedAnchors(positions);
         Map<Integer, int[]> beforeEntrySpans = AnchorMeasurer.measureSpans(baselineLines, beforeAnchors.texts());
@@ -353,7 +387,7 @@ class CorpusRotationTest {
         }
         LayoutDiff.Result diag =
                 LayoutDiff.checkOutsideMovementMulti(baselineLines, editedSpansBefore, finalLines, editedSpansAfter);
-        return new RotationResult(receivingToIncoming.size(), skipped, diag);
+        return new RotationResult(receivingToIncoming.size(), skipped, diag, verifyReport);
     }
 
     /**
@@ -423,10 +457,13 @@ class CorpusRotationTest {
     }
 
     /** Whole-paragraph total-line-count check for rotated inline positions, batched in one probe
-     * render; pads any that came up short. Returns true if anything was padded. */
-    private static boolean padInlineRotatedPositions(String base, Document originalDoc, Document finalDoc,
-            DocxPackage finalPkg, List<Position> positions, Map<Integer, Integer> receivingToIncoming,
-            List<PdfLines.Line> baselineLines, Renderer renderer, Path workDir) throws Exception {
+     * render; pads any that came up short. Returns each rotated inline position's own edit info
+     * (its pre-pad anchor text, captured before {@link Padder#pad} — same reasoning as {@code
+     * headerEdits}/{@code bulletEdits} above — for the final production-Verifier check). */
+    private static Map<Integer, InlineEditInfo> padInlineRotatedPositions(String base, Document originalDoc,
+            Document finalDoc, DocxPackage finalPkg, List<Position> positions,
+            Map<Integer, Integer> receivingToIncoming, List<PdfLines.Line> baselineLines, Renderer renderer,
+            Path workDir) throws Exception {
         List<Integer> inlineReceiving = new ArrayList<>();
         for (int receivingPosIdx : receivingToIncoming.keySet()) {
             if ("inline".equals(positions.get(receivingPosIdx).kind())) {
@@ -434,7 +471,7 @@ class CorpusRotationTest {
             }
         }
         if (inlineReceiving.isEmpty()) {
-            return false;
+            return Map.of();
         }
 
         Path probeDocx = workDir.resolve("rotation-inline-probe-" + base + "-" + System.nanoTime() + ".docx");
@@ -451,7 +488,7 @@ class CorpusRotationTest {
         PositionAnchors probeAnchors = buildOrderedAnchors(probePositions);
         Map<Integer, int[]> probeEntrySpans = AnchorMeasurer.measureSpans(probeLines, probeAnchors.texts());
 
-        boolean padded = false;
+        Map<Integer, InlineEditInfo> edits = new LinkedHashMap<>();
         for (int receivingPosIdx : inlineReceiving) {
             Position receiving = positions.get(receivingPosIdx);
             int bodyIdx = bodyChildIndex(originalDoc, receiving.block().inlineHeaderParagraph);
@@ -474,12 +511,16 @@ class CorpusRotationTest {
                 throw new AssertionError(base + ": rotated inline position " + receivingPosIdx + " grew from "
                         + targetTotalLines + " to " + newLines + " lines — a real finding");
             }
-            if (newLines < targetTotalLines) {
+            // Captured before any padding: the paragraph's own real (unpadded) content, the safe
+            // anchor for the final production-Verifier region.
+            String prePadText = DomUtil.allText(paragraph);
+            boolean padded = newLines < targetTotalLines;
+            if (padded) {
                 Padder.pad(paragraph, targetTotalLines - newLines);
-                padded = true;
             }
+            edits.put(receivingPosIdx, new InlineEditInfo(prePadText, targetTotalLines, padded));
         }
-        return padded;
+        return edits;
     }
 
     // --- adapter construction -----------------------------------------------------------------
@@ -737,6 +778,53 @@ class CorpusRotationTest {
             ranges.add(new int[] {start, texts.size() - 1});
         }
         return new PositionAnchors(texts, ranges);
+    }
+
+    /**
+     * One {@link Verifier.Region} per paragraph across every position, in the same document order
+     * as {@link #buildOrderedAnchors} — the production-Verifier equivalent of that method, for
+     * PHASE3_SPEC.md section 7 step 4's final check. A rotated position's header/bullets (or whole
+     * inline paragraph) become edited regions; everything else — including a skipped position's own
+     * untouched content — is {@link Verifier.Region#unchanged}.
+     */
+    private static List<Verifier.Region> buildOrderedRegions(List<Position> positions,
+            Map<Integer, HeaderEditInfo> headerEdits, Map<Integer, Map<Integer, BulletEditInfo>> bulletEdits,
+            Map<Integer, InlineEditInfo> inlineEdits) {
+        List<Verifier.Region> regions = new ArrayList<>();
+        for (int i = 0; i < positions.size(); i++) {
+            Position p = positions.get(i);
+            if ("inline".equals(p.kind())) {
+                String before = DomUtil.allText(p.block().inlineHeaderParagraph);
+                InlineEditInfo ie = inlineEdits.get(i);
+                regions.add(ie == null ? Verifier.Region.unchanged(before)
+                        : new Verifier.Region(before, ie.afterText(), ie.targetLines(),
+                                ie.padded() ? SlotEdit.PADDED : SlotEdit.SUBSTITUTED));
+                continue;
+            }
+            int before = regions.size();
+            for (Element e : p.block().headerParas) {
+                String beforeText = DomUtil.allText(e);
+                HeaderEditInfo he = headerEdits.get(i);
+                regions.add(he == null ? Verifier.Region.unchanged(beforeText)
+                        : new Verifier.Region(beforeText, he.afterText(), he.targetLines(), SlotEdit.SUBSTITUTED));
+            }
+            Map<Integer, BulletEditInfo> bulletsForPos = bulletEdits.getOrDefault(i, Map.of());
+            List<Element> bulletParas = p.block().bulletParas;
+            for (int j = 0; j < bulletParas.size(); j++) {
+                String beforeText = DomUtil.allText(bulletParas.get(j));
+                BulletEditInfo be = bulletsForPos.get(j);
+                regions.add(be == null ? Verifier.Region.unchanged(beforeText)
+                        : new Verifier.Region(beforeText, be.afterText(), be.targetLines(),
+                                be.padded() ? SlotEdit.PADDED : SlotEdit.SUBSTITUTED));
+            }
+            for (Element e : p.block().strayParas) {
+                regions.add(Verifier.Region.unchanged(DomUtil.allText(e)));
+            }
+            if (regions.size() == before) {
+                regions.add(Verifier.Region.unchanged(""));
+            }
+        }
+        return regions;
     }
 
     /** The position's own overall [firstLine, lastLine], combining its first and last anchor

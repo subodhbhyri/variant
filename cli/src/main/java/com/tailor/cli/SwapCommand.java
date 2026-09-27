@@ -6,6 +6,7 @@ import com.tailor.engine.blocks.BlockSwapper;
 import com.tailor.engine.blocks.LibraryProject;
 import com.tailor.engine.blocks.SwapOutcome;
 import com.tailor.engine.docx.DocxPackage;
+import com.tailor.engine.fonts.FontMap;
 import com.tailor.engine.render.LibreOfficeRenderer;
 import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
@@ -50,6 +51,7 @@ public final class SwapCommand implements Callable<Integer> {
 
             Files.createDirectories(outDir);
             Renderer renderer = new LibreOfficeRenderer();
+            FontMap fontMap = FontMap.loadDefault();
             Path workDir = Files.createTempDirectory("swap-cli");
 
             Path current = onboardedPath;
@@ -68,9 +70,10 @@ public final class SwapCommand implements Callable<Integer> {
                 DocxPackage basePkg = DocxPackage.open(current);
                 Path stepOutput = workDir.resolve("step-" + posKey + ".docx");
                 BlockSwapper.Result result =
-                        BlockSwapper.swap(basePkg, posIndex, project, renderer, workDir, stepOutput);
+                        BlockSwapper.swap(basePkg, posIndex, project, renderer, fontMap, workDir, stepOutput);
                 if (result.outcome() != SwapOutcome.OK) {
-                    System.err.println(posKey + "=" + e.getValue() + ": " + result.outcome());
+                    String detail = result.detail() == null ? "" : " (" + result.detail() + ")";
+                    System.err.println(posKey + "=" + e.getValue() + ": " + result.outcome() + detail);
                     return 1;
                 }
                 current = stepOutput;

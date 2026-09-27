@@ -36,7 +36,8 @@ public final class ProjectCheckCommand implements Callable<Integer> {
                     fixturesDir.resolve("library.json").toFile(), LibraryProject.Library.class);
 
             Renderer renderer = new LibreOfficeRenderer();
-            OnboardPipeline onboard = new OnboardPipeline(renderer, FontMap.loadDefault());
+            FontMap fontMap = FontMap.loadDefault();
+            OnboardPipeline onboard = new OnboardPipeline(renderer, fontMap);
             Path outDir = Files.createTempDirectory("project-check");
             byte[] upload = Files.readAllBytes(fixturesDir.resolve("projects_synthetic.docx"));
             OnboardReport onboardReport = onboard.run(upload, outDir);
@@ -63,7 +64,7 @@ public final class ProjectCheckCommand implements Callable<Integer> {
                     Path workDir = Files.createTempDirectory("project-check-" + key.replace("->", "-"));
                     Path outputDocx = workDir.resolve("swapped.docx");
                     BlockSwapper.Result result =
-                            BlockSwapper.swap(basePkg, posIndex, project, renderer, workDir, outputDocx);
+                            BlockSwapper.swap(basePkg, posIndex, project, renderer, fontMap, workDir, outputDocx);
 
                     boolean ok = exp.outcome().equals(result.outcome().name());
                     if (ok) {

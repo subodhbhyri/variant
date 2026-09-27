@@ -7,6 +7,7 @@ import com.tailor.engine.docx.SafeXml;
 import com.tailor.engine.docx.XmlSerialize;
 import com.tailor.engine.edit.Padder;
 import com.tailor.engine.edit.Substituter;
+import com.tailor.engine.fonts.FontMap;
 import com.tailor.engine.layout.Locker;
 import com.tailor.engine.measure.AnchorMeasurer;
 import com.tailor.engine.measure.PdfLines;
@@ -15,7 +16,11 @@ import com.tailor.engine.render.Renderer;
 import com.tailor.engine.slots.BulletDetector;
 import com.tailor.engine.slots.BulletText;
 import com.tailor.engine.slots.Slot;
+import com.tailor.engine.verify.SlotEdit;
+import com.tailor.engine.verify.Verifier;
+import com.tailor.engine.verify.VerifyReport;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -41,10 +46,18 @@ import org.w3c.dom.Element;
  */
 public final class BlockSwapper {
 
-    public record Result(SwapOutcome outcome, Integer stackItemsKept, Integer paddedBullets) {
+    public record Result(SwapOutcome outcome, Integer stackItemsKept, Integer paddedBullets, String detail) {
         static Result of(SwapOutcome outcome) {
-            return new Result(outcome, null, null);
+            return new Result(outcome, null, null, null);
         }
+
+        static Result verifyFailed(String detail) {
+            return new Result(SwapOutcome.VERIFY_FAILED, null, null, detail);
+        }
+    }
+
+    /** One bullet slot's edit, for the final production-{@link Verifier} region list. */
+    private record BulletEdit(String afterText, int targetLines, SlotEdit edit) {
     }
 
     private record Located(DocxPackage pkg, Document doc, Position position, List<Slot> slots,
@@ -59,7 +72,7 @@ public final class BlockSwapper {
     }
 
     public static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
-            Renderer renderer, Path workDir, Path outputDocx) throws Exception {
+            Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx) throws Exception {
         Located base = locate(basePkg, positionIndex, renderer, workDir);
         Position position = base.position();
 
@@ -73,8 +86,8 @@ public final class BlockSwapper {
         }
 
         Result result = "inline".equals(position.kind())
-                ? swapInline(base, project, renderer, workDir)
-                : swapParagraph(base, project, renderer, workDir);
+                ? swapInline(base, project, renderer, fontMap, workDir)
+                : swapParagraph(base, project, renderer, fontMap, workDir);
 
         if (result.outcome() == SwapOutcome.OK) {
             base.pkg().save(outputDocx);
@@ -84,8 +97,8 @@ public final class BlockSwapper {
 
     // --- paragraph-kind positions -------------------------------------------------------------
 
-    private static Result swapParagraph(Located base, LibraryProject project, Renderer renderer, Path workDir)
-            throws Exception {
+    private static Result swapParagraph(Located base, LibraryProject project, Renderer renderer, FontMap fontMap,
+            Path workDir) throws Exception {
         Position position = base.position();
         Document doc = base.doc();
         DocxPackage pkg = base.pkg();
@@ -181,7 +194,26 @@ public final class BlockSwapper {
         relWriter.flush();
         pkg.writePart("word/document.xml", XmlSerialize.toBytes(doc));
 
-        return new Result(SwapOutcome.OK, stackItemsKept, padBySlotIndex.size());
+        Map<Integer, BulletEdit> editBySlotIndex = new LinkedHashMap<>();
+        for (var e : chosenBySlotIndex.entrySet()) {
+            int slotIdx = e.getKey();
+            Integer pad = padBySlotIndex.get(slotIdx);
+            SlotEdit edit = (pad != null && pad > 0) ? SlotEdit.PADDED : SlotEdit.SUBSTITUTED;
+            editBySlotIndex.put(slotIdx, new BulletEdit(e.getValue().text(), allLineCounts.get(slotIdx), edit));
+        }
+        Verifier.Region headerRegion = new Verifier.Region(
+                originalHeaderText, DomUtil.allText(header), targetHeaderLines, SlotEdit.SUBSTITUTED);
+        List<Verifier.Region> regions = buildRegions(doc, base.slots(), headerBodyIndex, headerRegion,
+                editBySlotIndex);
+
+        Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
+        VerifyReport report =
+                Verifier.verifyRegions(baselineDocx, assembledForVerify, renderer, fontMap, regions, workDir);
+        if (!report.ok()) {
+            return Result.verifyFailed(detailOf(report));
+        }
+
+        return new Result(SwapOutcome.OK, stackItemsKept, padBySlotIndex.size(), null);
     }
 
     /**
@@ -254,8 +286,8 @@ public final class BlockSwapper {
 
     // --- inline-kind positions -----------------------------------------------------------------
 
-    private static Result swapInline(Located base, LibraryProject project, Renderer renderer, Path workDir)
-            throws Exception {
+    private static Result swapInline(Located base, LibraryProject project, Renderer renderer, FontMap fontMap,
+            Path workDir) throws Exception {
         Position position = base.position();
         Document doc = base.doc();
         DocxPackage pkg = base.pkg();
@@ -303,12 +335,30 @@ public final class BlockSwapper {
             return Result.of(SwapOutcome.BULLET_TOO_LONG);
         }
         int paddedBullets = 0;
+        SlotEdit edit = SlotEdit.SUBSTITUTED;
         if (newLines < targetTotalLines) {
             Padder.pad(paragraph, targetTotalLines - newLines);
             paddedBullets = 1;
+            edit = SlotEdit.PADDED;
             pkg.writePart("word/document.xml", XmlSerialize.toBytes(doc));
         }
-        return new Result(SwapOutcome.OK, null, paddedBullets);
+
+        // newText (captured before any padding) is the region's own anchor: a padded paragraph's
+        // trailing hard-break + NBSP normalizes to nothing (spec 5.4), so anchoring the padded DOM
+        // text would under-measure the span by the padded amount — the same trap CorpusRotationTest
+        // hit for rotation's own padding pass, sidestepped here by anchoring only the real content.
+        Verifier.Region inlineRegion = new Verifier.Region(originalText, newText, targetTotalLines, edit);
+        int inlineBodyIndex = bodyChildIndex(doc, paragraph);
+        List<Verifier.Region> regions = buildRegions(doc, base.slots(), inlineBodyIndex, inlineRegion, Map.of());
+
+        Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
+        VerifyReport report =
+                Verifier.verifyRegions(base.baselineDocx(), assembledForVerify, renderer, fontMap, regions, workDir);
+        if (!report.ok()) {
+            return Result.verifyFailed(detailOf(report));
+        }
+
+        return new Result(SwapOutcome.OK, null, paddedBullets, null);
     }
 
     // --- shared helpers --------------------------------------------------------------------
@@ -369,6 +419,56 @@ public final class BlockSwapper {
 
     private static List<LibraryProject.Link> linksOrEmpty(LibraryProject project) {
         return project.links() == null ? List.of() : project.links();
+    }
+
+    /**
+     * Every bullet slot in the whole document, in order, each an unchanged {@link Verifier.Region}
+     * unless {@code editBySlotIndex} names it — plus {@code extraRegion} (a swapped header or
+     * inline paragraph), inserted at {@code extraBodyIndex}'s own point in that document order:
+     * right before the first slot whose paragraph comes after it. PHASE3_SPEC.md section 7 step 4:
+     * the production Verifier anchors every region together, in one pass, in document order.
+     */
+    private static List<Verifier.Region> buildRegions(Document doc, List<Slot> allSlots, int extraBodyIndex,
+            Verifier.Region extraRegion, Map<Integer, BulletEdit> editBySlotIndex) {
+        List<Verifier.Region> regions = new ArrayList<>();
+        boolean inserted = false;
+        for (Slot s : allSlots) {
+            if (!inserted && bodyChildIndex(doc, s.element()) > extraBodyIndex) {
+                regions.add(extraRegion);
+                inserted = true;
+            }
+            BulletEdit e = editBySlotIndex.get(s.index());
+            regions.add(e == null ? Verifier.Region.unchanged(s.text())
+                    : new Verifier.Region(s.text(), e.afterText(), e.targetLines(), e.edit()));
+        }
+        if (!inserted) {
+            regions.add(extraRegion);
+        }
+        return regions;
+    }
+
+    /** Package-visible so {@code CorpusRotationTest} (P3-T4) can report the same failure detail
+     * from its own, multi-position call to the production Verifier. */
+    static String detailOf(VerifyReport r) {
+        if (!r.pagesMatch()) {
+            return "pages " + r.pagesBefore() + " -> " + r.pagesAfter();
+        }
+        if (r.layoutProblem() != null) {
+            return r.layoutProblem();
+        }
+        if (!r.layoutOk()) {
+            return "layout shift " + r.layoutShiftPt() + "pt";
+        }
+        if (!r.fontViolations().isEmpty()) {
+            return "font violations: " + r.fontViolations();
+        }
+        for (var e : r.lineChecks().entrySet()) {
+            if (!e.getValue().ok()) {
+                return "region " + e.getKey() + " line count " + e.getValue().measured()
+                        + " != " + e.getValue().target();
+            }
+        }
+        return "verify failed";
     }
 
     static List<HeaderRenderer.NewLink> toNewLinks(List<LibraryProject.Link> links) {

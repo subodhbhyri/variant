@@ -7,5 +7,6 @@ public enum SwapOutcome {
     MISSING_VARIANT,
     BULLET_TOO_LONG,
     HEADER_TOO_LONG,
-    INVALID_LINK
+    INVALID_LINK,
+    VERIFY_FAILED
 }
