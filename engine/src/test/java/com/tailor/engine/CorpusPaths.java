@@ -44,6 +44,10 @@ public final class CorpusPaths {
         return resolveDir("fixtures/phase3", "tailor.phase3FixturesDir", "TAILOR_PHASE3_FIXTURES_DIR");
     }
 
+    public static Path phase4FixturesDir() {
+        return resolveDir("fixtures/phase4", "tailor.phase4FixturesDir", "TAILOR_PHASE4_FIXTURES_DIR");
+    }
+
     public static List<Path> corpusDocx() {
         try (Stream<Path> files = Files.list(corpusDir())) {
             return files.filter(p -> p.toString().endsWith(".docx"))
