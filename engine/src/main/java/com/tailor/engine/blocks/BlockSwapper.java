@@ -7,6 +7,7 @@ import com.tailor.engine.docx.SafeXml;
 import com.tailor.engine.docx.XmlSerialize;
 import com.tailor.engine.edit.Padder;
 import com.tailor.engine.edit.Substituter;
+import com.tailor.engine.layout.Locker;
 import com.tailor.engine.measure.AnchorMeasurer;
 import com.tailor.engine.measure.PdfLines;
 import com.tailor.engine.numbering.NumberingResolver;
@@ -47,10 +48,11 @@ public final class BlockSwapper {
     }
 
     private record Located(DocxPackage pkg, Document doc, Position position, List<Slot> slots,
-                            Map<Element, Slot> slotByElement) {
+                            Map<Element, Slot> slotByElement, Path baselineDocx, Path baselinePdf,
+                            List<PdfLines.Line> baselineLines) {
     }
 
-    private record StackFit(String detail, int itemsKept) {
+    record StackFit(String detail, Integer itemsKept) {
     }
 
     private BlockSwapper() {
@@ -58,7 +60,7 @@ public final class BlockSwapper {
 
     public static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
             Renderer renderer, Path workDir, Path outputDocx) throws Exception {
-        Located base = locate(basePkg, positionIndex);
+        Located base = locate(basePkg, positionIndex, renderer, workDir);
         Position position = base.position();
 
         if (project.bullets().size() < position.bullets()) {
@@ -93,9 +95,9 @@ public final class BlockSwapper {
         boolean isTabDate = "tab".equals(position.header().dateMode());
         int headerBodyIndex = bodyChildIndex(doc, header);
 
-        Path baselineDocx = saveTemp(pkg, workDir, "baseline");
-        Path baselinePdf = renderer.render(baselineDocx, workDir);
-        List<PdfLines.Line> baselineLines = PdfLines.extract(baselinePdf);
+        Path baselineDocx = base.baselineDocx();
+        Path baselinePdf = base.baselinePdf();
+        List<PdfLines.Line> baselineLines = base.baselineLines();
         String originalHeaderText = DomUtil.allText(header);
         int[] span0 = AnchorMeasurer.measureSpans(baselineLines, List.of(originalHeaderText)).get(0);
         if (span0 == null) {
@@ -110,22 +112,13 @@ public final class BlockSwapper {
                     .map(DateEdgeMeasurer.Measurement::rightEdgeTwips).orElse(null);
         }
 
-        String finalDetail;
-        Integer stackItemsKept = null;
-        if (!hasDetailToken) {
-            finalDetail = null; // PHASE3_SPEC.md 5: no DETAIL token, no stack shown
-        } else if (project.detail() == null || !project.detail().contains(",")) {
-            finalDetail = project.detail(); // not a comma list: used as-is, no fit search
-        } else {
-            List<String> items = List.of(project.detail().split(",\\s*"));
-            StackFit fit = fitStack(pkg, headerBodyIndex, project, items, targetHeaderLines, isTabDate,
-                    dateEdgeTwips, renderer, workDir);
-            if (fit == null) {
-                return Result.of(SwapOutcome.HEADER_TOO_LONG);
-            }
-            finalDetail = fit.detail();
-            stackItemsKept = fit.itemsKept();
+        StackFit resolved = resolveDetail(pkg, headerBodyIndex, project, hasDetailToken, targetHeaderLines,
+                isTabDate, dateEdgeTwips, renderer, workDir);
+        if (resolved == null) {
+            return Result.of(SwapOutcome.HEADER_TOO_LONG);
         }
+        String finalDetail = resolved.detail();
+        Integer stackItemsKept = resolved.itemsKept();
 
         List<String> allSlotTexts = base.slots().stream().map(Slot::text).toList();
         Map<Integer, Integer> allLineCounts = new HashMap<>(AnchorMeasurer.measure(baselineLines, allSlotTexts));
@@ -191,7 +184,27 @@ public final class BlockSwapper {
         return new Result(SwapOutcome.OK, stackItemsKept, padBySlotIndex.size());
     }
 
-    private static StackFit fitStack(DocxPackage basePkg, int headerBodyIndex, LibraryProject project,
+    /**
+     * PHASE3_SPEC.md section 5: the header's final {@code detail} and, when a stack-fit search
+     * ran, how many items it kept. Package-visible so {@code CorpusRotationTest} (P3-T4) can
+     * resolve a rotated position's header the same way a real swap does. Returns null for
+     * {@code HEADER_TOO_LONG}.
+     */
+    static StackFit resolveDetail(DocxPackage basePkg, int headerBodyIndex, LibraryProject project,
+            boolean hasDetailToken, int targetHeaderLines, boolean isTabDate, Double dateEdgeTwips,
+            Renderer renderer, Path workDir) throws Exception {
+        if (!hasDetailToken) {
+            return new StackFit(null, null); // PHASE3_SPEC.md 5: no DETAIL token, no stack shown
+        }
+        if (project.detail() == null || !project.detail().contains(",")) {
+            return new StackFit(project.detail(), null); // not a comma list: used as-is, no fit search
+        }
+        List<String> items = List.of(project.detail().split(",\\s*"));
+        return fitStack(basePkg, headerBodyIndex, project, items, targetHeaderLines, isTabDate, dateEdgeTwips,
+                renderer, workDir);
+    }
+
+    static StackFit fitStack(DocxPackage basePkg, int headerBodyIndex, LibraryProject project,
             List<String> items, int targetLines, boolean isTabDate, Double dateEdgeTwips, Renderer renderer,
             Path workDir) throws Exception {
         int lo = 1;
@@ -217,7 +230,7 @@ public final class BlockSwapper {
         return linesNoDetail <= targetLines ? new StackFit(null, 0) : null;
     }
 
-    private static int renderHeaderCandidateLines(DocxPackage basePkg, int headerBodyIndex, LibraryProject project,
+    static int renderHeaderCandidateLines(DocxPackage basePkg, int headerBodyIndex, LibraryProject project,
             String detail, boolean isTabDate, Double dateEdgeTwips, Renderer renderer, Path workDir)
             throws Exception {
         DocxPackage pkg = basePkg.copy();
@@ -249,9 +262,7 @@ public final class BlockSwapper {
         Element paragraph = position.block().inlineHeaderParagraph;
         InlineTemplate.Model model = InlineTemplate.build(paragraph);
 
-        Path baselineDocx = saveTemp(pkg, workDir, "baseline");
-        Path baselinePdf = renderer.render(baselineDocx, workDir);
-        List<PdfLines.Line> baselineLines = PdfLines.extract(baselinePdf);
+        List<PdfLines.Line> baselineLines = base.baselineLines();
         String originalText = DomUtil.allText(paragraph);
         int[] span0 = AnchorMeasurer.measureSpans(baselineLines, List.of(originalText)).get(0);
         if (span0 == null) {
@@ -302,7 +313,8 @@ public final class BlockSwapper {
 
     // --- shared helpers --------------------------------------------------------------------
 
-    private static Located locate(DocxPackage basePkg, int positionIndex) throws Exception {
+    private static Located locate(DocxPackage basePkg, int positionIndex, Renderer renderer, Path workDir)
+            throws Exception {
         DocxPackage pkg = basePkg.copy();
         Document doc = SafeXml.parse(pkg.readPart("word/document.xml"));
         Element numberingRoot = pkg.hasPart("word/numbering.xml")
@@ -316,29 +328,57 @@ public final class BlockSwapper {
             slotByElement.put(s.element(), s);
         }
 
+        // One render of this still-pristine copy: both the Phase 1/2 lock map (below) and every
+        // later measurement (header/bullet line counts, the date-tab edge — PHASE3_SPEC.md 4.1's
+        // "measured on the normalized render") come from this one baseline, never from a
+        // partly-edited one.
+        Path baselineDocx = saveTemp(pkg, workDir, "baseline");
+        Path baselinePdf = renderer.render(baselineDocx, workDir);
+        List<PdfLines.Line> baselineLines = PdfLines.extract(baselinePdf);
+
+        Map<Integer, String> glyphBySlotIndex = glyphsOf(resolver, slots);
+        List<Locker.LockedSlot> locked = Locker.lock(slots, baselineLines, glyphBySlotIndex);
+        Map<Integer, String> lockReasonBySlotIndex = new HashMap<>();
+        for (Locker.LockedSlot ls : locked) {
+            if (!ls.editable()) {
+                lockReasonBySlotIndex.put(ls.slot().index(), ls.lockReason());
+            }
+        }
+
         List<Section> sections = SectionDetector.detect(doc);
         Section projectsSection = sections.stream().filter(s -> "projects".equals(s.role())).findFirst()
                 .orElseThrow(() -> new IllegalStateException("no projects section detected"));
-        List<Position> positions = PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement);
+        List<Position> positions = PositionBuilder.build(
+                projectsSection, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
         if (positionIndex < 0 || positionIndex >= positions.size()) {
             throw new IllegalArgumentException(
                     "position " + positionIndex + " out of range (0.." + (positions.size() - 1) + ")");
         }
-        return new Located(pkg, doc, positions.get(positionIndex), slots, slotByElement);
+        return new Located(pkg, doc, positions.get(positionIndex), slots, slotByElement,
+                baselineDocx, baselinePdf, baselineLines);
+    }
+
+    /** Each slot's own numbering-level glyph, for {@link Locker} — mirrors OnboardPipeline's own. */
+    private static Map<Integer, String> glyphsOf(NumberingResolver resolver, List<Slot> slots) {
+        Map<Integer, String> glyphs = new HashMap<>();
+        for (Slot s : slots) {
+            resolver.resolveLvlText(s.element()).ifPresent(glyph -> glyphs.put(s.index(), glyph));
+        }
+        return glyphs;
     }
 
     private static List<LibraryProject.Link> linksOrEmpty(LibraryProject project) {
         return project.links() == null ? List.of() : project.links();
     }
 
-    private static List<HeaderRenderer.NewLink> toNewLinks(List<LibraryProject.Link> links) {
+    static List<HeaderRenderer.NewLink> toNewLinks(List<LibraryProject.Link> links) {
         if (links == null) {
             return List.of();
         }
         return links.stream().map(l -> new HeaderRenderer.NewLink(l.label(), l.url())).toList();
     }
 
-    private static int bodyChildIndex(Document doc, Element target) {
+    static int bodyChildIndex(Document doc, Element target) {
         Element body = DomUtil.firstChild(doc.getDocumentElement(), "body");
         List<Element> children = DomUtil.elementChildren(body);
         for (int i = 0; i < children.size(); i++) {
@@ -349,12 +389,12 @@ public final class BlockSwapper {
         throw new IllegalStateException("paragraph is not a direct child of the document body");
     }
 
-    private static Element resolveBodyChild(Document doc, int index) {
+    static Element resolveBodyChild(Document doc, int index) {
         Element body = DomUtil.firstChild(doc.getDocumentElement(), "body");
         return DomUtil.elementChildren(body).get(index);
     }
 
-    private static Path saveTemp(DocxPackage pkg, Path workDir, String label) throws Exception {
+    static Path saveTemp(DocxPackage pkg, Path workDir, String label) throws Exception {
         Path p = workDir.resolve(label + "-" + System.nanoTime() + ".docx");
         pkg.save(p);
         return p;

@@ -58,7 +58,13 @@ public final class BlocksAnalyzer {
             return new BlocksReport(sections, null, List.of());
         }
 
-        List<Position> positions = PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement);
+        // No renderer here, so no fresh Locker run for the render-based shared_lines lock —
+        // only the cheap Phase 1 bullet-lock check applies for this inspection-only entry point.
+        // Every corpus/fixture position currently has no locked bullet of any kind in its
+        // projects section, so this doesn't change any tested output; BlockSwapper's own
+        // locate() runs Locker fresh instead, since a swap actually needs the render.
+        List<Position> positions =
+                PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement, Map.of());
         return new BlocksReport(sections, projectsSection.heading(), positions);
     }
 }

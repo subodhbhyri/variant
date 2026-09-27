@@ -18,6 +18,7 @@ import com.tailor.engine.slots.Slot;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +77,14 @@ class DateTabCorpusTest {
             if (projectsSection == null) {
                 continue;
             }
-            List<Position> positions = PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement);
+            Map<Integer, String> lockReasonBySlotIndex = new HashMap<>();
+            for (OnboardReport.SlotReport sr : onboardReport.slots()) {
+                if (!sr.editable()) {
+                    lockReasonBySlotIndex.put(sr.index(), sr.lockReason());
+                }
+            }
+            List<Position> positions = PositionBuilder.build(
+                    projectsSection, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
 
             List<Element> tabDateHeaders = new ArrayList<>();
             for (Position p : positions) {

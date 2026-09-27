@@ -9,16 +9,18 @@ import org.w3c.dom.Element;
 /**
  * PHASE3_SPEC.md section 3: turns a section's blocks into positions, deciding
  * swappability in the order the spec's table lists reasons: the block's own
- * structural reason (from {@link BlockDetector}), then a Phase 1 lock on one
- * of its bullets (cheap — already computed, no render needed), then a header
- * parse failure, then (if all of that is clean) the header's token fields.
+ * structural reason (from {@link BlockDetector}), then any Phase 1/2 lock on
+ * one of its bullets, then a header parse failure, then (if all of that is
+ * clean) the header's token fields.
  *
- * <p>Not yet integrated: the render-based "shared_lines" lock (Phase 2's
- * {@code Locker}) is not checked here. No corpus position or fixture position
- * currently needs it (PHASE3_SPEC.md section 8's table shows no such position
- * reason for any of the 9 resumes or the fixture); it belongs with whichever
- * later step first needs a render pass over the projects section anyway,
- * rather than adding one here on spec alone.
+ * <p>The Phase 1/2 lock check is a single lookup into the caller-supplied
+ * onboarding lock map (built from {@code OnboardReport.slots()}, or however
+ * else the caller re-derives it — see {@link BlockSwapper}'s own fresh
+ * {@code Locker} run): every non-editable slot index maps to its reason,
+ * covering both a cheap Phase 1 reason (hyperlink, tab_in_text, a run-level
+ * break, …) and the render-based Phase 2 {@code shared_lines} lock uniformly,
+ * exactly as {@code OnboardPipeline} already merges them for onboarding's own
+ * report. A slot missing from the map is editable.
  */
 public final class PositionBuilder {
 
@@ -26,16 +28,17 @@ public final class PositionBuilder {
     }
 
     public static List<Position> build(Section projectsSection, java.util.function.Predicate<Element> isBullet,
-            Map<Element, Slot> slotByBulletElement) {
+            Map<Element, Slot> slotByBulletElement, Map<Integer, String> lockReasonBySlotIndex) {
         List<Block> blocks = BlockDetector.detect(projectsSection, isBullet);
         List<Position> positions = new ArrayList<>();
         for (Block b : blocks) {
-            positions.add(toPosition(b, slotByBulletElement));
+            positions.add(toPosition(b, slotByBulletElement, lockReasonBySlotIndex));
         }
         return positions;
     }
 
-    private static Position toPosition(Block b, Map<Element, Slot> slotByBulletElement) {
+    private static Position toPosition(Block b, Map<Element, Slot> slotByBulletElement,
+            Map<Integer, String> lockReasonBySlotIndex) {
         if (b.kind == Block.Kind.INLINE) {
             List<Integer> segmentsPerBullet = b.inlineBulletGroups.stream().map(List::size).toList();
             return new Position("inline", true, b.inlineBulletGroups.size(), null, null, segmentsPerBullet, b);
@@ -46,8 +49,16 @@ public final class PositionBuilder {
         if (reason == null) {
             for (Element bulletP : b.bulletParas) {
                 Slot slot = slotByBulletElement.get(bulletP);
-                if (slot != null && !slot.supported() && !slot.unsupportedReasons().isEmpty()) {
+                if (slot == null) {
+                    continue;
+                }
+                if (!slot.supported() && !slot.unsupportedReasons().isEmpty()) {
                     reason = slot.unsupportedReasons().get(0);
+                    break;
+                }
+                String lockReason = lockReasonBySlotIndex.get(slot.index());
+                if (lockReason != null) {
+                    reason = lockReason;
                     break;
                 }
             }

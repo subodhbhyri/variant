@@ -255,7 +255,7 @@ tailor project-check fixtures/phase3                   # runs P3-T3 and prints t
 |---|---|---|
 | P3-T1 | Fixture detection | Sections and the 5 positions equal `fixtures/phase3/expected.json` `positions` |
 | P3-T2 | Corpus detection | All 9 resumes equal `golden/phase3_blocks.json` (projects section, positions, swappable/reason, header token list) |
-| P3-T3 | Fixture swaps | Every library project into every swappable position gives the `swaps` outcome in `expected.json`; for `OK`, `stack_items_kept` and `padded_bullets` match, and the Verifier passes |
+| P3-T4 | Corpus rotation | Per section 9.1: among swappable positions (wrap-around), each receives the next one's content with bullets fitted; skips exactly as `golden/phase3_blocks.json` `_rotation.skipped`; Verifier passes (measured 0.00pt on all) |
 | P3-T4 | Corpus rotation | In each corpus project section, content of position i+1 → position i with bullets fitted (library built from the resume's own blocks, shortened/padded to fit); skips exactly as `golden/phase3_blocks.json` `_rotation.skipped`; Verifier passes (measured 0.00pt on all) |
 | P3-T5 | Date-tab conversion | Converting every tab-date header in the corpus: (1) no character moves vertically by more than 0.05pt; (2) no character on any line other than a converted header line moves by more than 0.05pt; (3) characters on converted header lines move horizontally by at most 0.25pt (5 twips). Report the three maxima per resume. |
 | P3-T6 | Inline break rule | Unit test: rebuilding Subodh's LLM Eval block with its own content moves no line; the same rebuild with breaks in unformatted runs moves lines (proves the test can fail) |
@@ -272,6 +272,42 @@ on the page twice (the original and the rotated copy). Anchor every slot of
 every position in **one pass, in document order**, as `AnchorMeasurer` already
 does. Anchoring each position separately from the top of the page matches the
 wrong copy (this produced two false failures while building the reference).
+
+### 9.1 P3-T4 corpus rotation (algorithm)
+
+Test-only harness; it exercises the real swap path on real resumes. Its content
+is built from each resume's own positions.
+
+1. **Positions:** in each resume's project section (golden
+   `phase3_blocks.json`), take the **swappable** positions in document order,
+   keeping their original position indices.
+2. **Rotation:** swappable position *i* receives the content of the next
+   swappable position; the last receives the first's (wrap-around). If the
+   incoming position has fewer bullets than the receiving one, skip the
+   receiving position. The skipped indices must equal golden
+   `_rotation.skipped` (ajitesh `[1]`, Subodh `[1]`, My_resume1 `[0]`, no others).
+3. **Adapter:** the incoming position becomes a library project: `title`,
+   `detail`, `date` from its header template; `links` from its `LINK` tokens,
+   with `url` = the existing relationship target and `label` = the link text
+   (drop a link whose URL fails `LinkValidator`); `bullets` = its bullet texts,
+   first *k* used, where *k* is the receiving position's bullet count.
+4. **Fitting each bullet** to the receiving slot's line count *L*: the variant
+   for slot *j* is the **longest word prefix** of incoming bullet *j* that
+   renders in ≤ *L* lines. Find it by binary search on word count, **all slots
+   of all rotated positions in the same render per round** (the Phase 1 batch
+   principle), via `BatchValidator`. Fewer than *L* lines → pad (Phase 1 5.4 /
+   section 6).
+5. **Header:** render the receiving template with the adapter's fields,
+   including stack fit (section 5) and date-tab conversion (4.1, the edge
+   measured on the **onboarded** document).
+6. **Assemble all rotated positions at once** and run the Verifier. Edited =
+   each rotated position's header and bullets (inline positions: the whole
+   paragraph). **Anchor every slot in one pass, in document order**; skipped
+   positions leave duplicate text on the page. Every other line must stay
+   within 0.5pt. Measured when golden was produced: 0.00pt on all 9.
+
+If the skipped indices differ from golden, or any fixed line moves, stop and
+report: that is a real finding, not a harness bug to tune away.
 
 ---
 

@@ -65,4 +65,60 @@ final class LayoutDiff {
         }
         return out;
     }
+
+    /**
+     * Like {@link #checkOutsideMovement}, but for several simultaneously-edited spans (P3-T4:
+     * every rotated position is assembled and anchored at once). A null entry in either span
+     * list means that position couldn't be anchored on that render.
+     */
+    static Result checkOutsideMovementMulti(List<PdfLines.Line> linesBefore, List<int[]> spansBefore,
+            List<PdfLines.Line> linesAfter, List<int[]> spansAfter) {
+        for (int[] s : spansBefore) {
+            if (s == null) {
+                return new Result(false, Double.NaN, "could not anchor an original position");
+            }
+        }
+        for (int[] s : spansAfter) {
+            if (s == null) {
+                return new Result(false, Double.NaN, "could not anchor a new position");
+            }
+        }
+
+        List<PdfLines.Line> fixedBefore = exceptAll(linesBefore, spansBefore);
+        List<PdfLines.Line> fixedAfter = exceptAll(linesAfter, spansAfter);
+        if (fixedBefore.size() != fixedAfter.size()) {
+            return new Result(false, Double.NaN,
+                    "fixed line count changed: " + fixedBefore.size() + " -> " + fixedAfter.size());
+        }
+        double worst = 0;
+        for (int i = 0; i < fixedBefore.size(); i++) {
+            PdfLines.Line b = fixedBefore.get(i);
+            PdfLines.Line a = fixedAfter.get(i);
+            if (!b.normalizedText().equals(a.normalizedText())) {
+                return new Result(false, Double.NaN,
+                        "fixed line " + i + " text differs: [" + b.normalizedText() + "] vs [" + a.normalizedText() + "]");
+            }
+            if (b.pageIndex() != a.pageIndex()) {
+                return new Result(false, Double.NaN, "fixed line " + i + " moved pages");
+            }
+            worst = Math.max(worst, Math.abs(b.y() - a.y()));
+        }
+        return new Result(true, worst, null);
+    }
+
+    private static List<PdfLines.Line> exceptAll(List<PdfLines.Line> lines, List<int[]> spans) {
+        boolean[] excluded = new boolean[lines.size()];
+        for (int[] s : spans) {
+            for (int i = s[0]; i <= s[1] && i < excluded.length; i++) {
+                excluded[i] = true;
+            }
+        }
+        List<PdfLines.Line> out = new ArrayList<>();
+        for (int i = 0; i < lines.size(); i++) {
+            if (!excluded[i]) {
+                out.add(lines.get(i));
+            }
+        }
+        return out;
+    }
 }

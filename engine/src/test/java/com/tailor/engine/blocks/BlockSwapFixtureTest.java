@@ -166,6 +166,8 @@ class BlockSwapFixtureTest {
         List<Section> sections = SectionDetector.detect(doc);
         Section projectsSection = sections.stream().filter(s -> "projects".equals(s.role())).findFirst()
                 .orElseThrow(() -> new IllegalStateException("no projects section detected"));
-        return PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement);
+        // Only used here for locating a position's header/bullet elements (for text extraction),
+        // never for its swappable/reason fields, so an empty lock map is fine.
+        return PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement, Map.of());
     }
 }
