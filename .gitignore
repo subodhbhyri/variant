@@ -22,3 +22,8 @@ Thumbs.db
 # IDE build output (VS Code Java / Eclipse)
 bin/
 **/bin/
+
+# secrets
+.env
+.env.*
+!.env.example

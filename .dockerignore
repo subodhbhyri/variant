@@ -6,3 +6,6 @@ out/
 build/
 */build/
 */*/build/
+
+.env
+.env.*
