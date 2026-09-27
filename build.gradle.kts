@@ -29,4 +29,27 @@ subprojects {
             showStandardStreams = true
         }
     }
+
+    // The render-heavy tests (@Tag("corpus"): anything that shells out to LibreOffice over the
+    // 9-resume corpus or a Phase 2/3 fixture) took the everyday `test` task to ~27 minutes. `test`
+    // now excludes them for a fast inner loop; `corpusTest` runs only them, with the same JUnit
+    // platform, timeout, and logging settings (inherited from the `tasks.withType<Test>` block
+    // above, since it matches every Test task including this one).
+    tasks.named<Test>("test") {
+        useJUnitPlatform {
+            excludeTags("corpus")
+        }
+    }
+
+    val testSourceSet = the<SourceSetContainer>()["test"]
+    tasks.register<Test>("corpusTest") {
+        description = "Runs the render-heavy corpus/fixture/rotation tests (@Tag(\"corpus\")) " +
+            "that the default test task excludes. Run before every push."
+        group = "verification"
+        testClassesDirs = testSourceSet.output.classesDirs
+        classpath = testSourceSet.runtimeClasspath
+        useJUnitPlatform {
+            includeTags("corpus")
+        }
+    }
 }

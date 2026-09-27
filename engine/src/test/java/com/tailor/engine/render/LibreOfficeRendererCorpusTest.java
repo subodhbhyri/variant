@@ -7,6 +7,7 @@ import com.tailor.engine.measure.PdfPageCounter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
  * that starts in step 1.2, after font normalization exists. It only checks
  * that rendering itself does not fail.
  */
+@Tag("corpus")
 class LibreOfficeRendererCorpusTest {
 
     @Test

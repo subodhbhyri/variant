@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -33,6 +34,7 @@ import org.w3c.dom.Element;
  * just inspecting the XML (which step 1.4's own tests did, before this
  * measurement code existed).
  */
+@Tag("corpus")
 class SubstituteRenderCorpusTest {
 
     @Test

@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -33,6 +34,7 @@ import org.w3c.dom.Element;
  * only the converted header line's own characters may drift horizontally,
  * bounded by twip quantization (5 twips = 0.25pt).
  */
+@Tag("corpus")
 class DateTabCorpusTest {
 
     private static final double VERTICAL_TOLERANCE_PT = 0.05;

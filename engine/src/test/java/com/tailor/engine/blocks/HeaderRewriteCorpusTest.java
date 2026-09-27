@@ -27,6 +27,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -40,6 +41,7 @@ import org.w3c.dom.Element;
  * that no existing relationship was touched, and that the saved, rewritten file
  * still passes the upload gate.
  */
+@Tag("corpus")
 class HeaderRewriteCorpusTest {
 
     private static final String R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";

@@ -15,9 +15,11 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** P2-T2 and P2-T3 (PHASE2_SPEC.md section 6), run through the full {@code tailor onboard} pipeline. */
+@Tag("corpus")
 class OnboardFixtureTest {
 
     @Test

@@ -10,9 +10,11 @@ import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Step 1.2 acceptance test T1 (spec sections 3, 11). */
+@Tag("corpus")
 class FontNormalizerCorpusTest {
 
     @Test

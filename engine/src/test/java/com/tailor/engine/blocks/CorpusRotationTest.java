@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -49,6 +50,7 @@ import org.w3c.dom.Element;
  * order, since a skip leaves the same project's content on the page twice
  * (its own untouched slot and the slot that just received it).
  */
+@Tag("corpus")
 class CorpusRotationTest {
 
     private static final double LAYOUT_TOLERANCE_PT = 0.5;

@@ -12,9 +12,11 @@ import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** P3-T2 (PHASE3_SPEC.md section 9): all 9 corpus resumes' sections/positions match golden/phase3_blocks.json. */
+@Tag("corpus")
 class BlocksCorpusTest {
 
     @Test

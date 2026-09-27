@@ -24,6 +24,26 @@ docker run --rm resume-tailor gradle --no-daemon :cli:run --args="render corpus/
 
 `corpus/` in this repo holds the 9 resumes used for golden-file testing.
 
+## Testing
+
+Tests are split into a fast default suite and a slower one that renders
+the 9-resume corpus and Phase 2/3 fixtures through LibreOffice
+(`@Tag("corpus")`):
+
+```
+# while working — fast, seconds
+docker run --rm resume-tailor gradle --no-daemon :engine:test :cli:test
+
+# before every push — the render-heavy suite, plus the corpus/golden check
+docker run --rm resume-tailor gradle --no-daemon :engine:test :cli:test
+docker run --rm resume-tailor gradle --no-daemon :engine:corpusTest :cli:corpusTest
+docker run --rm resume-tailor gradle --no-daemon :cli:run --args="corpus-check /app/corpus /app/golden"
+```
+
+`test` excludes anything tagged `corpus`; `corpusTest` runs only those.
+Rebuild the image first (`docker build -f docker/Dockerfile -t resume-tailor .`)
+whenever source has changed since the last build.
+
 ## Deployment (Phase 2 sandbox)
 
 Uploads are onboarded inside a restricted, non-root container, not the dev

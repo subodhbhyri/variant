@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -37,6 +38,7 @@ import org.w3c.dom.Element;
  * a skipped requirement — flagging it explicitly rather than silently
  * narrowing what step 1.4 claims to verify.
  */
+@Tag("corpus")
 class EditPrimitivesCorpusTest {
 
     /** Substituting every supported bullet with its own text+emphasis reproduces that text exactly. */

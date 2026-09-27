@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -36,6 +37,7 @@ import org.w3c.dom.Element;
  * sentinel means: don't check that field), and every line outside the swapped position
  * must stay within 0.5pt.
  */
+@Tag("corpus")
 class BlockSwapFixtureTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()

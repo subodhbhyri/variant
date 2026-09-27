@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -58,6 +59,7 @@ import org.w3c.dom.Element;
  * InlineRenderer}), so the rule 2 violation is what the negative run relies
  * on to prove the methodology has teeth.
  */
+@Tag("corpus")
 class InlineRendererTest {
 
     private static final double FIXED_LINE_TOLERANCE_PT = 0.5;

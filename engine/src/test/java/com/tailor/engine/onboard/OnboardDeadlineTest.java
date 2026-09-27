@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
  * work-directory cleanup, both overridden/observed without a real 180s wait
  * or a real LibreOffice render.
  */
+@Tag("corpus")
 class OnboardDeadlineTest {
 
     @Test

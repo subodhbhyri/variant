@@ -13,9 +13,11 @@ import com.tailor.engine.render.LibreOfficeRenderer;
 import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** P3-T1 (PHASE3_SPEC.md section 9): the synthetic fixture's sections and 5 positions. */
+@Tag("corpus")
 class BlocksFixtureTest {
 
     @Test

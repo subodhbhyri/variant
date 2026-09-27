@@ -10,9 +10,11 @@ import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** P2-T4 (PHASE2_SPEC.md section 6): all 9 corpus resumes onboard, matching golden. */
+@Tag("corpus")
 class OnboardCorpusTest {
 
     private static final Map<String, Integer> EXPECTED_EDITABLE = Map.of(

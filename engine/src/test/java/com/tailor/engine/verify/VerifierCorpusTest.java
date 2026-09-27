@@ -27,11 +27,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /** Verifier end to end on all 9 resumes (spec sections 8, 11: T4, T9, T10). */
+@Tag("corpus")
 class VerifierCorpusTest {
 
     private static final String SHORT_SENTENCE = "Built a short one-line result.";

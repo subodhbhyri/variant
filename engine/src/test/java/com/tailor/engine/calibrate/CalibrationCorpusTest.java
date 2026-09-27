@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -34,6 +35,7 @@ import org.w3c.dom.Element;
  * self-consistency: every returned hint, rendered on its own, actually keeps
  * its slot at the target line count. Also covers T11 (determinism).
  */
+@Tag("corpus")
 class CalibrationCorpusTest {
 
     private static final int PROSE_LENGTH = 900; // > CALIBRATION_HI so word-prefix never runs out

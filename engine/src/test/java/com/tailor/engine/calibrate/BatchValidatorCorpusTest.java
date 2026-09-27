@@ -19,9 +19,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Step 1.5 validation tests (spec section 7.4). */
+@Tag("corpus")
 class BatchValidatorCorpusTest {
 
     private static final int PROSE_LENGTH = 900;

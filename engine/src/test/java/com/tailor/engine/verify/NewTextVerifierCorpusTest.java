@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -37,6 +38,7 @@ import org.w3c.dom.Element;
  * FITS candidate is assembled at once, and the Verifier must pass — pages,
  * every line count, the 0.5pt layout check, and the font audit.
  */
+@Tag("corpus")
 class NewTextVerifierCorpusTest {
 
     @Test

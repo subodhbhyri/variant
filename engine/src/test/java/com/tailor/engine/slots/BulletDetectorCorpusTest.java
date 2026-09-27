@@ -14,6 +14,7 @@ import com.tailor.engine.render.Renderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
  * font-normalized output (pipeline order: normalize -> detect), matching how
  * golden/*.json's bullets were produced.
  */
+@Tag("corpus")
 class BulletDetectorCorpusTest {
 
     @Test

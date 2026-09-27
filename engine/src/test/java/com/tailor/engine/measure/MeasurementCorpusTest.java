@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
  * this keeps the anchor cursor advancing correctly past the 2 unsupported
  * bullets in the corpus.
  */
+@Tag("corpus")
 class MeasurementCorpusTest {
 
     @Test
