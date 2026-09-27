@@ -1,0 +1,124 @@
+{
+ "job-0": [
+  {
+   "id": "r1",
+   "type": "message",
+   "role": "assistant",
+   "model": "claude-sonnet-5",
+   "stop_reason": "tool_use",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_r1",
+     "name": "submit_bullets",
+     "input": {
+      "bullets": [
+       {
+        "id": "c1",
+        "variants": {
+         "2": "Designed an event-driven order pipeline on Kafka and Postgres, cutting p99 checkout latency by 38% from 410 ms to 254 ms at 4K requests per second."
+        }
+       },
+       {
+        "id": "c2",
+        "variants": {
+         "2": "Led the migration of twelve services from EC2 to Kubernetes, reducing monthly infrastructure spend by 22%, after moving order processing to Kafka and PostgreSQL, which cut p99 latency from 410 ms to 254 ms."
+        }
+       },
+       {
+        "id": "c3",
+        "variants": {
+         "1": "Built the feature-flag service that six teams use, which lets them roll back the same day without any redeploys."
+        }
+       },
+       {
+        "id": "c4",
+        "variants": {
+         "1": "Built a Redis-backed feature-flag service for six teams, enabling same-day rollbacks."
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "usage": {
+    "input_tokens": 900,
+    "cache_creation_input_tokens": 1600,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 420
+   }
+  },
+  {
+   "id": "r2",
+   "type": "message",
+   "role": "assistant",
+   "model": "claude-sonnet-5",
+   "stop_reason": "tool_use",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_r2",
+     "name": "submit_bullets",
+     "input": {
+      "bullets": [
+       {
+        "id": "c2",
+        "variants": {
+         "2": "Led the migration of twelve services from EC2 to Kubernetes (K8s), reducing monthly infrastructure spend by 22%."
+        }
+       },
+       {
+        "id": "c3",
+        "variants": {
+         "1": "Built a feature-flag service for six teams, enabling same-day rollbacks without redeploys."
+        }
+       },
+       {
+        "id": "c4",
+        "variants": {
+         "1": "Built a Redis-backed flag service for six teams with same-day rollbacks."
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "usage": {
+    "input_tokens": 700,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1600,
+    "output_tokens": 180
+   }
+  },
+  {
+   "id": "r3",
+   "type": "message",
+   "role": "assistant",
+   "model": "claude-sonnet-5",
+   "stop_reason": "tool_use",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_r3",
+     "name": "submit_bullets",
+     "input": {
+      "bullets": [
+       {
+        "id": "c4",
+        "variants": {
+         "1": "Built a Redis-backed flag service for six teams."
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "usage": {
+    "input_tokens": 500,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1600,
+    "output_tokens": 60
+   }
+  }
+ ]
+}

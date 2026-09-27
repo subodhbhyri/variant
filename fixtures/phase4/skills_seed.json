@@ -1,0 +1,14 @@
+{
+ "_note": "Seed skills dictionary for the Phase 4 truthfulness guard: canonical -> aliases. Phase 5 grows it (embeddings only suggest additions).",
+ "Python": ["Python"], "Java": ["Java"], "JavaScript": ["JavaScript", "JS"], "TypeScript": ["TypeScript", "TS"],
+ "Go": ["Go", "Golang"], "Rust": ["Rust"], "C++": ["C++", "CPP"], "C#": ["C#"], "Kotlin": ["Kotlin"], "Scala": ["Scala"], "Ruby": ["Ruby"], "PHP": ["PHP"], "Swift": ["Swift"], "SQL": ["SQL"],
+ "React": ["React", "React.js", "ReactJS"], "React Native": ["React Native"], "Next.js": ["Next.js", "NextJS"], "Angular": ["Angular"], "Vue": ["Vue", "Vue.js"], "Node.js": ["Node.js", "NodeJS", "Node"],
+ "Express": ["Express", "Express.js"], "Spring Boot": ["Spring Boot"], "Spring": ["Spring"], "Django": ["Django"], "Flask": ["Flask"], "FastAPI": ["FastAPI"], "Hono": ["Hono"], "GraphQL": ["GraphQL"], "gRPC": ["gRPC"], "REST": ["REST", "RESTful"],
+ "Postgres": ["Postgres", "PostgreSQL"], "MySQL": ["MySQL"], "MongoDB": ["MongoDB", "Mongo"], "Redis": ["Redis"], "Cassandra": ["Cassandra"], "DynamoDB": ["DynamoDB"], "Elasticsearch": ["Elasticsearch"], "SQLite": ["SQLite"],
+ "Kafka": ["Kafka"], "RabbitMQ": ["RabbitMQ"], "Celery": ["Celery"], "Airflow": ["Airflow"], "Spark": ["Spark", "PySpark"],
+ "AWS": ["AWS"], "EC2": ["EC2"], "S3": ["S3"], "Lambda": ["Lambda"], "RDS": ["RDS"], "GCP": ["GCP", "Google Cloud"], "Azure": ["Azure"],
+ "Docker": ["Docker"], "Kubernetes": ["Kubernetes", "K8s"], "Terraform": ["Terraform"], "Jenkins": ["Jenkins"], "GitHub Actions": ["GitHub Actions"], "Prometheus": ["Prometheus"], "Grafana": ["Grafana"],
+ "PyTorch": ["PyTorch"], "TensorFlow": ["TensorFlow"], "scikit-learn": ["scikit-learn", "sklearn"], "XGBoost": ["XGBoost"], "Pandas": ["Pandas"], "NumPy": ["NumPy"],
+ "LangChain": ["LangChain"], "LangGraph": ["LangGraph"], "RAG": ["RAG"], "OpenAI": ["OpenAI"], "Anthropic": ["Anthropic"], "HL7 FHIR": ["HL7 FHIR", "FHIR", "HL7"],
+ "OAuth2": ["OAuth2", "OAuth"], "JWT": ["JWT"], "RBAC": ["RBAC"], "Linux": ["Linux"], "Git": ["Git"]
+}

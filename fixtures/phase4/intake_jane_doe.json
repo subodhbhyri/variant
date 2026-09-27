@@ -1,0 +1,25 @@
+{
+ "_note": "Jane Doe (fixtures/phase2/ok_synthetic.docx). Section ids follow Phase 3 position order.",
+ "sections": [
+  {
+   "id": "job-0",
+   "kind": "job",
+   "mode": "DETAILED",
+   "fields": {
+    "title": "Senior Software Engineer | Northwind Labs",
+    "date": "Jan 2023 – Present"
+   },
+   "raw_text": "Worked on checkout: moved order processing to Kafka + PostgreSQL, p99 latency went from 410 ms to 254 ms at 4K requests per second (38% lower). Ran the K8s migration of twelve services off EC2; infra spend fell 22%. Built the feature-flag service six teams use; same-day rollbacks, no redeploys."
+  },
+  {
+   "id": "job-1",
+   "kind": "job",
+   "mode": "EXISTING_ONLY",
+   "fields": {
+    "title": "Software Engineer | Contoso Health",
+    "date": "Jun 2020 – Dec 2022"
+   },
+   "raw_text": ""
+  }
+ ]
+}

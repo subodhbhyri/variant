@@ -1,0 +1,64 @@
+{
+ "job-0": {
+  "slot_line_counts": [
+   2,
+   2,
+   1
+  ],
+  "rounds": 3,
+  "final": {
+   "c1": {
+    "status": "OK",
+    "variants": {
+     "2": "Designed an event-driven order pipeline on Kafka and Postgres, cutting p99 checkout latency by 38% from 410 ms to 254 ms at 4K requests per second."
+    },
+    "accepted_in_round": 1
+   },
+   "c2": {
+    "status": "OK",
+    "variants": {
+     "2": "Led the migration of twelve services from EC2 to Kubernetes (K8s), reducing monthly infrastructure spend by 22%."
+    },
+    "accepted_in_round": 2
+   },
+   "c3": {
+    "status": "OK",
+    "variants": {
+     "1": "Built a feature-flag service for six teams, enabling same-day rollbacks without redeploys."
+    },
+    "accepted_in_round": 2
+   },
+   "c4": {
+    "status": "DROPPED",
+    "reason": "UNSUPPORTED_TECH:Redis",
+    "attempts": 3
+   }
+  },
+  "round1_feedback": {
+   "c2": {
+    "reason": "TOO_LONG",
+    "target_lines": 2,
+    "measured_lines": 3
+   },
+   "c3": {
+    "reason": "TOO_LONG",
+    "target_lines": 1,
+    "measured_lines": 2
+   },
+   "c4": {
+    "reason": "UNSUPPORTED_TECH:Redis"
+   }
+  },
+  "cost_usd": 0.01544,
+  "price_per_mtok_sonnet5": {
+   "input": 2.0,
+   "output": 10.0,
+   "cache_write_5m": 2.5,
+   "cache_read": 0.2
+  }
+ },
+ "job-1": {
+  "mode": "EXISTING_ONLY",
+  "note": "source texts = the job's own bullets only; no raw text"
+ }
+}

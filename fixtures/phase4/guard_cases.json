@@ -1,0 +1,160 @@
+{
+ "source_texts": [
+  "Designed an event-driven order pipeline on Kafka and Postgres that cut checkout latency by 38% at 4K requests per second.",
+  "Led the migration of twelve services from EC2 to Kubernetes, reducing monthly infrastructure spend by 22%.",
+  "Built a feature-flag service used by six teams, enabling same-day rollbacks without redeploys.",
+  "Northwind Labs, Senior Software Engineer, Jan 2023 – Present",
+  "Worked on checkout: moved order processing to Kafka + PostgreSQL, p99 latency went from 410 ms to 254 ms. Also ran the K8s migration."
+ ],
+ "cases": [
+  {
+   "name": "ok_rephrase",
+   "variant": "Cut checkout latency by 38% by moving order processing onto Kafka and Postgres at 4K requests per second.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "ok_alias_and_word_number",
+   "variant": "Migrated 12 services from EC2 to K8s, cutting monthly infrastructure spend by 22%.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "ok_k_suffix_equivalence",
+   "variant": "Sustained 4,000 requests per second on a Kafka-backed order pipeline.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "ok_numbers_from_raw_text",
+   "variant": "Reduced p99 checkout latency from 410 ms to 254 ms with a Kafka and PostgreSQL pipeline.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "invented_number",
+   "variant": "Cut checkout latency by 45% on a Kafka and Postgres order pipeline.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_NUMBER:45"
+   ]
+  },
+  {
+   "name": "invented_scale",
+   "variant": "Scaled the order pipeline to 10K requests per second on Kafka.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_NUMBER:10000"
+   ]
+  },
+  {
+   "name": "invented_tech",
+   "variant": "Built a Redis-backed feature-flag service used by six teams.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_TECH:Redis"
+   ]
+  },
+  {
+   "name": "invented_tech_alias",
+   "variant": "Built the flag service in TypeScript for six teams.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_TECH:TypeScript"
+   ]
+  },
+  {
+   "name": "go_verb_not_language",
+   "variant": "Helped teams go from weekly to same-day rollbacks with a feature-flag service.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "go_language",
+   "variant": "Rewrote the feature-flag service in Go for six teams.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_TECH:Go"
+   ]
+  },
+  {
+   "name": "first_person",
+   "variant": "I led the migration of twelve services to Kubernetes.",
+   "budget_chars": null,
+   "expected": [
+    "FIRST_PERSON"
+   ]
+  },
+  {
+   "name": "first_person_our",
+   "variant": "Led our migration of twelve services to Kubernetes.",
+   "budget_chars": null,
+   "expected": [
+    "FIRST_PERSON"
+   ]
+  },
+  {
+   "name": "url",
+   "variant": "Built a feature-flag service (github.com/x) used by six teams, see https://example.com.",
+   "budget_chars": null,
+   "expected": [
+    "URL"
+   ]
+  },
+  {
+   "name": "email",
+   "variant": "Contact jane.doe@example.com about the feature-flag service.",
+   "budget_chars": null,
+   "expected": [
+    "URL"
+   ]
+  },
+  {
+   "name": "multiline",
+   "variant": "Built a feature-flag service\nused by six teams.",
+   "budget_chars": null,
+   "expected": [
+    "MULTILINE"
+   ]
+  },
+  {
+   "name": "empty",
+   "variant": "   ",
+   "budget_chars": null,
+   "expected": [
+    "EMPTY"
+   ]
+  },
+  {
+   "name": "over_budget",
+   "variant": "Built a feature-flag service used by six teams, enabling same-day rollbacks without redeploys.",
+   "budget_chars": 60,
+   "expected": [
+    "OVER_BUDGET"
+   ]
+  },
+  {
+   "name": "date_numbers_from_fields",
+   "variant": "Senior engineer at Northwind Labs since 2023, leading the Kubernetes migration.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "java_vs_javascript",
+   "variant": "Built checkout tooling in JavaScript on Kafka.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_TECH:JavaScript"
+   ]
+  },
+  {
+   "name": "react_native_not_react",
+   "variant": "Shipped a React Native client for the order pipeline on Kafka.",
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_TECH:React",
+    "UNSUPPORTED_TECH:React Native"
+   ]
+  }
+ ]
+}
