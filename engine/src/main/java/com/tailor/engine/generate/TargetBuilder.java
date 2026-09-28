@@ -28,8 +28,15 @@ public final class TargetBuilder {
     private TargetBuilder() {
     }
 
-    /** One job position (D1: a job's bullets tailor in place, only its editable slots count). */
-    public static SectionTarget forJob(Position jobPosition, OnboardReport report, SectionPositions positions) {
+    /**
+     * One job position (D1: a job's bullets tailor in place, only its editable slots count).
+     * PHASE4_SPEC.md section 2 (revision 2): {@code DETAILED} asks for up to 2 x the job's
+     * editable slots (min 4); {@code EXISTING_ONLY} asks for exactly one candidate per editable
+     * bullet (ids {@code b0}, {@code b1}, ... — chosen by the model from the prompt's own
+     * wording, not generated here).
+     */
+    public static SectionTarget forJob(Position jobPosition, OnboardReport report, SectionPositions positions,
+            String mode) {
         Map<Integer, OnboardReport.SlotReport> bySlotIndex = indexReports(report);
         List<Integer> slotIndices = positions.bulletSlotIndices(jobPosition);
 
@@ -48,7 +55,7 @@ public final class TargetBuilder {
             }
         }
         List<Integer> lineCounts = new ArrayList<>(new TreeSet<>(lines));
-        int candidateCount = Math.max(4, 2 * editableCount);
+        int candidateCount = "EXISTING_ONLY".equals(mode) ? editableCount : Math.max(4, 2 * editableCount);
         return new SectionTarget("job", lineCounts, candidateCount, medianBudgets(hintsByLine, lineCounts));
     }
 

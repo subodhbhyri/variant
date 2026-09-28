@@ -105,7 +105,7 @@ public final class GenerateCommand implements Callable<Integer> {
                     continue;
                 }
                 Position job = positions.jobPositions().get(i);
-                TargetBuilder.SectionTarget target = TargetBuilder.forJob(job, report, positions);
+                TargetBuilder.SectionTarget target = TargetBuilder.forJob(job, report, positions, section.mode());
                 List<Integer> slotIndices = positions.bulletSlotIndices(job);
                 List<String> currentBullets = textsOf(slotIndices, report);
                 List<Integer> slotLineCounts = linesOf(slotIndices, report);
@@ -361,7 +361,7 @@ public final class GenerateCommand implements Callable<Integer> {
                 cost += prices.costUsd(u);
             }
             ModelResponse.Usage totals = new ModelResponse.Usage(inputTokens, outputTokens, cacheCreation, cacheRead);
-            return new SectionReportEntry("GENERATED", result.rounds(), result.finalResults(),
+            return new SectionReportEntry(result.status(), result.rounds(), result.finalResults(),
                     result.callUsages().size(), totals, cost);
         }
     }

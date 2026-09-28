@@ -66,8 +66,33 @@ class PromptAndRequestTest {
         assertEquals("tool", req.path("tool_choice").path("type").asText());
         assertEquals("submit_bullets", req.path("tool_choice").path("name").asText());
         assertEquals("submit_bullets", req.path("tools").get(0).path("name").asText());
+        JsonNode variantsSchema = req.path("tools").get(0).path("input_schema")
+                .path("properties").path("bullets").path("items").path("properties").path("variants");
         assertEquals("array", req.path("tools").get(0).path("input_schema")
                 .path("properties").path("bullets").path("type").asText());
+        assertEquals(1, variantsSchema.path("minProperties").asInt());
+        assertFalse(variantsSchema.path("additionalProperties").asBoolean(true),
+                "revision 2: variant keys must be named, no others");
+        assertTrue(variantsSchema.path("properties").has("1"));
+        assertTrue(variantsSchema.path("properties").has("2"));
+        assertTrue(variantsSchema.path("properties").has("3"));
+    }
+
+    @Test
+    void detailedAsksForUpToNCandidatesExistingOnlyAsksToRewriteEachBullet() {
+        String detailed = PromptBuilder.userMessage("job", "DETAILED",
+                List.of(new PromptBuilder.FieldLine("title", "Engineer")),
+                List.of("Existing bullet"), "raw",
+                List.of(new PromptBuilder.LengthSpec(2, 150, 188)), 6);
+        assertTrue(detailed.contains("Write up to 6 candidates."));
+
+        String existingOnly = PromptBuilder.userMessage("job", "EXISTING_ONLY",
+                List.of(new PromptBuilder.FieldLine("title", "Engineer")),
+                List.of("b0 text", "b1 text", "b2 text"), null,
+                List.of(new PromptBuilder.LengthSpec(1, 72, 90)), 3);
+        assertTrue(existingOnly.contains("Rewrite each current bullet as one candidate, ids b0, b1"));
+        assertTrue(existingOnly.contains("keeping exactly its facts."));
+        assertFalse(existingOnly.contains("Write up to"));
     }
 
     @Test

@@ -26,9 +26,11 @@ public final class PromptBuilder {
                section's date says "Present" and the work is ongoing). No first person
                ("I", "my", "we", "our"). No URLs or email addresses. One sentence, no line
                breaks. End with a period only if the current bullets do.
-            4. Each candidate is one achievement written at every requested length. The
+            4. Each candidate is one achievement written at the requested lengths. The
                versions of one candidate must describe the same facts; shorter versions
-               drop detail, they never change it.
+               drop detail, they never change it. If a candidate's facts can't fill a
+               longer length without filler ("in the process", "successfully",
+               "various"), leave that length out rather than pad it.
             5. Stay within the character range given for each length.
             6. Different candidates must describe different achievements or different
                angles; do not repeat the same bullet with small wording changes.
@@ -37,14 +39,18 @@ public final class PromptBuilder {
 
             Submit your answer with the submit_bullets tool.""";
 
-    /** Verbatim from PHASE4_SPEC.md section 3. */
+    /** Verbatim from PHASE4_SPEC.md section 3 (revision 2: named variant keys, no others —
+     * revision 1 left keys free and the live model sent "1 line" instead of "1"). */
     public static final String TOOL_SCHEMA_JSON = """
             {"type": "object", "required": ["bullets"],
              "properties": {"bullets": {"type": "array", "items": {
                "type": "object", "required": ["id", "variants"],
                "properties": {"id": {"type": "string"},
-                              "variants": {"type": "object",
-                                           "additionalProperties": {"type": "string"}}}}}}}""";
+                              "variants": {"type": "object", "minProperties": 1,
+                                           "additionalProperties": false,
+                                           "properties": {"1": {"type": "string"},
+                                                          "2": {"type": "string"},
+                                                          "3": {"type": "string"}}}}}}}}""";
 
     public static final String TOOL_NAME = "submit_bullets";
 
@@ -93,7 +99,12 @@ public final class PromptBuilder {
         }
         sb.append("</lengths>\n");
 
-        sb.append("Write ").append(candidateCount).append(" candidates.\n");
+        if ("EXISTING_ONLY".equals(mode)) {
+            sb.append("Rewrite each current bullet as one candidate, ids b0, b1, …, at the\n");
+            sb.append("requested lengths, keeping exactly its facts.\n");
+        } else {
+            sb.append("Write up to ").append(candidateCount).append(" candidates.\n");
+        }
         sb.append("</section>");
         return sb.toString();
     }

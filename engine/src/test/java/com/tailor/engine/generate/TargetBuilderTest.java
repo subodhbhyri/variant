@@ -18,8 +18,9 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * P4-T2 (PHASE4_SPEC.md section 9): Jane Doe's two jobs both need lengths {1, 2} with 6
- * candidates each (2 x 3 editable slots); the Phase 3 fixture's project section needs
+ * P4-T2 (PHASE4_SPEC.md section 9, revision 2): Jane Doe's two jobs both need lengths {1, 2};
+ * job-0 (DETAILED) asks for up to 6 candidates (2 x 3 editable slots), job-1 (EXISTING_ONLY) for
+ * exactly 3 (one per editable bullet, ids b0-b2). The Phase 3 fixture's project section needs
  * max-bullets + 1 (3 + 1 = 4) bullets per candidate. Budgets are cross-checked against an
  * independently computed median of the same calibration hints.
  */
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.Test;
 class TargetBuilderTest {
 
     @Test
-    void janeDoeBothJobsNeedLengths1And2With6Candidates() throws Exception {
+    void janeDoeJobsNeedLengths1And2WithModeDependentCandidateCounts() throws Exception {
         Renderer renderer = new LibreOfficeRenderer();
         OnboardPipeline onboard = new OnboardPipeline(renderer, FontMap.loadDefault());
         Path outDir = Files.createTempDirectory("target-builder-jane-doe");
@@ -39,10 +40,15 @@ class TargetBuilderTest {
         SectionPositions positions = SectionPositions.detect(normalizedDocx, report);
         assertEquals(2, positions.jobPositions().size(), "expected 2 job positions");
 
-        for (Position job : positions.jobPositions()) {
-            TargetBuilder.SectionTarget target = TargetBuilder.forJob(job, report, positions);
-            assertEquals(List.of(1, 2), target.lineCounts(), "job line counts");
-            assertEquals(6, target.candidateCount(), "job candidate count (2 x 3 editable slots)");
+        // fixtures/phase4/intake_jane_doe.json: job-0 is DETAILED, job-1 is EXISTING_ONLY.
+        String[] modeByJobIndex = {"DETAILED", "EXISTING_ONLY"};
+        int[] expectedCandidateCount = {6, 3};
+        for (int i = 0; i < positions.jobPositions().size(); i++) {
+            Position job = positions.jobPositions().get(i);
+            TargetBuilder.SectionTarget target = TargetBuilder.forJob(job, report, positions, modeByJobIndex[i]);
+            assertEquals(List.of(1, 2), target.lineCounts(), "job-" + i + " line counts");
+            assertEquals(expectedCandidateCount[i], target.candidateCount(),
+                    "job-" + i + " (" + modeByJobIndex[i] + ") candidate count");
             assertBudgetsAreMedianHints(target, job, report, positions);
         }
     }

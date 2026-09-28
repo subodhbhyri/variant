@@ -17,13 +17,16 @@ import java.util.regex.Pattern;
 /**
  * PHASE4_SPEC.md section 6 (step 4.5): calls the model, guards every variant, render-checks the
  * guard-passing ones in batch (Phase 1 {@link BatchValidator}), retries only failing candidates
- * (at most 2 retries, 3 rounds total), drops a candidate still failing after round 3, then drops
- * near-duplicates (word-level Jaccard >= 0.8 at a shared length).
+ * (at most 2 retries, 3 rounds total), drops any length still failing after round 3 from that
+ * candidate (the candidate itself is dropped only if none of its lengths ever pass), retries once
+ * on empty output before giving up with {@code NO_OUTPUT}, then drops near-duplicates
+ * (word-level Jaccard >= 0.8 at a shared length).
  */
 public final class FitLoop {
 
     private static final int MAX_ROUNDS = 3;
     private static final double DUPLICATE_JACCARD = 0.8;
+    private static final String RETURN_AT_LEAST_ONE = "Return at least one candidate.";
 
     public record CandidateOutcome(
             String status, Map<String, String> variants, Integer acceptedInRound, String reason, Integer attempts) {
@@ -43,7 +46,10 @@ public final class FitLoop {
     public record RoundOneFeedback(String reason, Integer targetLines, Integer measuredLines) {
     }
 
+    /** {@code status}: {@code GENERATED} (normal) or {@code NO_OUTPUT} (section 6 point 3: the
+     * model returned no candidates twice in a row; the section stays locked). */
     public record FitLoopResult(
+            String status,
             List<Integer> slotLineCounts,
             int rounds,
             Map<String, CandidateOutcome> finalResults,
@@ -73,103 +79,34 @@ public final class FitLoop {
         Map<String, RoundOneFeedback> round1Feedback = new LinkedHashMap<>();
         List<ModelResponse.Usage> usages = new ArrayList<>();
 
+        String initialUserMessage = PromptBuilder.userMessage(ctx.kind(), ctx.mode(), ctx.fields(),
+                ctx.currentBullets(), ctx.rawText(), lengthSpecs(ctx), ctx.candidateCount());
+        ModelResponse round1Response = client.call(PromptBuilder.SYSTEM_PROMPT, initialUserMessage);
+        usages.add(round1Response.usage());
+
+        if (round1Response.bullets().isEmpty()) {
+            ModelResponse retryResponse = client.call(PromptBuilder.SYSTEM_PROMPT, RETURN_AT_LEAST_ONE);
+            usages.add(retryResponse.usage());
+            if (retryResponse.bullets().isEmpty()) {
+                return new FitLoopResult(
+                        "NO_OUTPUT", ctx.slotLineCounts(), usages.size(), Map.of(), Map.of(), usages);
+            }
+            round1Response = retryResponse;
+        }
+
+        ingestAndCheck(ctx, skills, candidates, round1Feedback, round1Response, 1);
+
         int round = 1;
-        for (; round <= MAX_ROUNDS; round++) {
-            List<PromptBuilder.RetryItem> retryItems =
-                    round == 1 ? null : buildRetryItems(candidates);
-            if (round > 1 && retryItems.isEmpty()) {
-                round--; // nothing left to retry; don't count an empty round
+        for (round = 2; round <= MAX_ROUNDS; round++) {
+            List<PromptBuilder.RetryItem> retryItems = buildRetryItems(candidates);
+            if (retryItems.isEmpty()) {
+                round--; // everything already resolved; don't count an unneeded round
                 break;
             }
-
-            String userMessage = round == 1
-                    ? PromptBuilder.userMessage(ctx.kind(), ctx.mode(), ctx.fields(), ctx.currentBullets(),
-                            ctx.rawText(), lengthSpecs(ctx), ctx.candidateCount())
-                    : PromptBuilder.retryMessage(retryItems);
-
+            String userMessage = PromptBuilder.retryMessage(retryItems);
             ModelResponse response = client.call(PromptBuilder.SYSTEM_PROMPT, userMessage);
             usages.add(response.usage());
-
-            for (ModelResponse.BulletCandidate bc : response.bullets()) {
-                CandidateState state = candidates.computeIfAbsent(bc.id(), id -> new CandidateState());
-                state.lastRoundTouched = round;
-                for (Map.Entry<String, String> e : bc.variants().entrySet()) {
-                    // The tool schema asks for bare digit keys ("1", "2"); a real model call
-                    // (unlike every recorded fixture) came back with "1 line" instead, echoing
-                    // the <lengths> block's own wording into the key. Extract the leading digits
-                    // rather than fail the whole call on a cosmetic key mismatch.
-                    Integer length = parseLength(e.getKey());
-                    if (length == null) {
-                        continue;
-                    }
-                    state.variants.put(length, e.getValue());
-                    state.failingLengths.add(length); // re-check every (re)submitted length below
-                }
-            }
-
-            // Guard every length just (re)submitted this round; guard-passing ones go to the
-            // batched render check.
-            List<RenderItem> toRender = new ArrayList<>();
-            for (Map.Entry<String, CandidateState> e : candidates.entrySet()) {
-                String id = e.getKey();
-                CandidateState state = e.getValue();
-                if (state.lastRoundTouched != round) {
-                    continue; // not part of this round's response
-                }
-                for (int length : new ArrayList<>(state.failingLengths)) {
-                    String text = state.variants.get(length);
-                    // No budget here (unlike the prompt's <lengths> range and "about N characters"
-                    // retry feedback, which do use it): the batched render check right below is the
-                    // authoritative, more accurate fit test ("must really fill L lines" - section 6),
-                    // and double-gating on the calibration-hint budget too would reject some texts
-                    // the render alone would have passed, or report OVER_BUDGET for what render-checks
-                    // as TOO_LONG (PHASE4_SPEC.md's own job-0 fixture: c2's round-1 text is over the
-                    // 188-char budget for length 2 but is meant to fail with TOO_LONG, not OVER_BUDGET).
-                    List<String> guardReasons = TruthfulnessGuard.guard(text, ctx.sourceTexts(), null, skills);
-                    if (!guardReasons.isEmpty()) {
-                        fail(state, guardReasons.get(0), null, null, round);
-                        recordRoundOneFeedback(round1Feedback, round, id, guardReasons.get(0), null, null);
-                    } else {
-                        toRender.add(new RenderItem(id, length, text));
-                    }
-                }
-            }
-
-            Map<Integer, List<RenderItem>> bySlot = distributeAcrossSlots(toRender, ctx.slotIndicesByLineCount());
-            if (!bySlot.isEmpty()) {
-                Map<Integer, Integer> lineCounts = new HashMap<>();
-                Map<Integer, List<BulletText>> candidatesPerSlot = new LinkedHashMap<>();
-                for (Map.Entry<Integer, List<RenderItem>> se : bySlot.entrySet()) {
-                    int slotIndex = se.getKey();
-                    List<BulletText> texts = new ArrayList<>();
-                    for (RenderItem item : se.getValue()) {
-                        texts.add(new BulletText(item.text(), List.of()));
-                        lineCounts.put(slotIndex, item.length());
-                    }
-                    candidatesPerSlot.put(slotIndex, texts);
-                }
-                List<BatchValidator.CandidateResult> results = BatchValidator.validate(
-                        ctx.baselineDocx(), ctx.renderer(), lineCounts, Map.of(), candidatesPerSlot,
-                        ctx.baselineDocx().getParent());
-
-                for (BatchValidator.CandidateResult r : results) {
-                    RenderItem item = bySlot.get(r.slotIndex()).get(r.candidateIndex());
-                    CandidateState state = candidates.get(item.candidateId());
-                    switch (r.outcome()) {
-                        case FITS -> pass(state, item.length());
-                        case FITS_WITH_PADDING -> {
-                            fail(state, "TOO_SHORT", item.length(), r.measuredLines(), round);
-                            recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_SHORT",
-                                    item.length(), r.measuredLines());
-                        }
-                        default -> {
-                            fail(state, "TOO_LONG", item.length(), r.measuredLines(), round);
-                            recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_LONG",
-                                    item.length(), r.measuredLines());
-                        }
-                    }
-                }
-            }
+            ingestAndCheck(ctx, skills, candidates, round1Feedback, response, round);
 
             if (candidates.values().stream().noneMatch(s -> !s.failingLengths.isEmpty())) {
                 break;
@@ -181,8 +118,15 @@ public final class FitLoop {
         for (Map.Entry<String, CandidateState> e : candidates.entrySet()) {
             String id = e.getKey();
             CandidateState state = e.getValue();
-            if (!state.failingLengths.isEmpty()) {
-                finalResults.put(id, CandidateOutcome.dropped(state.lastReason, roundsRun));
+            // A length still failing after the last round is left out of this candidate rather
+            // than killing the whole thing (PHASE4_SPEC.md section 2/6 revision 2: "a requested
+            // length that's absent is simply not available for that candidate").
+            for (int failingLength : new ArrayList<>(state.failingLengths)) {
+                state.variants.remove(failingLength);
+            }
+            if (state.variants.isEmpty()) {
+                String reason = state.lastReason != null ? state.lastReason : "NO_VALID_LENGTH";
+                finalResults.put(id, CandidateOutcome.dropped(reason, roundsRun));
             } else {
                 finalResults.put(id, CandidateOutcome.ok(state.variants, state.lastRoundTouched));
             }
@@ -190,7 +134,100 @@ public final class FitLoop {
 
         dropDuplicates(finalResults);
 
-        return new FitLoopResult(ctx.slotLineCounts(), roundsRun, finalResults, round1Feedback, usages);
+        return new FitLoopResult(
+                "GENERATED", ctx.slotLineCounts(), roundsRun, finalResults, round1Feedback, usages);
+    }
+
+    /** Ingests one round's response (assigning candidate ids/variants) and runs guard + batched
+     * render check on every length just (re)submitted. */
+    private static void ingestAndCheck(SectionContext ctx, SkillsDictionary skills,
+            Map<String, CandidateState> candidates, Map<String, RoundOneFeedback> round1Feedback,
+            ModelResponse response, int round) throws Exception {
+        for (ModelResponse.BulletCandidate bc : response.bullets()) {
+            CandidateState state = candidates.computeIfAbsent(bc.id(), id -> new CandidateState());
+            state.lastRoundTouched = round;
+            for (Map.Entry<String, String> e : bc.variants().entrySet()) {
+                // The tool schema names bare digit keys ("1", "2", "3"); a real model call once
+                // sent "1 line" instead, echoing the <lengths> block's own wording into the key.
+                // Extract the leading digits rather than fail the whole call on a cosmetic key
+                // mismatch, but this should not fire with the schema's keys now named explicitly.
+                Integer length = parseLength(e.getKey());
+                if (length == null) {
+                    continue;
+                }
+                if (!e.getKey().equals(String.valueOf(length))) {
+                    System.err.println("WARNING: variant key \"" + e.getKey()
+                            + "\" did not match a named schema key; using leading digit " + length);
+                }
+                state.variants.put(length, e.getValue());
+                state.failingLengths.add(length); // re-check every (re)submitted length below
+            }
+        }
+
+        // Guard every length just (re)submitted this round; guard-passing ones go to the
+        // batched render check.
+        List<RenderItem> toRender = new ArrayList<>();
+        for (Map.Entry<String, CandidateState> e : candidates.entrySet()) {
+            String id = e.getKey();
+            CandidateState state = e.getValue();
+            if (state.lastRoundTouched != round) {
+                continue; // not part of this round's response
+            }
+            for (int length : new ArrayList<>(state.failingLengths)) {
+                String text = state.variants.get(length);
+                // No budget here (unlike the prompt's <lengths> range and "about N characters"
+                // retry feedback, which do use it): the batched render check right below is the
+                // authoritative, more accurate fit test ("must really fill L lines" - section 6),
+                // and double-gating on the calibration-hint budget too would reject some texts
+                // the render alone would have passed, or report OVER_BUDGET for what render-checks
+                // as TOO_LONG (PHASE4_SPEC.md's own job-0 fixture: c2's round-1 text is over the
+                // 188-char budget for length 2 but is meant to fail with TOO_LONG, not OVER_BUDGET).
+                List<String> guardReasons = TruthfulnessGuard.guard(text, ctx.sourceTexts(), null, skills);
+                if (!guardReasons.isEmpty()) {
+                    fail(state, guardReasons.get(0), null, null);
+                    recordRoundOneFeedback(round1Feedback, round, id, guardReasons.get(0), null, null);
+                } else {
+                    toRender.add(new RenderItem(id, length, text));
+                }
+            }
+        }
+
+        Map<Integer, List<RenderItem>> bySlot = distributeAcrossSlots(toRender, ctx.slotIndicesByLineCount());
+        if (bySlot.isEmpty()) {
+            return;
+        }
+        Map<Integer, Integer> lineCounts = new HashMap<>();
+        Map<Integer, List<BulletText>> candidatesPerSlot = new LinkedHashMap<>();
+        for (Map.Entry<Integer, List<RenderItem>> se : bySlot.entrySet()) {
+            int slotIndex = se.getKey();
+            List<BulletText> texts = new ArrayList<>();
+            for (RenderItem item : se.getValue()) {
+                texts.add(new BulletText(item.text(), List.of()));
+                lineCounts.put(slotIndex, item.length());
+            }
+            candidatesPerSlot.put(slotIndex, texts);
+        }
+        List<BatchValidator.CandidateResult> results = BatchValidator.validate(
+                ctx.baselineDocx(), ctx.renderer(), lineCounts, Map.of(), candidatesPerSlot,
+                ctx.baselineDocx().getParent());
+
+        for (BatchValidator.CandidateResult r : results) {
+            RenderItem item = bySlot.get(r.slotIndex()).get(r.candidateIndex());
+            CandidateState state = candidates.get(item.candidateId());
+            switch (r.outcome()) {
+                case FITS -> pass(state, item.length());
+                case FITS_WITH_PADDING -> {
+                    fail(state, "TOO_SHORT", item.length(), r.measuredLines());
+                    recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_SHORT",
+                            item.length(), r.measuredLines());
+                }
+                default -> {
+                    fail(state, "TOO_LONG", item.length(), r.measuredLines());
+                    recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_LONG",
+                            item.length(), r.measuredLines());
+                }
+            }
+        }
     }
 
     private static final Pattern LEADING_INT = Pattern.compile("(\\d+)");
@@ -205,8 +242,7 @@ public final class FitLoop {
         state.failingLengths.remove(length);
     }
 
-    private static void fail(CandidateState state, String reason, Integer targetLines, Integer measuredLines,
-            int round) {
+    private static void fail(CandidateState state, String reason, Integer targetLines, Integer measuredLines) {
         state.lastReason = reason;
         state.lastTargetLines = targetLines;
         state.lastMeasuredLines = measuredLines;
@@ -291,7 +327,7 @@ public final class FitLoop {
         return bySlot;
     }
 
-    /** PHASE4_SPEC.md section 6 point 3: a later OK candidate whose variant at any shared length
+    /** PHASE4_SPEC.md section 6 point 4: a later OK candidate whose variant at any shared length
      * has word-level Jaccard >= 0.8 with an earlier OK candidate's variant at that length is
      * dropped as a duplicate. */
     private static void dropDuplicates(Map<String, CandidateOutcome> finalResults) {

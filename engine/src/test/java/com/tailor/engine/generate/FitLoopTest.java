@@ -41,7 +41,7 @@ class FitLoopTest {
 
         SectionPositions positions = SectionPositions.detect(normalizedDocx, report);
         Position job0 = positions.jobPositions().get(0);
-        TargetBuilder.SectionTarget target = TargetBuilder.forJob(job0, report, positions);
+        TargetBuilder.SectionTarget target = TargetBuilder.forJob(job0, report, positions, "DETAILED");
         assertEquals(List.of(1, 2), target.lineCounts());
         assertEquals(6, target.candidateCount());
 
@@ -83,6 +83,7 @@ class FitLoopTest {
                 Phase4Fixtures.loadExpectedGeneration(fixturesDir.resolve("expected_generation.json"));
         Phase4Fixtures.ExpectedSection expectedJob0 = expected.get("job-0");
 
+        assertEquals("GENERATED", result.status(), "status");
         assertEquals(expectedJob0.slotLineCounts(), result.slotLineCounts(), "slot line counts");
         assertEquals(expectedJob0.rounds(), result.rounds(), "rounds");
 
@@ -107,5 +108,61 @@ class FitLoopTest {
             assertEquals(exp.measuredLines(), got.measuredLines(), id + " round1 measured_lines");
         }
         assertEquals(expectedJob0.round1Feedback().keySet(), result.round1Feedback().keySet(), "round1 feedback ids");
+    }
+
+    /**
+     * P4-T9 (PHASE4_SPEC.md section 9): replaying job-1's two recorded empty responses gives
+     * {@code NO_OUTPUT} after exactly 2 calls, and the section produces no candidates (stays
+     * locked).
+     */
+    @Test
+    void emptyJobOneResponsesTwiceGivesNoOutputAfterExactlyTwoCalls() throws Exception {
+        Path fixturesDir = CorpusPaths.phase4FixturesDir();
+        Renderer renderer = new LibreOfficeRenderer();
+        OnboardPipeline onboard = new OnboardPipeline(renderer, FontMap.loadDefault());
+        Path outDir = Files.createTempDirectory("fit-loop-jane-doe-job1");
+        byte[] upload = Files.readAllBytes(CorpusPaths.phase2FixturesDir().resolve("ok_synthetic.docx"));
+        OnboardReport report = onboard.run(upload, outDir);
+        assertTrue(report.accepted(), "Jane Doe fixture failed to onboard: " + report.reason());
+        Path normalizedDocx = outDir.resolve("normalized.docx");
+
+        SectionPositions positions = SectionPositions.detect(normalizedDocx, report);
+        Position job1 = positions.jobPositions().get(1);
+        TargetBuilder.SectionTarget target = TargetBuilder.forJob(job1, report, positions, "EXISTING_ONLY");
+        assertEquals(List.of(1, 2), target.lineCounts());
+        assertEquals(3, target.candidateCount(), "EXISTING_ONLY: one candidate per editable bullet");
+
+        Map<Integer, OnboardReport.SlotReport> bySlotIndex = new HashMap<>();
+        for (OnboardReport.SlotReport sr : report.slots()) {
+            bySlotIndex.put(sr.index(), sr);
+        }
+        List<String> currentBullets = new ArrayList<>();
+        List<Integer> slotLineCounts = new ArrayList<>();
+        for (int idx : positions.bulletSlotIndices(job1)) {
+            currentBullets.add(bySlotIndex.get(idx).text());
+            slotLineCounts.add(bySlotIndex.get(idx).lines());
+        }
+        List<String> sourceTexts = new ArrayList<>(currentBullets);
+        sourceTexts.add("Software Engineer | Contoso Health");
+        sourceTexts.add("Jun 2020 – Dec 2022");
+
+        SectionContext ctx = new SectionContext(
+                "job-1", "job", "EXISTING_ONLY",
+                List.of(new PromptBuilder.FieldLine("title", "Software Engineer | Contoso Health"),
+                        new PromptBuilder.FieldLine("date", "Jun 2020 – Dec 2022")),
+                currentBullets, "", sourceTexts,
+                target.lineCounts(), slotLineCounts, target.candidateCount(), target.budgetCharsByLineCount(),
+                positions.slotIndicesByLineCount(job1, report), normalizedDocx, renderer);
+
+        SkillsDictionary skills = SkillsDictionary.load(fixturesDir.resolve("skills_seed.json"));
+        Map<String, List<ModelResponse>> recorded =
+                RecordedResponses.load(fixturesDir.resolve("recorded_responses.json"));
+        RecordedModelClient client = new RecordedModelClient(recorded.get("job-1"));
+
+        FitLoop.FitLoopResult result = FitLoop.run(ctx, client, skills);
+
+        assertEquals("NO_OUTPUT", result.status());
+        assertEquals(2, result.callUsages().size(), "exactly 2 calls");
+        assertTrue(result.finalResults().isEmpty(), "no candidates: the section stays locked");
     }
 }
