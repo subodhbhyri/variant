@@ -146,7 +146,8 @@ Submit your answer with the submit_bullets tool.
 2 lines: 103–188 characters
 </lengths>
 (EXISTING_ONLY: lengths are listed per bullet, e.g. "b2: 1 line only".)
-Write up to N candidates.            (DETAILED)
+Write between 1 and N candidates. Always write at least one: a plain
+bullet stating a fact from the material is better than none.   (DETAILED)
 Rewrite each current bullet as one candidate, ids b0, b1, …, at the
 requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
 </section>
@@ -156,7 +157,7 @@ requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
 
 ```json
 {"type": "object", "required": ["bullets"],
- "properties": {"bullets": {"type": "array", "items": {
+ "properties": {"bullets": {"type": "array", "minItems": 1, "items": {
    "type": "object", "required": ["id", "variants"],
    "properties": {"id": {"type": "string"},
                   "variants": {"type": "object", "minProperties": 1,
@@ -330,6 +331,7 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 | Id | Test | Pass condition |
 |---|---|---|
 | P4-T1 | Guard | All 24 cases in `guard_cases.json` give exactly the expected reasons (including `UNGROUNDED` for the two fabricated sentences, and none for the two faithful low scorers) |
+| P4-T11 | Reliability (live, manual) | Run `job-0` of `intake_jane_doe.json` live **10 times**. Pass: **0 `NO_OUTPUT`**, every kept variant passes the guard (grounding ≥ 0.4) and fits. Report per run: candidates returned, kept, dropped with reasons, lowest grounding, calls, cost. For this run only, on fixture input only, record the model's own text blocks and `stop_reason` (never for real user input), so an empty answer can be explained |
 | P4-T10 | Sibling consistency | `consistency_cases.json`: both faithful pairs consistent, the live fabrication's pair not; a fit-loop unit test where a candidate's longer version is inconsistent drops only that version; a too-short variant is kept as the shorter length or dropped, and is never sent back for a retry |
 | P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`), with `b2` (a 1-line original) at length 1 only; ranges `1: 47–93`, `2: 103–188`; budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
 | P4-T3 | Fit loop | Replaying `recorded_responses.json` for `job-0` gives exactly `expected_generation.json`: final statuses and texts, rounds = 3, round-1 feedback reasons and measured lines |
@@ -359,5 +361,7 @@ first evidence of how the prompt behaves.
 - A guard case or the fit-loop replay disagrees with the fixtures.
 - The live run keeps a variant that states something not in the material, or
   drops most variants.
+- P4-T11 shows any `NO_OUTPUT`: report the model's text and stop reason for
+  those runs rather than retrying further.
 - Real cost per onboarding is above $0.30.
 - Anything that would change the system prompt, the guard rules, or the limits.
