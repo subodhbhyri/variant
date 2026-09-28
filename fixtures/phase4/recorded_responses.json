@@ -120,5 +120,53 @@
     "output_tokens": 60
    }
   }
+ ],
+ "job-1": [
+  {
+   "id": "e1",
+   "type": "message",
+   "role": "assistant",
+   "model": "claude-sonnet-5",
+   "stop_reason": "tool_use",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_e1",
+     "name": "submit_bullets",
+     "input": {
+      "bullets": []
+     }
+    }
+   ],
+   "usage": {
+    "input_tokens": 1344,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 20
+   }
+  },
+  {
+   "id": "e2",
+   "type": "message",
+   "role": "assistant",
+   "model": "claude-sonnet-5",
+   "stop_reason": "tool_use",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_e2",
+     "name": "submit_bullets",
+     "input": {
+      "bullets": []
+     }
+    }
+   ],
+   "usage": {
+    "input_tokens": 1344,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 20
+   }
+  }
  ]
 }

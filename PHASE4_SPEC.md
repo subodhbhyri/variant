@@ -52,8 +52,17 @@ it's stored. The user reviews everything in the onboarding preview.
 **Jobs** (bullets tailor in place; D1 of Phase 3):
 - Line counts needed = the distinct line counts of that job's editable slots
   (Jane Doe's jobs: slots `[2, 2, 1]` → lengths `{1, 2}`).
-- Candidates = **2 × the job's editable slots** (min 4). Each candidate has a
-  variant for each needed line count.
+- `DETAILED`: **up to** 2 × the job's editable slots (min 4) candidates. The
+  model may return fewer when the material supports fewer distinct
+  achievements (live run: 3 for Jane Doe's `job-0`, all faithful). Slots
+  without a kept candidate keep their original bullets.
+- `EXISTING_ONLY`: **one candidate per current editable bullet**, ids `b0`,
+  `b1`, …, each a rewrite of that bullet with exactly its facts. (Revision 1
+  asked for 2 × slots here; with 3 bullets and no new material the model
+  returned nothing, the honest answer to an impossible request.)
+- A candidate needs **at least one** requested length; it may leave out a
+  length it can't fill without filler (rule 4 below). Phase 5 only places a
+  candidate in slots of lengths it has.
 
 **Projects** (library for swaps; Phase 3 section 7):
 - Line counts needed = the distinct bullet line counts across **all swappable
@@ -97,9 +106,11 @@ Rules, all mandatory:
    section's date says "Present" and the work is ongoing). No first person
    ("I", "my", "we", "our"). No URLs or email addresses. One sentence, no line
    breaks. End with a period only if the current bullets do.
-4. Each candidate is one achievement written at every requested length. The
+4. Each candidate is one achievement written at the requested lengths. The
    versions of one candidate must describe the same facts; shorter versions
-   drop detail, they never change it.
+   drop detail, they never change it. If a candidate's facts can't fill a
+   longer length without filler ("in the process", "successfully",
+   "various"), leave that length out rather than pad it.
 5. Stay within the character range given for each length.
 6. Different candidates must describe different achievements or different
    angles; do not repeat the same bullet with small wording changes.
@@ -124,7 +135,9 @@ Submit your answer with the submit_bullets tool.
 1 line: 72–90 characters
 2 lines: 150–188 characters
 </lengths>
-Write N candidates.
+Write up to N candidates.            (DETAILED)
+Rewrite each current bullet as one candidate, ids b0, b1, …, at the
+requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
 </section>
 ```
 
@@ -135,12 +148,19 @@ Write N candidates.
  "properties": {"bullets": {"type": "array", "items": {
    "type": "object", "required": ["id", "variants"],
    "properties": {"id": {"type": "string"},
-                  "variants": {"type": "object",
-                               "additionalProperties": {"type": "string"}}}}}}}
+                  "variants": {"type": "object", "minProperties": 1,
+                               "additionalProperties": false,
+                               "properties": {"1": {"type": "string"},
+                                              "2": {"type": "string"},
+                                              "3": {"type": "string"}}}}}}}}
 ```
 
-`variants` keys are line counts as strings (`"1"`, `"2"`). Unknown keys or
-missing requested lengths are treated as that variant failing (`MISSING_LENGTH`).
+`variants` keys are line counts as strings, **named in the schema** (`"1"`,
+`"2"`, `"3"`, no others). Revision 1 left keys free and the live model sent
+`"1 line"`. Keep the parser's leading-digit fallback, but log a warning when it
+fires; it should not be needed with named keys. A length that wasn't
+requested is ignored; a requested length that's absent is simply not
+available for that candidate.
 
 **Client rules:** key from the `ANTHROPIC_API_KEY` environment variable only;
 60 s timeout; retry 429/5xx/timeouts up to 3 times with exponential backoff;
@@ -207,7 +227,11 @@ Per section:
 2. **Retry rounds:** only failing candidates, at most **2 retries** (3 rounds
    total). A candidate still failing after round 3 is **dropped** with its last
    reason.
-3. **Duplicates:** after the loop, drop a candidate whose variant at any length
+3. **Empty output:** if the model returns no candidates, retry once with
+   "Return at least one candidate." Still empty → the section gets
+   `NO_OUTPUT` in the report and stays locked. A candidate left with no
+   passing length is dropped (`NO_VALID_LENGTH`).
+4. **Duplicates:** after the loop, drop a candidate whose variant at any length
    has word-level Jaccard ≥ 0.8 with an earlier kept candidate's variant at the
    same length (`DUPLICATE`).
 
@@ -233,8 +257,14 @@ pricing page, checked 27 Sep 2026).
   `COST_LIMIT` for each of them.
 - Fixture expectation: the three recorded calls cost **$0.01544**.
 
-Expected real cost for a typical resume (3 jobs, 6 projects): about
-$0.12–0.15, up to ~$0.30 with many retries. Measure it in P4-T6.
+**Measured** (P4-T6, live): $0.007 per section → about **$0.06–0.08** for a
+typical resume (3 jobs, 6 projects), more with retries.
+
+**Caching doesn't engage, and that's fine.** Sonnet 5's minimum cacheable
+prompt is 1,024 tokens (Anthropic prompt-caching docs); our tools + system
+prompt are shorter, so both cache fields read 0. Padding the prompt to cache
+it would save about $0.015 per onboarding. Keep `cache_control` on the system
+block (harmless; it starts working if the prompt grows) but don't expect hits.
 
 ---
 
@@ -261,11 +291,12 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 | Id | Test | Pass condition |
 |---|---|---|
 | P4-T1 | Guard | All 20 cases in `guard_cases.json` give exactly the expected reasons |
-| P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`, 6 candidates each (2 × 3 slots); budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
+| P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`); budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
 | P4-T3 | Fit loop | Replaying `recorded_responses.json` for `job-0` gives exactly `expected_generation.json`: final statuses and texts, rounds = 3, round-1 feedback reasons and measured lines |
 | P4-T4 | Prompt | The request has the system prompt verbatim with `cache_control`, forced `submit_bullets`, raw text only inside `<candidate_material>`, no raw text for `EXISTING_ONLY`; logs contain no prompt or response text |
 | P4-T5 | Cost | Recorded usage → $0.01544; a fake run crossing $0.50 stops with `COST_LIMIT` |
-| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
+| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; `job-1` (`EXISTING_ONLY`) returns one candidate per current bullet (`b0`–`b2`); report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
+| P4-T9 | Empty output | Replaying `recorded_responses.json` `job-1` (two empty responses) gives `NO_OUTPUT` after exactly 2 calls, and the section stays locked |
 | P4-T7 | Intake limits | 1,501 words refused; 9th added project refused; `javascript:` link refused at entry |
 | P4-T8 | No regressions | `test`, `corpusTest`, `corpus-check` ALL PASS |
 

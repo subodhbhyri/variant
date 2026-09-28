@@ -59,6 +59,8 @@
  },
  "job-1": {
   "mode": "EXISTING_ONLY",
-  "note": "source texts = the job's own bullets only; no raw text"
+  "status": "NO_OUTPUT",
+  "calls": 2,
+  "note": "replay of two empty responses (P4-T9); the live run must instead return b0-b2 (P4-T6)"
  }
 }
