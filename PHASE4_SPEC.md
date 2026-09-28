@@ -95,7 +95,14 @@ bullets + field values only.
 ## 3. The model call (step 4.3)
 
 One call per section, then retries (section 6). Messages API, `claude-sonnet-5`,
-`max_tokens` 2,000, forced tool use (`tool_choice: {"type": "tool", "name": "submit_bullets"}`).
+`max_tokens` 2,000, forced tool use (`tool_choice: {"type": "tool", "name": "submit_bullets"}`),
+and **strict tool use: `"strict": true` on the `submit_bullets` definition**, so
+the API enforces the schema. Without it the schema is only a hint: in P4-T11
+(revision 5) the model returned `bullets: []` in 2 of 10 runs despite
+`minItems: 1`, with `stop_reason: tool_use` and no text. Strict tool use
+supports `minItems` of 0 or 1 and requires `additionalProperties: false` on
+every object; it doesn't support length constraints such as `minProperties`.
+If the API rejects the schema, stop and report; don't loosen it.
 
 **System prompt** (cached: `cache_control` on this block; identical for every
 section and user so the cache hits):
@@ -146,8 +153,10 @@ Submit your answer with the submit_bullets tool.
 2 lines: 103–188 characters
 </lengths>
 (EXISTING_ONLY: lengths are listed per bullet, e.g. "b2: 1 line only".)
-Write between 1 and N candidates. Always write at least one: a plain
-bullet stating a fact from the material is better than none.   (DETAILED)
+Write between 1 and N candidates. Candidates may cover the same
+achievements as the current bullets, rewritten with the extra detail in the
+candidate material; they don't have to be new achievements. Always write at
+least one.   (DETAILED)
 Rewrite each current bullet as one candidate, ids b0, b1, …, at the
 requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
 </section>
@@ -156,16 +165,18 @@ requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
 **Tool schema** (`submit_bullets`):
 
 ```json
-{"type": "object", "required": ["bullets"],
+{"type": "object", "additionalProperties": false, "required": ["bullets"],
  "properties": {"bullets": {"type": "array", "minItems": 1, "items": {
-   "type": "object", "required": ["id", "variants"],
+   "type": "object", "additionalProperties": false, "required": ["id", "variants"],
    "properties": {"id": {"type": "string"},
-                  "variants": {"type": "object", "minProperties": 1,
-                               "additionalProperties": false,
+                  "variants": {"type": "object", "additionalProperties": false,
                                "properties": {"1": {"type": "string"},
                                               "2": {"type": "string"},
                                               "3": {"type": "string"}}}}}}}}
 ```
+
+A candidate whose `variants` object comes back empty is dropped
+(`NO_VALID_LENGTH`); strict mode can't require a non-empty object.
 
 `variants` keys are line counts as strings, **named in the schema** (`"1"`,
 `"2"`, `"3"`, no others). Revision 1 left keys free and the live model sent
@@ -331,7 +342,7 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 | Id | Test | Pass condition |
 |---|---|---|
 | P4-T1 | Guard | All 24 cases in `guard_cases.json` give exactly the expected reasons (including `UNGROUNDED` for the two fabricated sentences, and none for the two faithful low scorers) |
-| P4-T11 | Reliability (live, manual) | Run `job-0` of `intake_jane_doe.json` live **10 times**. Pass: **0 `NO_OUTPUT`**, every kept variant passes the guard (grounding ≥ 0.4) and fits. Report per run: candidates returned, kept, dropped with reasons, lowest grounding, calls, cost. For this run only, on fixture input only, record the model's own text blocks and `stop_reason` (never for real user input), so an empty answer can be explained |
+| P4-T11 | Reliability (live, manual) | Run `job-0` of `intake_jane_doe.json` live **20 times** (0 of 20 bounds the true empty rate far better than 0 of 10). Pass: **0 `NO_OUTPUT`**, the empty-output retry never fires, and runs returning a single candidate are reported separately, every kept variant passes the guard (grounding ≥ 0.4) and fits. Report per run: candidates returned, kept, dropped with reasons, lowest grounding, calls, cost. For this run only, on fixture input only, record the model's own text blocks and `stop_reason` (never for real user input), so an empty answer can be explained |
 | P4-T10 | Sibling consistency | `consistency_cases.json`: both faithful pairs consistent, the live fabrication's pair not; a fit-loop unit test where a candidate's longer version is inconsistent drops only that version; a too-short variant is kept as the shorter length or dropped, and is never sent back for a retry |
 | P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`), with `b2` (a 1-line original) at length 1 only; ranges `1: 47–93`, `2: 103–188`; budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
 | P4-T3 | Fit loop | Replaying `recorded_responses.json` for `job-0` gives exactly `expected_generation.json`: final statuses and texts, rounds = 3, round-1 feedback reasons and measured lines |

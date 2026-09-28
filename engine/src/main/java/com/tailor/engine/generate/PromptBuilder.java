@@ -41,15 +41,18 @@ public final class PromptBuilder {
 
             Submit your answer with the submit_bullets tool.""";
 
-    /** Verbatim from PHASE4_SPEC.md section 3 (revision 2: named variant keys, no others —
-     * revision 1 left keys free and the live model sent "1 line" instead of "1"). */
+    /** Verbatim from PHASE4_SPEC.md section 3 (revision 6: {@code additionalProperties: false}
+     * on all three objects, no {@code minProperties} — paired with {@code "strict": true} on the
+     * tool definition (see {@link AnthropicRequest}) so the API enforces this instead of it being
+     * only a hint; strict tool use supports {@code minItems} of 0 or 1 but not length constraints
+     * like {@code minProperties}, so an empty {@code variants} object is possible and handled by
+     * dropping that candidate ({@code NO_VALID_LENGTH}), not by the schema). */
     public static final String TOOL_SCHEMA_JSON = """
-            {"type": "object", "required": ["bullets"],
-             "properties": {"bullets": {"type": "array", "items": {
-               "type": "object", "required": ["id", "variants"],
+            {"type": "object", "additionalProperties": false, "required": ["bullets"],
+             "properties": {"bullets": {"type": "array", "minItems": 1, "items": {
+               "type": "object", "additionalProperties": false, "required": ["id", "variants"],
                "properties": {"id": {"type": "string"},
-                              "variants": {"type": "object", "minProperties": 1,
-                                           "additionalProperties": false,
+                              "variants": {"type": "object", "additionalProperties": false,
                                            "properties": {"1": {"type": "string"},
                                                           "2": {"type": "string"},
                                                           "3": {"type": "string"}}}}}}}}""";
@@ -148,7 +151,10 @@ public final class PromptBuilder {
             sb.append("Rewrite each current bullet as one candidate, ids b0, b1, …, at the\n");
             sb.append("requested lengths, keeping exactly its facts.\n");
         } else {
-            sb.append("Write up to ").append(candidateCount).append(" candidates.\n");
+            sb.append("Write between 1 and ").append(candidateCount).append(" candidates. Candidates may cover the same\n");
+            sb.append("achievements as the current bullets, rewritten with the extra detail in the\n");
+            sb.append("candidate material; they don't have to be new achievements. Always write at\n");
+            sb.append("least one.\n");
         }
         sb.append("</section>");
         return sb.toString();

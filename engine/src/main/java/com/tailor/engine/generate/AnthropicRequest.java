@@ -38,6 +38,10 @@ final class AnthropicRequest {
         ObjectNode tool = MAPPER.createObjectNode();
         tool.put("name", PromptBuilder.TOOL_NAME);
         tool.put("description", "Submit the generated bullet candidates.");
+        // PHASE4_SPEC.md section 3 (revision 6): strict tool use, so the API enforces the schema
+        // instead of it being only a hint — P4-T11 (revision 5) got bullets: [] in 2 of 10 runs
+        // despite minItems: 1, with stop_reason: tool_use and no text.
+        tool.put("strict", true);
         try {
             tool.set("input_schema", MAPPER.readTree(PromptBuilder.TOOL_SCHEMA_JSON));
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {

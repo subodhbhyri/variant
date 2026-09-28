@@ -61,16 +61,25 @@ class PromptAndRequestTest {
     }
 
     @Test
-    void toolUseIsForcedToSubmitBullets() {
+    void toolUseIsForcedToSubmitBulletsWithStrictSchema() {
         JsonNode req = AnthropicRequest.build(PromptBuilder.SYSTEM_PROMPT, "x");
         assertEquals("tool", req.path("tool_choice").path("type").asText());
         assertEquals("submit_bullets", req.path("tool_choice").path("name").asText());
-        assertEquals("submit_bullets", req.path("tools").get(0).path("name").asText());
-        JsonNode variantsSchema = req.path("tools").get(0).path("input_schema")
-                .path("properties").path("bullets").path("items").path("properties").path("variants");
-        assertEquals("array", req.path("tools").get(0).path("input_schema")
-                .path("properties").path("bullets").path("type").asText());
-        assertEquals(1, variantsSchema.path("minProperties").asInt());
+        JsonNode tool = req.path("tools").get(0);
+        assertEquals("submit_bullets", tool.path("name").asText());
+        assertTrue(tool.path("strict").asBoolean(false), "revision 6: strict tool use enforces the schema");
+
+        JsonNode schema = tool.path("input_schema");
+        assertFalse(schema.path("additionalProperties").asBoolean(true),
+                "revision 6: strict mode requires additionalProperties: false on every object");
+        assertEquals("array", schema.path("properties").path("bullets").path("type").asText());
+        assertEquals(1, schema.path("properties").path("bullets").path("minItems").asInt(),
+                "revision 5: at least one bullet");
+        JsonNode bulletItem = schema.path("properties").path("bullets").path("items");
+        assertFalse(bulletItem.path("additionalProperties").asBoolean(true));
+        JsonNode variantsSchema = bulletItem.path("properties").path("variants");
+        assertTrue(variantsSchema.path("minProperties").isMissingNode(),
+                "revision 6: strict mode doesn't support minProperties");
         assertFalse(variantsSchema.path("additionalProperties").asBoolean(true),
                 "revision 2: variant keys must be named, no others");
         assertTrue(variantsSchema.path("properties").has("1"));
@@ -79,12 +88,15 @@ class PromptAndRequestTest {
     }
 
     @Test
-    void detailedAsksForUpToNCandidatesExistingOnlyAsksToRewriteEachBullet() {
+    void detailedAsksForBetween1AndNCandidatesExistingOnlyAsksToRewriteEachBullet() {
         String detailed = PromptBuilder.userMessage("job", "DETAILED",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
                 List.of("Existing bullet"), "raw",
                 List.of(new PromptBuilder.LengthSpec(2, 103, 188)), 6, List.of());
-        assertTrue(detailed.contains("Write up to 6 candidates."));
+        assertTrue(detailed.contains("Write between 1 and 6 candidates."));
+        assertTrue(detailed.contains("Candidates may cover the same"));
+        assertTrue(detailed.contains("they don't have to be new achievements."));
+        assertTrue(detailed.contains("Always write at\nleast one."));
 
         String existingOnly = PromptBuilder.userMessage("job", "EXISTING_ONLY",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
@@ -93,7 +105,7 @@ class PromptAndRequestTest {
                 List.of(2, 2, 1));
         assertTrue(existingOnly.contains("Rewrite each current bullet as one candidate, ids b0, b1"));
         assertTrue(existingOnly.contains("keeping exactly its facts."));
-        assertFalse(existingOnly.contains("Write up to"));
+        assertFalse(existingOnly.contains("Write between"));
     }
 
     /** Section 2 revision 3: a bullet may only be asked for lengths up to its own line count —
