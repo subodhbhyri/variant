@@ -11,6 +11,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * PHASE4_SPEC.md section 6 (step 4.5): calls the model, guards every variant, render-checks the
@@ -92,7 +94,14 @@ public final class FitLoop {
                 CandidateState state = candidates.computeIfAbsent(bc.id(), id -> new CandidateState());
                 state.lastRoundTouched = round;
                 for (Map.Entry<String, String> e : bc.variants().entrySet()) {
-                    int length = Integer.parseInt(e.getKey());
+                    // The tool schema asks for bare digit keys ("1", "2"); a real model call
+                    // (unlike every recorded fixture) came back with "1 line" instead, echoing
+                    // the <lengths> block's own wording into the key. Extract the leading digits
+                    // rather than fail the whole call on a cosmetic key mismatch.
+                    Integer length = parseLength(e.getKey());
+                    if (length == null) {
+                        continue;
+                    }
                     state.variants.put(length, e.getValue());
                     state.failingLengths.add(length); // re-check every (re)submitted length below
                 }
@@ -182,6 +191,14 @@ public final class FitLoop {
         dropDuplicates(finalResults);
 
         return new FitLoopResult(ctx.slotLineCounts(), roundsRun, finalResults, round1Feedback, usages);
+    }
+
+    private static final Pattern LEADING_INT = Pattern.compile("(\\d+)");
+
+    /** null if the key has no digits at all (truly unparseable, not just oddly worded). */
+    private static Integer parseLength(String key) {
+        Matcher m = LEADING_INT.matcher(key);
+        return m.find() ? Integer.valueOf(m.group(1)) : null;
     }
 
     private static void pass(CandidateState state, int length) {
