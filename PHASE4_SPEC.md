@@ -187,13 +187,21 @@ only the failing candidates:
 
 ```text
 <retry>
-Candidate c2, length 2: renders on 3 lines; it must fit in 2. Shorten by about 40 characters.
+Candidate c2, length 2: renders on 3 lines; it must fit in 2. Shorten it by about 40 characters by removing words.
 Candidate c4, length 1: mentions Redis, which is not in the material. Remove it.
 </retry>
-Resubmit only these candidates, with the same ids.
+Resubmit only these candidates, with the same ids. Keep exactly the same facts:
+remove words, never add or replace them. If a version can't be fixed that way,
+leave that length out.
 ```
 
 "About N characters" = `len(variant) − budget` rounded up to the nearest 5.
+
+**Never ask the model to lengthen anything.** Revision 3 sent "renders on N
+lines; it must fill L. Lengthen it" for a too-short variant; in the live run
+the model, out of real facts, replaced a candidate's 2-line version with an
+invented achievement ("Redesigned the customer onboarding workflow…"). A
+too-short variant is handled without a retry (section 6).
 
 ---
 
@@ -211,16 +219,34 @@ render**, against the section's sources. Reasons:
 | `FIRST_PERSON` | the words I, me, my, mine, we, our, ours, us (case-sensitive; "US" is fine) |
 | `OVER_BUDGET` | longer than the budget (only if a budget is given) |
 | `UNSUPPORTED_NUMBER:n` | a number not in the sources. Digits, decimals, thousands separators and K/M/B suffixes are normalized (`4K` = `4,000`). Number words two…twenty and zero count, **except** "one" (too ambiguous) and words inside a hyphenated word (`zero-downtime`) |
+| `UNGROUNDED` | fewer than **40%** of the variant's content words occur in the sources (stopwords removed; a crude stem so "reducing"/"reduced" match; words ≥ 5 letters also match on a shared 5-letter prefix). Reference: `grounding()` in `guard_ref.py` |
 | `UNSUPPORTED_TECH:T` | a skills-dictionary term (`fixtures/phase4/skills_seed.json`, canonical + aliases) not in the sources. Aliases of ≤ 2 characters are case-sensitive (`Go`, `JS`, `S3`); others case-insensitive, word-bounded (`JavaScript` ≠ `Java`) |
 
 Measured: no corpus bullet trips `URL`/`FIRST_PERSON`/`MULTILINE` against its
 own resume except one real first-person line in an original (the guard only
 judges generated text).
 
-**Limit (documented, not solvable by code):** the guard catches invented
-numbers, technologies and links; it cannot catch a qualitative embellishment
-("zero-downtime cutovers" with no number word, "across all services"). The
-system prompt forbids it, and the user reviews every bullet in the preview.
+**Grounding, measured:** invented sentences score 0.00–0.08 (the live
+fabrication: 0.06); every faithful variant from the three live runs scores
+≥ 0.57 (the lowest: "Redesigned checkout with Kafka and Postgres, cutting p99
+latency 38% at 4K req/s."). Padding from revision 2 scored 0.57–0.71: it
+isn't caught, which is why the length pressure that caused it was removed
+(section 2).
+
+### 5.1 Sibling consistency
+
+A candidate's versions must describe the same facts. For every pair of its
+lengths, the shorter version must be grounded in the longer (≥ 40%, same
+`grounding()`); otherwise the **longer** version is dropped
+(`INCONSISTENT_VARIANTS`). Measured: faithful 1-/2-line pairs score 0.57–1.00;
+the live fabrication's pair scores 0.00. Cases:
+`fixtures/phase4/consistency_cases.json`.
+
+**Limit (documented):** the guard catches invented numbers, technologies,
+links and whole invented sentences; it cannot catch a small qualitative
+embellishment inside an otherwise faithful sentence ("redesigned" for "moved",
+"across all services"). The system prompt forbids it, and the user reviews
+every bullet in the preview.
 
 ---
 
@@ -232,9 +258,11 @@ Per section:
    their guard reason as feedback. Guard-passing variants are **render-checked
    in batch** (Phase 1 `BatchValidator`), each in a slot of its section with
    the same line count (projects: a swappable project position slot with that
-   line count). Outcome must be exactly `FITS` at that line count. `FITS_WITH_PADDING`
-   and `TOO_LONG` both fail (`TOO_SHORT` / `TOO_LONG` feedback). A generated
-   L-line variant must really fill L lines.
+   line count). Outcome must be exactly `FITS` at that line count. `TOO_LONG` fails and
+   is retried with "shorten" feedback. A variant that renders on **fewer**
+   lines (k < L) is **never retried**: if the candidate has no k-line version,
+   keep it as its k-line version; otherwise drop that length (`TOO_SHORT`).
+   Then check sibling consistency (5.1) across the candidate's kept lengths.
 2. **Retry rounds:** only failing candidates, at most **2 retries** (3 rounds
    total). A candidate still failing after round 3 is **dropped** with its last
    reason.
@@ -301,12 +329,13 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 
 | Id | Test | Pass condition |
 |---|---|---|
-| P4-T1 | Guard | All 20 cases in `guard_cases.json` give exactly the expected reasons |
+| P4-T1 | Guard | All 24 cases in `guard_cases.json` give exactly the expected reasons (including `UNGROUNDED` for the two fabricated sentences, and none for the two faithful low scorers) |
+| P4-T10 | Sibling consistency | `consistency_cases.json`: both faithful pairs consistent, the live fabrication's pair not; a fit-loop unit test where a candidate's longer version is inconsistent drops only that version; a too-short variant is kept as the shorter length or dropped, and is never sent back for a retry |
 | P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`), with `b2` (a 1-line original) at length 1 only; ranges `1: 47–93`, `2: 103–188`; budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
 | P4-T3 | Fit loop | Replaying `recorded_responses.json` for `job-0` gives exactly `expected_generation.json`: final statuses and texts, rounds = 3, round-1 feedback reasons and measured lines |
 | P4-T4 | Prompt | The request has the system prompt verbatim with `cache_control`, forced `submit_bullets`, raw text only inside `<candidate_material>`, no raw text for `EXISTING_ONLY`; logs contain no prompt or response text |
 | P4-T5 | Cost | Recorded usage → $0.01544; a fake run crossing $0.50 stops with `COST_LIMIT` |
-| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; `job-1` (`EXISTING_ONLY`) returns one candidate per current bullet (`b0`–`b2`), `b2` at 1 line only, and every rewrite adds no fact, qualifier or purpose clause that the original bullet lacks (checked by reading; list each variant next to its original in the report); report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
+| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; `job-1` (`EXISTING_ONLY`) returns one candidate per current bullet (`b0`–`b2`), `b2` at 1 line only, and every rewrite adds no fact, qualifier or purpose clause that the original bullet lacks (checked by reading; list each variant next to its original in the report); every kept variant has grounding ≥ 0.4, and no retry message asks to lengthen; report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
 | P4-T9 | Empty output | Replaying `recorded_responses.json` `job-1` (two empty responses) gives `NO_OUTPUT` after exactly 2 calls, and the section stays locked |
 | P4-T7 | Intake limits | 1,501 words refused; 9th added project refused; `javascript:` link refused at entry |
 | P4-T8 | No regressions | `test`, `corpusTest`, `corpus-check` ALL PASS |

@@ -106,7 +106,8 @@
    "variant": "Contact jane.doe@example.com about the feature-flag service.",
    "budget_chars": null,
    "expected": [
-    "URL"
+    "URL",
+    "UNGROUNDED"
    ]
   },
   {
@@ -155,6 +156,34 @@
     "UNSUPPORTED_TECH:React",
     "UNSUPPORTED_TECH:React Native"
    ]
+  },
+  {
+   "name": "fabricated_onboarding",
+   "variant": "Redesigned the customer onboarding workflow, reducing manual data entry steps and improving consistency across new account setups for support staff",
+   "budget_chars": null,
+   "expected": [
+    "UNGROUNDED"
+   ]
+  },
+  {
+   "name": "fabricated_dashboard",
+   "variant": "Built an internal analytics dashboard that helped product managers track weekly engagement and prioritise roadmap decisions.",
+   "budget_chars": null,
+   "expected": [
+    "UNGROUNDED"
+   ]
+  },
+  {
+   "name": "faithful_low_score",
+   "variant": "Redesigned checkout with Kafka and Postgres, cutting p99 latency 38% at 4K req/s.",
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "faithful_abbreviated",
+   "variant": "Led migration of twelve services from EC2 to Kubernetes, cutting infra spend 22%.",
+   "budget_chars": null,
+   "expected": []
   }
  ]
 }

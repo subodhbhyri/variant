@@ -1,0 +1,26 @@
+{
+ "_note": "Sibling consistency (PHASE4_SPEC 5.1): the shorter variant's content words must be grounded in the longer (>= 0.40).",
+ "pairs": [
+  {
+   "name": "faithful_shortened",
+   "shorter": "Led migration of twelve services from EC2 to Kubernetes.",
+   "longer": "Led migration of twelve services from EC2 to Kubernetes, reducing monthly infrastructure spend by 22%.",
+   "consistent": true,
+   "score": 1.0
+  },
+  {
+   "name": "faithful_reworded",
+   "shorter": "Redesigned checkout with Kafka and Postgres, cutting p99 latency 38% at 4K req/s.",
+   "longer": "Designed an event-driven order pipeline on Kafka and Postgres for checkout, reducing p99 latency from 410 ms to 254 ms (38% lower) at 4K requests per second.",
+   "consistent": true,
+   "score": 0.57
+  },
+  {
+   "name": "live_fabrication",
+   "shorter": "Built feature-flag service adopted by six teams.",
+   "longer": "Redesigned the customer onboarding workflow, reducing manual data entry steps and improving consistency across new account setups for support staff",
+   "consistent": false,
+   "score": 0.0
+  }
+ ]
+}
