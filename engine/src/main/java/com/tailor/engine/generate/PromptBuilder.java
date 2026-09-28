@@ -173,7 +173,9 @@ public final class PromptBuilder {
             sb.append(": ").append(item.feedback()).append('\n');
         }
         sb.append("</retry>\n");
-        sb.append("Resubmit only these candidates, with the same ids.");
+        sb.append("Resubmit only these candidates, with the same ids. Keep exactly the same facts:\n");
+        sb.append("remove words, never add or replace them. If a version can't be fixed that way,\n");
+        sb.append("leave that length out.");
         return sb.toString();
     }
 }

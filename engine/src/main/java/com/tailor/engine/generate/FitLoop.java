@@ -4,6 +4,7 @@ import com.tailor.engine.calibrate.BatchValidator;
 import com.tailor.engine.slots.BulletText;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -60,13 +61,14 @@ public final class FitLoop {
     private record RenderItem(String candidateId, int length, String text) {
     }
 
-    /** One candidate's running state across rounds. */
+    /** One candidate's running state across rounds. {@code reasonByLength}/{@code
+     * measuredByLength} are per-length (not a single shared "last" field) since a candidate can
+     * have more than one length failing at once, each for its own reason. */
     private static final class CandidateState {
         final Map<Integer, String> variants = new LinkedHashMap<>();
         final Set<Integer> failingLengths = new LinkedHashSet<>();
-        String lastReason;
-        Integer lastTargetLines;
-        Integer lastMeasuredLines;
+        final Map<Integer, String> reasonByLength = new LinkedHashMap<>();
+        final Map<Integer, Integer> measuredByLength = new LinkedHashMap<>();
         int lastRoundTouched;
     }
 
@@ -100,7 +102,7 @@ public final class FitLoop {
 
         int round = 1;
         for (round = 2; round <= MAX_ROUNDS; round++) {
-            List<PromptBuilder.RetryItem> retryItems = buildRetryItems(candidates);
+            List<PromptBuilder.RetryItem> retryItems = buildRetryItems(ctx, candidates);
             if (retryItems.isEmpty()) {
                 round--; // everything already resolved; don't count an unneeded round
                 break;
@@ -127,8 +129,7 @@ public final class FitLoop {
                 state.variants.remove(failingLength);
             }
             if (state.variants.isEmpty()) {
-                String reason = state.lastReason != null ? state.lastReason : "NO_VALID_LENGTH";
-                finalResults.put(id, CandidateOutcome.dropped(reason, roundsRun));
+                finalResults.put(id, CandidateOutcome.dropped(pickReason(state), roundsRun));
             } else {
                 finalResults.put(id, CandidateOutcome.ok(state.variants, state.lastRoundTouched));
             }
@@ -194,7 +195,7 @@ public final class FitLoop {
                 // 188-char budget for length 2 but is meant to fail with TOO_LONG, not OVER_BUDGET).
                 List<String> guardReasons = TruthfulnessGuard.guard(text, ctx.sourceTexts(), null, skills);
                 if (!guardReasons.isEmpty()) {
-                    fail(state, guardReasons.get(0), null, null);
+                    fail(state, length, guardReasons.get(0), null);
                     recordRoundOneFeedback(round1Feedback, round, id, guardReasons.get(0), null, null);
                 } else {
                     toRender.add(new RenderItem(id, length, text));
@@ -217,6 +218,16 @@ public final class FitLoop {
             }
             candidatesPerSlot.put(slotIndex, texts);
         }
+        // Snapshot of what each candidate had a variant for going into this round's render check
+        // (before any reclassification below) — the basis for "does it already have a k-line
+        // version" (section 6 point 1), so that decision doesn't depend on the order
+        // BatchValidator's results happen to come back in.
+        Map<String, Set<Integer>> requestedLengthsSnapshot = new HashMap<>();
+        for (RenderItem item : toRender) {
+            requestedLengthsSnapshot.computeIfAbsent(item.candidateId(), k -> new HashSet<>())
+                    .add(item.length());
+        }
+
         List<BatchValidator.CandidateResult> results = BatchValidator.validate(
                 ctx.baselineDocx(), ctx.renderer(), lineCounts, Map.of(), candidatesPerSlot,
                 ctx.baselineDocx().getParent());
@@ -227,14 +238,59 @@ public final class FitLoop {
             switch (r.outcome()) {
                 case FITS -> pass(state, item.length());
                 case FITS_WITH_PADDING -> {
-                    fail(state, "TOO_SHORT", item.length(), r.measuredLines());
+                    // k < L, section 6 point 1: never retried ("never ask the model to lengthen
+                    // anything" - section 4). Keep it as its own real (shorter) length if the
+                    // candidate doesn't already have one there; otherwise this attempt is redundant.
+                    int measured = r.measuredLines();
                     recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_SHORT",
-                            item.length(), r.measuredLines());
+                            item.length(), measured);
+                    state.failingLengths.remove(item.length());
+                    state.reasonByLength.put(item.length(), "TOO_SHORT");
+                    Set<Integer> requested = requestedLengthsSnapshot.getOrDefault(item.candidateId(), Set.of());
+                    if (requested.contains(measured)) {
+                        state.variants.remove(item.length());
+                    } else {
+                        String text = state.variants.remove(item.length());
+                        state.variants.put(measured, text);
+                        state.failingLengths.remove(measured);
+                    }
                 }
                 default -> {
-                    fail(state, "TOO_LONG", item.length(), r.measuredLines());
+                    fail(state, item.length(), "TOO_LONG", r.measuredLines());
                     recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_LONG",
                             item.length(), r.measuredLines());
+                }
+            }
+        }
+
+        checkSiblingConsistency(candidates);
+    }
+
+    /** PHASE4_SPEC.md section 5.1: for every pair of a candidate's currently kept lengths, the
+     * shorter version must be grounded in the longer one; otherwise the longer version is
+     * dropped ({@code INCONSISTENT_VARIANTS}) — never retried, just gone. */
+    private static void checkSiblingConsistency(Map<String, CandidateState> candidates) {
+        for (CandidateState state : candidates.values()) {
+            List<Integer> kept = new ArrayList<>();
+            for (Map.Entry<Integer, String> e : state.variants.entrySet()) {
+                if (!state.failingLengths.contains(e.getKey())) {
+                    kept.add(e.getKey());
+                }
+            }
+            Collections.sort(kept);
+            for (int i = 0; i < kept.size(); i++) {
+                for (int j = i + 1; j < kept.size(); j++) {
+                    int shorterLen = kept.get(i);
+                    int longerLen = kept.get(j);
+                    String shorterText = state.variants.get(shorterLen);
+                    String longerText = state.variants.get(longerLen);
+                    if (longerText == null) {
+                        continue; // already dropped by an earlier pair in this same pass
+                    }
+                    if (!TruthfulnessGuard.consistent(shorterText, longerText)) {
+                        state.variants.remove(longerLen);
+                        state.reasonByLength.put(longerLen, "INCONSISTENT_VARIANTS");
+                    }
                 }
             }
         }
@@ -270,11 +326,23 @@ public final class FitLoop {
         state.failingLengths.remove(length);
     }
 
-    private static void fail(CandidateState state, String reason, Integer targetLines, Integer measuredLines) {
-        state.lastReason = reason;
-        state.lastTargetLines = targetLines;
-        state.lastMeasuredLines = measuredLines;
+    private static void fail(CandidateState state, int length, String reason, Integer measuredLines) {
+        state.reasonByLength.put(length, reason);
+        if (measuredLines != null) {
+            state.measuredByLength.put(length, measuredLines);
+        }
         // failingLengths already contains this length from the resubmission step above.
+    }
+
+    /** The reason to report for a candidate with zero surviving lengths: its lowest failing
+     * length's own reason (deterministic pick among possibly several), or NO_VALID_LENGTH if none
+     * was ever recorded (e.g. its only length was a TOO_SHORT/inconsistency drop that left nothing
+     * behind without itself being a guard/render failure). */
+    private static String pickReason(CandidateState state) {
+        if (!state.reasonByLength.isEmpty()) {
+            return state.reasonByLength.get(Collections.min(state.reasonByLength.keySet()));
+        }
+        return "NO_VALID_LENGTH";
     }
 
     private static void recordRoundOneFeedback(Map<String, RoundOneFeedback> round1Feedback, int round, String id,
@@ -284,28 +352,31 @@ public final class FitLoop {
         }
     }
 
-    private static List<PromptBuilder.RetryItem> buildRetryItems(Map<String, CandidateState> candidates) {
+    private static List<PromptBuilder.RetryItem> buildRetryItems(SectionContext ctx,
+            Map<String, CandidateState> candidates) {
         List<PromptBuilder.RetryItem> items = new ArrayList<>();
         for (Map.Entry<String, CandidateState> e : candidates.entrySet()) {
             CandidateState state = e.getValue();
             for (int length : state.failingLengths) {
                 items.add(new PromptBuilder.RetryItem(e.getKey(), length,
-                        feedbackText(state.lastReason, length, state.lastTargetLines, state.lastMeasuredLines,
-                                state.variants.get(length))));
+                        feedbackText(ctx, state.reasonByLength.get(length), length,
+                                state.measuredByLength.get(length), state.variants.get(length))));
             }
         }
         return items;
     }
 
-    private static String feedbackText(String reason, int length, Integer targetLines, Integer measuredLines,
+    private static String feedbackText(SectionContext ctx, String reason, int targetLines, Integer measuredLines,
             String text) {
-        if ("TOO_LONG".equals(reason) && targetLines != null && measuredLines != null) {
+        // Never ask the model to lengthen anything (section 4): a too-short render is handled
+        // without a retry at all (section 6 point 1), so the only render failure that ever
+        // reaches here is TOO_LONG.
+        if ("TOO_LONG".equals(reason) && measuredLines != null) {
+            // "About N characters" = len(variant) - budget, rounded up to the nearest 5 (section 4).
+            Integer budget = ctx.budgetCharsByLineCount().get(targetLines);
+            int aboutN = budget == null ? 5 : roundUpToNearest5(Math.max(1, text.length() - budget));
             return "renders on " + measuredLines + " lines; it must fit in " + targetLines
-                    + ". Shorten by about " + 5 + " characters.";
-        }
-        if ("TOO_SHORT".equals(reason) && targetLines != null && measuredLines != null) {
-            return "renders on " + measuredLines + " lines; it must fill " + targetLines
-                    + ". Lengthen it.";
+                    + ". Shorten it by about " + aboutN + " characters by removing words.";
         }
         if (reason != null && reason.startsWith("UNSUPPORTED_TECH:")) {
             return "mentions " + reason.substring("UNSUPPORTED_TECH:".length())
@@ -321,8 +392,14 @@ public final class FitLoop {
             case "MULTILINE" -> "contains a line break; write it as one line.";
             case "EMPTY" -> "was empty; write a bullet.";
             case "OVER_BUDGET" -> "is over the character budget; shorten it.";
+            case "UNGROUNDED" -> "does not describe a fact from the material; it must use the "
+                    + "candidate's own words. If you cannot, leave this length out.";
             default -> "did not pass; revise it.";
         };
+    }
+
+    private static int roundUpToNearest5(int n) {
+        return (int) (Math.ceil(n / 5.0) * 5);
     }
 
     private static Map<Integer, List<RenderItem>> distributeAcrossSlots(

@@ -2,6 +2,7 @@ package com.tailor.engine.generate;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,6 +50,25 @@ public final class TruthfulnessGuard {
 
     private static final Pattern FIRST_PERSON =
             Pattern.compile("(?<![\\w'])(I|me|my|mine|we|our|ours|us)(?![\\w'])");
+
+    // --- Grounding (revision 4): catches wholesale invented sentences, which contain no
+    // checkable number or technology. Share of a variant's content words that also occur in the
+    // sources, with a crude stem so "reducing"/"reduced" match.
+    private static final Set<String> STOP = Set.of(
+            "a", "an", "the", "and", "or", "but", "of", "in", "on", "at", "to", "for", "from", "by", "with",
+            "without", "via", "into", "onto", "over", "under", "as", "is", "are", "was", "were", "be", "been",
+            "being", "this", "that", "these", "those", "it", "its", "their", "them", "they", "he", "she", "his",
+            "her", "our", "we", "i", "my", "me", "you", "your", "up", "down", "out", "off", "than", "then", "so",
+            "such", "very", "more", "most", "less", "least", "same", "across", "while", "during", "after",
+            "before", "about", "per", "each", "all", "any", "both", "either", "neither", "not", "no", "nor",
+            "only", "own", "also");
+
+    private static final Pattern WORD = Pattern.compile("[A-Za-z][A-Za-z'\\-]+");
+
+    private static final List<String> STEM_SUFFIXES = List.of(
+            "ations", "ation", "ising", "izing", "ised", "ized", "ings", "ing", "edly", "ed", "es", "s", "ly");
+
+    static final double GROUNDING_MIN = 0.40;
 
     private TruthfulnessGuard() {
     }
@@ -100,7 +120,86 @@ public final class TruthfulnessGuard {
             reasons.add("UNSUPPORTED_TECH:" + t);
         }
 
+        if (grounding(v, sourceTexts) < GROUNDING_MIN) {
+            reasons.add("UNGROUNDED");
+        }
+
         return reasons;
+    }
+
+    /** PHASE4_SPEC.md section 5.1: a candidate's versions must describe the same facts — the
+     * shorter version's content words must be grounded in the longer version. */
+    public static boolean consistent(String shorter, String longer) {
+        return grounding(shorter, List.of(longer)) >= GROUNDING_MIN;
+    }
+
+    /** Share (0.0-1.0) of {@code variant}'s content words that are grounded in {@code
+     * sourceTexts} — 1.0 if the variant has no content words at all. */
+    static double grounding(String variant, List<String> sourceTexts) {
+        Set<String> src = new HashSet<>();
+        for (String t : sourceTexts) {
+            src.addAll(contentStems(t));
+        }
+        List<String> words = contentStems(variant);
+        if (words.isEmpty()) {
+            return 1.0;
+        }
+        long groundedCount = 0;
+        for (String w : words) {
+            if (grounded(w, src)) {
+                groundedCount++;
+            }
+        }
+        return (double) groundedCount / words.size();
+    }
+
+    private static boolean grounded(String stem, Set<String> sourceStems) {
+        if (sourceStems.contains(stem)) {
+            return true;
+        }
+        if (stem.length() >= 5) {
+            String prefix = stem.substring(0, 5);
+            for (String s : sourceStems) {
+                if (s.length() >= 5 && s.startsWith(prefix)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static List<String> contentStems(String text) {
+        List<String> out = new ArrayList<>();
+        Matcher m = WORD.matcher(text);
+        while (m.find()) {
+            String w = m.group();
+            if (w.length() > 2 && !STOP.contains(w.toLowerCase())) {
+                out.add(stem(w));
+            }
+        }
+        return out;
+    }
+
+    private static String stem(String w) {
+        String s = stripApostrophesAndHyphens(w.toLowerCase());
+        for (String suffix : STEM_SUFFIXES) {
+            if (s.endsWith(suffix) && s.length() - suffix.length() >= 4) {
+                return s.substring(0, s.length() - suffix.length());
+            }
+        }
+        return s;
+    }
+
+    private static String stripApostrophesAndHyphens(String s) {
+        int start = 0;
+        int end = s.length();
+        while (start < end && (s.charAt(start) == '\'' || s.charAt(start) == '-')) {
+            start++;
+        }
+        while (end > start && (s.charAt(end - 1) == '\'' || s.charAt(end - 1) == '-')) {
+            end--;
+        }
+        return s.substring(start, end);
     }
 
     private static String formatNumber(double n) {

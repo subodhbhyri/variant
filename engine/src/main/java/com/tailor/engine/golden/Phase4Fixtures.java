@@ -10,8 +10,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-/** fixtures/phase4/guard_cases.json and expected_generation.json (PHASE4_SPEC.md section 5-6 / 9,
- * tests P4-T1 and P4-T3). */
+/** fixtures/phase4/guard_cases.json, consistency_cases.json and expected_generation.json
+ * (PHASE4_SPEC.md section 5-6 / 9, tests P4-T1, P4-T3 and P4-T10). */
 public final class Phase4Fixtures {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -22,6 +22,10 @@ public final class Phase4Fixtures {
 
     public static GuardCases loadGuardCases(Path guardCasesJson) throws IOException {
         return MAPPER.readValue(requireFile(guardCasesJson).toFile(), GuardCases.class);
+    }
+
+    public static ConsistencyCases loadConsistencyCases(Path consistencyCasesJson) throws IOException {
+        return MAPPER.readValue(requireFile(consistencyCasesJson).toFile(), ConsistencyCases.class);
     }
 
     public static Map<String, ExpectedSection> loadExpectedGeneration(Path expectedGenerationJson) throws IOException {
@@ -42,6 +46,14 @@ public final class Phase4Fixtures {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record GuardCase(String name, String variant, Integer budgetChars, List<String> expected) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ConsistencyCases(List<ConsistencyCase> pairs) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ConsistencyCase(String name, String shorter, String longer, boolean consistent, double score) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
