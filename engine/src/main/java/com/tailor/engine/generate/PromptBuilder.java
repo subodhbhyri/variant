@@ -1,6 +1,8 @@
 package com.tailor.engine.generate;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * PHASE4_SPEC.md section 3 (step 4.3): the system prompt (verbatim, fixed by the spec — never
@@ -64,13 +66,51 @@ public final class PromptBuilder {
     }
 
     /**
+     * PHASE4_SPEC.md section 2 (revision 3): the character range for each needed length, from
+     * the median-calibration-hint budgets. {@code floor(1) = ceil(0.5 x budget(1))};
+     * {@code floor(L) = budget(L-1) + 10} for L >= 2 — an L-line bullet only has to spill past
+     * L-1 full lines. (Revision 2 used {@code 0.8 x budget(L)}, which forced short facts to be
+     * padded with filler to reach ~150 characters for a 2-line version; measured in the second
+     * live run.) A length with no budget, or whose L-1 predecessor has none, is skipped — there's
+     * no way to compute its floor.
+     */
+    public static List<LengthSpec> lengthSpecs(List<Integer> lineCounts, Map<Integer, Integer> budgetCharsByLineCount) {
+        List<LengthSpec> specs = new ArrayList<>();
+        for (int lineCount : lineCounts) {
+            Integer budget = budgetCharsByLineCount.get(lineCount);
+            if (budget == null) {
+                continue;
+            }
+            Integer floor;
+            if (lineCount == 1) {
+                floor = (int) Math.ceil(0.5 * budget);
+            } else {
+                Integer prevBudget = budgetCharsByLineCount.get(lineCount - 1);
+                floor = prevBudget == null ? null : prevBudget + 10;
+            }
+            if (floor == null) {
+                continue;
+            }
+            specs.add(new LengthSpec(lineCount, floor, budget));
+        }
+        return specs;
+    }
+
+    /**
      * PHASE4_SPEC.md section 3's user message template. {@code rawText} is used only when
      * {@code mode} is not {@code EXISTING_ONLY} — for EXISTING_ONLY the whole
      * {@code <candidate_material>} block is omitted (section 2: EXISTING_ONLY's sources are
      * current bullets + field values only, no raw text).
+     *
+     * @param perBulletMaxLength EXISTING_ONLY only (ignored otherwise): each current bullet's own
+     *                           line count, in the same order as {@code currentBullets} — the
+     *                           most that bullet may be lengthened to (section 2 revision 3: a
+     *                           1-line original may only be asked for a 1-line rewrite; shortening
+     *                           is fine, lengthening would need facts the candidate never gave)
      */
     public static String userMessage(String kind, String mode, List<FieldLine> fields,
-            List<String> currentBullets, String rawText, List<LengthSpec> lengths, int candidateCount) {
+            List<String> currentBullets, String rawText, List<LengthSpec> lengths, int candidateCount,
+            List<Integer> perBulletMaxLength) {
         StringBuilder sb = new StringBuilder();
         sb.append("<section kind=\"").append(kind).append("\" mode=\"").append(mode).append("\">\n");
 
@@ -100,6 +140,11 @@ public final class PromptBuilder {
         sb.append("</lengths>\n");
 
         if ("EXISTING_ONLY".equals(mode)) {
+            for (int i = 0; i < perBulletMaxLength.size(); i++) {
+                int maxLen = perBulletMaxLength.get(i);
+                sb.append("b").append(i).append(": ")
+                        .append(maxLen == 1 ? "1 line only" : "up to " + maxLen + " lines").append('\n');
+            }
             sb.append("Rewrite each current bullet as one candidate, ids b0, b1, …, at the\n");
             sb.append("requested lengths, keeping exactly its facts.\n");
         } else {

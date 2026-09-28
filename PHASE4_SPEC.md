@@ -57,7 +57,11 @@ it's stored. The user reviews everything in the onboarding preview.
   achievements (live run: 3 for Jane Doe's `job-0`, all faithful). Slots
   without a kept candidate keep their original bullets.
 - `EXISTING_ONLY`: **one candidate per current editable bullet**, ids `b0`,
-  `b1`, …, each a rewrite of that bullet with exactly its facts. (Revision 1
+  `b1`, …, each a rewrite of that bullet with exactly its facts, requested
+  **only at lengths up to that bullet's own line count** (a 1-line original
+  gets a 1-line rewrite only). Shortening drops words; lengthening would need
+  words the user never wrote (measured: a 1-line bullet asked for 2 lines
+  gained "guiding their growth" and "one-on-one"). (Revision 1
   asked for 2 × slots here; with 3 bullets and no new material the model
   returned nothing, the honest answer to an impossible request.)
 - A candidate needs **at least one** requested length; it may leave out a
@@ -73,8 +77,14 @@ it's stored. The user reviews everything in the onboarding preview.
 
 **Character budgets.** For line count L, the budget is the median Phase 1
 calibration hint of that section's slots with L lines (for projects: of all
-swappable project slots with L lines). The model gets a range of
-`[0.8 × budget, budget]`. The budget is a hint; the render decides.
+swappable project slots with L lines). The model gets the range
+`[floor(L), budget(L)]` with **floor(1) = ⌈0.5 × budget(1)⌉** and **floor(L) =
+budget(L−1) + 10** for L ≥ 2: an L-line bullet only has to spill past L−1
+full lines. (Revision 2 used `0.8 × budget(L)`, which forced short facts to be
+padded to about 150 characters for 2 lines. Measured in the second live run:
+"to ensure data integrity across the pipeline", "in the processing pipeline".)
+Jane Doe: budgets `{1: 93, 2: 188}` → ranges `1: 47–93`, `2: 103–188`. The
+budget is a hint; the render decides.
 
 **Sources** (what the guard checks against): `DETAILED` = raw text + the
 section's current bullets + its field values; `EXISTING_ONLY` = current
@@ -132,9 +142,10 @@ Submit your answer with the submit_bullets tool.
 ...raw_text (omitted for EXISTING_ONLY)...
 </candidate_material>
 <lengths>
-1 line: 72–90 characters
-2 lines: 150–188 characters
+1 line: 47–93 characters
+2 lines: 103–188 characters
 </lengths>
+(EXISTING_ONLY: lengths are listed per bullet, e.g. "b2: 1 line only".)
 Write up to N candidates.            (DETAILED)
 Rewrite each current bullet as one candidate, ids b0, b1, …, at the
 requested lengths, keeping exactly its facts.   (EXISTING_ONLY)
@@ -291,11 +302,11 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 | Id | Test | Pass condition |
 |---|---|---|
 | P4-T1 | Guard | All 20 cases in `guard_cases.json` give exactly the expected reasons |
-| P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`); budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
+| P4-T2 | Targets | Jane Doe: both jobs need lengths `{1, 2}`; `job-0` (`DETAILED`) asks for up to 6 candidates (2 × 3 slots), `job-1` (`EXISTING_ONLY`) for exactly 3 (`b0`–`b2`), with `b2` (a 1-line original) at length 1 only; ranges `1: 47–93`, `2: 103–188`; budgets are the median calibration hints; a fixture project section gets max-bullets + 1 bullets per project |
 | P4-T3 | Fit loop | Replaying `recorded_responses.json` for `job-0` gives exactly `expected_generation.json`: final statuses and texts, rounds = 3, round-1 feedback reasons and measured lines |
 | P4-T4 | Prompt | The request has the system prompt verbatim with `cache_control`, forced `submit_bullets`, raw text only inside `<candidate_material>`, no raw text for `EXISTING_ONLY`; logs contain no prompt or response text |
 | P4-T5 | Cost | Recorded usage → $0.01544; a fake run crossing $0.50 stops with `COST_LIMIT` |
-| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; `job-1` (`EXISTING_ONLY`) returns one candidate per current bullet (`b0`–`b2`); report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
+| P4-T6 | Live smoke (manual, opt-in) | `tailor generate --live` on Jane Doe with `intake_jane_doe.json`: every kept variant passes the guard and fits; `job-1` (`EXISTING_ONLY`) returns one candidate per current bullet (`b0`–`b2`), `b2` at 1 line only, and every rewrite adds no fact, qualifier or purpose clause that the original bullet lacks (checked by reading; list each variant next to its original in the report); report tokens and cost; the project library (if any) swaps via `tailor swap` with the Verifier passing |
 | P4-T9 | Empty output | Replaying `recorded_responses.json` `job-1` (two empty responses) gives `NO_OUTPUT` after exactly 2 calls, and the section stays locked |
 | P4-T7 | Intake limits | 1,501 words refused; 9th added project refused; `javascript:` link refused at entry |
 | P4-T8 | No regressions | `test`, `corpusTest`, `corpus-check` ALL PASS |

@@ -83,16 +83,41 @@ class PromptAndRequestTest {
         String detailed = PromptBuilder.userMessage("job", "DETAILED",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
                 List.of("Existing bullet"), "raw",
-                List.of(new PromptBuilder.LengthSpec(2, 150, 188)), 6);
+                List.of(new PromptBuilder.LengthSpec(2, 103, 188)), 6, List.of());
         assertTrue(detailed.contains("Write up to 6 candidates."));
 
         String existingOnly = PromptBuilder.userMessage("job", "EXISTING_ONLY",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
                 List.of("b0 text", "b1 text", "b2 text"), null,
-                List.of(new PromptBuilder.LengthSpec(1, 72, 90)), 3);
+                List.of(new PromptBuilder.LengthSpec(1, 47, 93), new PromptBuilder.LengthSpec(2, 103, 188)), 3,
+                List.of(2, 2, 1));
         assertTrue(existingOnly.contains("Rewrite each current bullet as one candidate, ids b0, b1"));
         assertTrue(existingOnly.contains("keeping exactly its facts."));
         assertFalse(existingOnly.contains("Write up to"));
+    }
+
+    /** Section 2 revision 3: a bullet may only be asked for lengths up to its own line count —
+     * b0/b1 (2-line originals) get "up to 2 lines", b2 (a 1-line original) gets "1 line only". */
+    @Test
+    void existingOnlyListsEachBulletsOwnLengthCeiling() {
+        String msg = PromptBuilder.userMessage("job", "EXISTING_ONLY",
+                List.of(new PromptBuilder.FieldLine("title", "Engineer")),
+                List.of("b0 text", "b1 text", "b2 text"), null,
+                List.of(new PromptBuilder.LengthSpec(1, 47, 93), new PromptBuilder.LengthSpec(2, 103, 188)), 3,
+                List.of(2, 2, 1));
+        assertTrue(msg.contains("b0: up to 2 lines"));
+        assertTrue(msg.contains("b1: up to 2 lines"));
+        assertTrue(msg.contains("b2: 1 line only"));
+    }
+
+    /** Section 2 revision 3: floor(1) = ceil(0.5 x budget(1)); floor(L) = budget(L-1) + 10 for
+     * L >= 2. Jane Doe's own budgets {1: 93, 2: 188} give ranges 1: 47-93, 2: 103-188. */
+    @Test
+    void lengthRangesUseTheRevision3FloorFormula() {
+        List<PromptBuilder.LengthSpec> specs =
+                PromptBuilder.lengthSpecs(List.of(1, 2), Map.of(1, 93, 2, 188));
+        assertEquals(List.of(new PromptBuilder.LengthSpec(1, 47, 93), new PromptBuilder.LengthSpec(2, 103, 188)),
+                specs);
     }
 
     @Test
@@ -101,7 +126,7 @@ class PromptAndRequestTest {
         String msg = PromptBuilder.userMessage("job", "DETAILED",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
                 List.of("Existing bullet"), rawText,
-                List.of(new PromptBuilder.LengthSpec(2, 150, 188)), 4);
+                List.of(new PromptBuilder.LengthSpec(2, 103, 188)), 4, List.of());
         int start = msg.indexOf("<candidate_material>");
         int end = msg.indexOf("</candidate_material>");
         assertTrue(start >= 0 && end > start, "candidate_material block must be present");
@@ -114,7 +139,7 @@ class PromptAndRequestTest {
         String msg = PromptBuilder.userMessage("job", "EXISTING_ONLY",
                 List.of(new PromptBuilder.FieldLine("title", "Engineer")),
                 List.of("Existing bullet"), null,
-                List.of(new PromptBuilder.LengthSpec(1, 72, 90)), 4);
+                List.of(new PromptBuilder.LengthSpec(1, 47, 93)), 4, List.of(1));
         assertFalse(msg.contains("<candidate_material>"), "EXISTING_ONLY must omit candidate_material entirely");
     }
 

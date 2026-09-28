@@ -18,11 +18,12 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * P4-T2 (PHASE4_SPEC.md section 9, revision 2): Jane Doe's two jobs both need lengths {1, 2};
+ * P4-T2 (PHASE4_SPEC.md section 9, revision 3): Jane Doe's two jobs both need lengths {1, 2};
  * job-0 (DETAILED) asks for up to 6 candidates (2 x 3 editable slots), job-1 (EXISTING_ONLY) for
- * exactly 3 (one per editable bullet, ids b0-b2). The Phase 3 fixture's project section needs
- * max-bullets + 1 (3 + 1 = 4) bullets per candidate. Budgets are cross-checked against an
- * independently computed median of the same calibration hints.
+ * exactly 3 (one per editable bullet, ids b0-b2), with b2 (a 1-line original) restricted to
+ * length 1 only. Ranges use the revision 3 floor formula: 1: 47-93, 2: 103-188. The Phase 3
+ * fixture's project section needs max-bullets + 1 (3 + 1 = 4) bullets per candidate. Budgets are
+ * cross-checked against an independently computed median of the same calibration hints.
  */
 @Tag("corpus")
 class TargetBuilderTest {
@@ -50,7 +51,31 @@ class TargetBuilderTest {
             assertEquals(expectedCandidateCount[i], target.candidateCount(),
                     "job-" + i + " (" + modeByJobIndex[i] + ") candidate count");
             assertBudgetsAreMedianHints(target, job, report, positions);
+
+            // Revision 3: ranges use floor(1) = ceil(0.5 x budget(1)); floor(L) = budget(L-1) + 10.
+            List<PromptBuilder.LengthSpec> ranges =
+                    PromptBuilder.lengthSpecs(target.lineCounts(), target.budgetCharsByLineCount());
+            for (PromptBuilder.LengthSpec spec : ranges) {
+                int budget = target.budgetCharsByLineCount().get(spec.lines());
+                int expectedFloor = spec.lines() == 1 ? (int) Math.ceil(0.5 * budget)
+                        : target.budgetCharsByLineCount().get(spec.lines() - 1) + 10;
+                assertEquals(expectedFloor, spec.minChars(), "job-" + i + " length " + spec.lines() + " floor");
+                assertEquals(budget, spec.maxChars(), "job-" + i + " length " + spec.lines() + " ceiling");
+            }
         }
+
+        // Revision 3: job-1 (EXISTING_ONLY) may only ask a bullet for lengths up to its own line
+        // count. Jane Doe's job-1 mirrors job-0's [2, 2, 1] slots, so b2 (the last bullet) is a
+        // 1-line original and must be restricted to length 1 only.
+        Position job1 = positions.jobPositions().get(1);
+        Map<Integer, OnboardReport.SlotReport> bySlotIndex = new java.util.HashMap<>();
+        for (OnboardReport.SlotReport sr : report.slots()) {
+            bySlotIndex.put(sr.index(), sr);
+        }
+        List<Integer> job1SlotIndices = positions.bulletSlotIndices(job1);
+        List<Integer> job1SlotLineCounts = job1SlotIndices.stream().map(idx -> bySlotIndex.get(idx).lines()).toList();
+        assertEquals(List.of(2, 2, 1), job1SlotLineCounts, "job-1 slot line counts");
+        assertEquals(1, job1SlotLineCounts.get(2), "b2 (job-1's 3rd bullet) must be a 1-line original");
     }
 
     @Test

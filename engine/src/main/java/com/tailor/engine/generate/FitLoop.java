@@ -80,7 +80,9 @@ public final class FitLoop {
         List<ModelResponse.Usage> usages = new ArrayList<>();
 
         String initialUserMessage = PromptBuilder.userMessage(ctx.kind(), ctx.mode(), ctx.fields(),
-                ctx.currentBullets(), ctx.rawText(), lengthSpecs(ctx), ctx.candidateCount());
+                ctx.currentBullets(), ctx.rawText(),
+                PromptBuilder.lengthSpecs(ctx.lineCounts(), ctx.budgetCharsByLineCount()), ctx.candidateCount(),
+                ctx.slotLineCounts());
         ModelResponse round1Response = client.call(PromptBuilder.SYSTEM_PROMPT, initialUserMessage);
         usages.add(round1Response.usage());
 
@@ -159,6 +161,14 @@ public final class FitLoop {
                     System.err.println("WARNING: variant key \"" + e.getKey()
                             + "\" did not match a named schema key; using leading digit " + length);
                 }
+                // EXISTING_ONLY (section 2 revision 3): a bullet may only be asked for lengths up
+                // to its own line count — shortening is fine, lengthening would need facts the
+                // candidate never gave. Enforced server-side too (not just via the prompt's
+                // per-bullet listing), in case the model ignores the instruction.
+                Integer ownMaxLength = perBulletMaxLength(ctx, bc.id());
+                if (ownMaxLength != null && length > ownMaxLength) {
+                    continue;
+                }
                 state.variants.put(length, e.getValue());
                 state.failingLengths.add(length); // re-check every (re)submitted length below
             }
@@ -230,6 +240,24 @@ public final class FitLoop {
         }
     }
 
+    private static final Pattern BULLET_ID = Pattern.compile("^b(\\d+)$");
+
+    /** EXISTING_ONLY only: candidate {@code b<i>}'s own line count (the prompt asks the model to
+     * id EXISTING_ONLY candidates this way, matching {@code currentBullets}/{@code slotLineCounts}
+     * order) — null if not EXISTING_ONLY, or the id doesn't follow that convention. */
+    static Integer perBulletMaxLength(SectionContext ctx, String candidateId) {
+        if (!"EXISTING_ONLY".equals(ctx.mode())) {
+            return null;
+        }
+        Matcher m = BULLET_ID.matcher(candidateId);
+        if (!m.matches()) {
+            return null;
+        }
+        int idx = Integer.parseInt(m.group(1));
+        List<Integer> slotLineCounts = ctx.slotLineCounts();
+        return idx >= 0 && idx < slotLineCounts.size() ? slotLineCounts.get(idx) : null;
+    }
+
     private static final Pattern LEADING_INT = Pattern.compile("(\\d+)");
 
     /** null if the key has no digits at all (truly unparseable, not just oddly worded). */
@@ -295,19 +323,6 @@ public final class FitLoop {
             case "OVER_BUDGET" -> "is over the character budget; shorten it.";
             default -> "did not pass; revise it.";
         };
-    }
-
-    private static List<PromptBuilder.LengthSpec> lengthSpecs(SectionContext ctx) {
-        List<PromptBuilder.LengthSpec> specs = new ArrayList<>();
-        for (int lineCount : ctx.lineCounts()) {
-            Integer budget = ctx.budgetCharsByLineCount().get(lineCount);
-            if (budget == null) {
-                continue;
-            }
-            int min = (int) Math.round(0.8 * budget);
-            specs.add(new PromptBuilder.LengthSpec(lineCount, min, budget));
-        }
-        return specs;
     }
 
     private static Map<Integer, List<RenderItem>> distributeAcrossSlots(
