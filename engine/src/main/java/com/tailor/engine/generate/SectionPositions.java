@@ -62,6 +62,25 @@ public final class SectionPositions {
         return out;
     }
 
+    /** {@link FitLoop}'s render-check needs a real slot per needed line count to substitute a
+     * candidate into: this position's own bullet slots, grouped by {@link OnboardReport.SlotReport#lines()},
+     * restricted to editable ones (a job's locked bullets are never touched). */
+    public Map<Integer, List<Integer>> slotIndicesByLineCount(Position position, OnboardReport report) {
+        Map<Integer, OnboardReport.SlotReport> bySlotIndex = new HashMap<>();
+        for (OnboardReport.SlotReport sr : report.slots()) {
+            bySlotIndex.put(sr.index(), sr);
+        }
+        Map<Integer, List<Integer>> out = new HashMap<>();
+        for (int idx : bulletSlotIndices(position)) {
+            OnboardReport.SlotReport sr = bySlotIndex.get(idx);
+            if (sr == null || !sr.editable() || sr.lines() == null) {
+                continue;
+            }
+            out.computeIfAbsent(sr.lines(), k -> new ArrayList<>()).add(idx);
+        }
+        return out;
+    }
+
     public static SectionPositions detect(Path normalizedDocx, OnboardReport onboardReport) throws Exception {
         DocxPackage pkg = DocxPackage.open(normalizedDocx);
         Document doc = SafeXml.parse(pkg.readPart("word/document.xml"));
