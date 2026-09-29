@@ -1,0 +1,9 @@
+Data Engineer
+Help us build the pipelines behind our analytics.
+
+Must have:
+Python and Kafka for streaming ingestion.
+Batch processing with Spark and orchestration with Airflow.
+
+Nice to have:
+ClickHouse, Terraform, AWS.

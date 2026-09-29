@@ -1,0 +1,503 @@
+{
+ "_note": "Produced by reference/jd_ref.py with fake_similarity (bag-of-stems cosine) standing in for MiniLM. Java must reproduce this exactly with the same stand-in.",
+ "library": "fixtures/phase3/library.json",
+ "shapes": "fixtures/phase5/shapes.json",
+ "job_variants": "fixtures/phase5/job_variants.json",
+ "achievement_groups": {
+  "n1": "n1",
+  "n2": "n2",
+  "n3": "n1",
+  "n4": "n2"
+ },
+ "jds": {
+  "platform": {
+   "title": "Senior Backend Engineer, Build Platform",
+   "skills": {
+    "Bazel": 0.5,
+    "CI": 0.3,
+    "Go": 1.0,
+    "Kubernetes": 1.0,
+    "Postgres": 1.0,
+    "Prometheus": 0.5,
+    "Terraform": 0.5,
+    "gRPC": 1.0
+   },
+   "resumes": [
+    {
+     "label": "best match",
+     "job": [
+      "n4",
+      "n1"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "forge",
+       "bullets": [
+        0,
+        2,
+        1
+       ],
+       "score": 0.3692,
+       "stack": [
+        "Go",
+        "Kubernetes",
+        "PostgreSQL",
+        "gRPC",
+        "Bazel",
+        "Prometheus",
+        "Terraform",
+        "Rust",
+        "Argo Workflows",
+        "Redis",
+        "Grafana",
+        "AWS"
+       ]
+      },
+      {
+       "position": "P1",
+       "project": "quill",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0517,
+       "stack": [
+        "Postgres",
+        "TypeScript",
+        "Next.js",
+        "Redis"
+       ]
+      },
+      {
+       "position": "P2",
+       "project": "harbor",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0343,
+       "stack": [
+        "Rust",
+        "Tokio",
+        "SQLite"
+       ]
+      },
+      {
+       "position": "P3",
+       "project": "relay",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.0,
+       "stack": [
+        "Terraform",
+        "Python",
+        "FastAPI",
+        "Kafka",
+        "ClickHouse",
+        "Grafana",
+        "AWS"
+       ]
+      }
+     ],
+     "total": 0.7473
+    },
+    {
+     "label": "includes sprout instead of relay",
+     "job": [
+      "n4",
+      "n1"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "forge",
+       "bullets": [
+        0,
+        2,
+        1
+       ],
+       "score": 0.3692
+      },
+      {
+       "position": "P1",
+       "project": "quill",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0517
+      },
+      {
+       "position": "P2",
+       "project": "harbor",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0343
+      },
+      {
+       "position": "P3",
+       "project": "sprout",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.0
+      }
+     ],
+     "total": 0.7473
+    }
+   ],
+   "missing": [],
+   "scores_job": {
+    "n1": 0.1207,
+    "n2": 0.1681,
+    "n3": 0.1207,
+    "n4": 0.1714
+   }
+  },
+  "platform_reworded": {
+   "title": "Backend Engineer (Senior) - Developer Platform",
+   "skills": {
+    "Bazel": 0.5,
+    "CI": 0.3,
+    "Go": 1.0,
+    "Kubernetes": 1.0,
+    "Postgres": 1.0,
+    "Prometheus": 0.5,
+    "Terraform": 0.5,
+    "gRPC": 1.0
+   }
+  },
+  "frontend": {
+   "title": "Full-Stack Engineer",
+   "skills": {
+    "GraphQL": 0.5,
+    "Next.js": 1.0,
+    "Postgres": 1.0,
+    "React": 1.0,
+    "Redis": 0.5,
+    "TypeScript": 1.0
+   },
+   "resumes": [
+    {
+     "label": "best match",
+     "job": [
+      "n3",
+      "n2"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "quill",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.2461,
+       "stack": [
+        "TypeScript",
+        "Next.js",
+        "Postgres",
+        "Redis"
+       ]
+      },
+      {
+       "position": "P1",
+       "project": "forge",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.09,
+       "stack": [
+        "PostgreSQL",
+        "Redis",
+        "Go",
+        "Rust",
+        "Bazel",
+        "Kubernetes",
+        "Argo Workflows",
+        "gRPC",
+        "Prometheus",
+        "Grafana",
+        "Terraform",
+        "AWS"
+       ]
+      },
+      {
+       "position": "P2",
+       "project": "sprout",
+       "bullets": [
+        0,
+        2
+       ],
+       "score": 0.0104,
+       "stack": []
+      },
+      {
+       "position": "P3",
+       "project": "relay",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.0,
+       "stack": [
+        "Python",
+        "FastAPI",
+        "Kafka",
+        "ClickHouse",
+        "Grafana",
+        "Terraform",
+        "AWS"
+       ]
+      }
+     ],
+     "total": 0.5179
+    },
+    {
+     "label": "includes harbor instead of relay",
+     "job": [
+      "n3",
+      "n2"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "quill",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.2461
+      },
+      {
+       "position": "P1",
+       "project": "forge",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.09
+      },
+      {
+       "position": "P2",
+       "project": "harbor",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0
+      },
+      {
+       "position": "P3",
+       "project": "sprout",
+       "bullets": [
+        0,
+        2,
+        1
+       ],
+       "score": 0.0069
+      }
+     ],
+     "total": 0.5144
+    }
+   ],
+   "missing": [
+    "React"
+   ],
+   "scores_job": {
+    "n1": 0.1677,
+    "n2": 0.0,
+    "n3": 0.1714,
+    "n4": 0.0
+   }
+  },
+  "data": {
+   "title": "Data Engineer",
+   "skills": {
+    "AWS": 0.5,
+    "Airflow": 1.0,
+    "ClickHouse": 0.5,
+    "Kafka": 1.0,
+    "Python": 1.0,
+    "Spark": 1.0,
+    "Terraform": 0.5
+   },
+   "resumes": [
+    {
+     "label": "best match",
+     "job": [
+      "n3",
+      "n2"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "relay",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.227,
+       "stack": [
+        "Python",
+        "Kafka",
+        "ClickHouse",
+        "Terraform",
+        "AWS",
+        "FastAPI",
+        "Grafana"
+       ]
+      },
+      {
+       "position": "P1",
+       "project": "forge",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0545,
+       "stack": [
+        "Terraform",
+        "AWS",
+        "Go",
+        "Rust",
+        "Bazel",
+        "Kubernetes",
+        "Argo Workflows",
+        "Redis",
+        "PostgreSQL",
+        "gRPC",
+        "Prometheus",
+        "Grafana"
+       ]
+      },
+      {
+       "position": "P2",
+       "project": "quill",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.01,
+       "stack": [
+        "TypeScript",
+        "Next.js",
+        "Postgres",
+        "Redis"
+       ]
+      },
+      {
+       "position": "P3",
+       "project": "sprout",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.0,
+       "stack": []
+      }
+     ],
+     "total": 0.4515
+    },
+    {
+     "label": "includes harbor instead of sprout",
+     "job": [
+      "n3",
+      "n2"
+     ],
+     "projects": [
+      {
+       "position": "P0",
+       "project": "relay",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.227
+      },
+      {
+       "position": "P1",
+       "project": "forge",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0545
+      },
+      {
+       "position": "P2",
+       "project": "harbor",
+       "bullets": [
+        0,
+        1
+       ],
+       "score": 0.0
+      },
+      {
+       "position": "P3",
+       "project": "quill",
+       "bullets": [
+        0,
+        1,
+        2
+       ],
+       "score": 0.0066
+      }
+     ],
+     "total": 0.4481
+    }
+   ],
+   "missing": [
+    "Airflow",
+    "Spark"
+   ],
+   "scores_job": {
+    "n1": 0.1561,
+    "n2": 0.0,
+    "n3": 0.16,
+    "n4": 0.0
+   }
+  }
+ },
+ "cache": [
+  {
+   "a": "platform",
+   "b": "platform_reworded",
+   "decision": "HIT",
+   "weighted_jaccard": 1.0
+  },
+  {
+   "a": "platform",
+   "b": "frontend",
+   "decision": "MISS",
+   "weighted_jaccard": 0.102
+  },
+  {
+   "a": "platform",
+   "b": "data",
+   "decision": "MISS",
+   "weighted_jaccard": 0.0463
+  },
+  {
+   "a": "frontend",
+   "b": "data",
+   "decision": "MISS",
+   "weighted_jaccard": 0.0
+  }
+ ]
+}

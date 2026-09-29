@@ -1,0 +1,54 @@
+{
+ "_note": "Measured on the normalized fixtures/phase3/projects_synthetic.docx (lines per bullet).",
+ "job": {
+  "id": "northwind",
+  "slots": [
+   1,
+   1
+  ]
+ },
+ "positions": [
+  {
+   "id": "P0",
+   "shape": [
+    1,
+    2,
+    1
+   ],
+   "shows_detail": true
+  },
+  {
+   "id": "P1",
+   "shape": [
+    2,
+    1
+   ],
+   "shows_detail": true
+  },
+  {
+   "id": "P2",
+   "shape": [
+    1,
+    2
+   ],
+   "shows_detail": false
+  },
+  {
+   "id": "P3",
+   "shape": [
+    1,
+    2,
+    1
+   ],
+   "shows_detail": false
+  }
+ ],
+ "locked_positions": [
+  {
+   "id": "P4",
+   "shape": [
+    1
+   ]
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+Full-Stack Engineer
+We build collaborative tools for product teams.
+
+Requirements:
+Strong TypeScript and React.
+Experience shipping Next.js apps backed by Postgres.
+
+Bonus:
+Redis caching and GraphQL APIs.

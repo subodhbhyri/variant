@@ -1,0 +1,15 @@
+Senior Backend Engineer, Build Platform
+Northwind is hiring a backend engineer to own our build and deploy platform.
+
+What you'll do:
+Design services that schedule and cache builds for 300 engineers.
+Run our Kubernetes clusters and keep CI fast and reliable.
+
+Requirements:
+5+ years building backend services in Go.
+Production experience with Kubernetes and gRPC.
+Strong PostgreSQL skills.
+
+Nice to have:
+Bazel or other remote build systems.
+Terraform and Prometheus.

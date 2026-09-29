@@ -1,0 +1,14 @@
+Backend Engineer (Senior) - Developer Platform
+Join the platform team that runs builds and deployments for 300 engineers.
+
+Responsibilities:
+Build Go services for build scheduling and caching.
+Operate Kubernetes and improve CI speed.
+
+Qualifications:
+Several years writing backend systems in Go.
+Hands-on Kubernetes and gRPC in production.
+Solid PostgreSQL.
+
+Preferred:
+Bazel, Terraform, Prometheus.

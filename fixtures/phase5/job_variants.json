@@ -1,0 +1,28 @@
+{
+ "northwind": [
+  {
+   "id": "n1",
+   "variants": {
+    "1": "Designed an event-driven order pipeline on Kafka and Postgres that cut checkout latency by 38%."
+   }
+  },
+  {
+   "id": "n2",
+   "variants": {
+    "1": "Led the migration of twelve services to Kubernetes, reducing infrastructure spend by 22%."
+   }
+  },
+  {
+   "id": "n3",
+   "variants": {
+    "1": "Cut checkout latency by 38% with a Kafka and Postgres order pipeline."
+   }
+  },
+  {
+   "id": "n4",
+   "variants": {
+    "1": "Moved twelve services onto Kubernetes, cutting infrastructure spend by 22%."
+   }
+  }
+ ]
+}

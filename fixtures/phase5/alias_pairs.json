@@ -1,0 +1,5 @@
+{
+ "_note": "For the manual MiniLM measurement (P5-T7). Aliases should score high; hard negatives are related-but-different skills that must never merge.",
+ "aliases": [["K8s", "Kubernetes"], ["Golang", "Go"], ["Postgres", "PostgreSQL"], ["JS", "JavaScript"], ["ReactJS", "React"], ["NodeJS", "Node.js"], ["sklearn", "scikit-learn"], ["GCP", "Google Cloud"], ["TS", "TypeScript"], ["RESTful", "REST"]],
+ "hard_negatives": [["Java", "JavaScript"], ["React", "React Native"], ["C", "C++"], ["C++", "C#"], ["AWS", "Azure"], ["PostgreSQL", "MySQL"], ["Spring", "Spring Boot"], ["TensorFlow", "PyTorch"], ["Kafka", "RabbitMQ"], ["Docker", "Kubernetes"], ["SQL", "NoSQL"], ["Go", "Rust"]]
+}
