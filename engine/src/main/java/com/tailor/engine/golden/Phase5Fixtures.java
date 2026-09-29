@@ -37,6 +37,10 @@ public final class Phase5Fixtures {
         return PLAIN_MAPPER.readValue(requireFile(jobVariantsJson).toFile(), mapType);
     }
 
+    public static AliasPairs loadAliasPairs(Path aliasPairsJson) throws IOException {
+        return MAPPER.readValue(requireFile(aliasPairsJson).toFile(), AliasPairs.class);
+    }
+
     private static Path requireFile(Path p) throws IOException {
         if (!Files.isRegularFile(p)) {
             throw new IOException("phase5 fixture not found: " + p.toAbsolutePath());
@@ -66,5 +70,9 @@ public final class Phase5Fixtures {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record CacheCase(String a, String b, String decision, Double weightedJaccard) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record AliasPairs(List<List<String>> aliases, List<List<String>> hardNegatives) {
     }
 }

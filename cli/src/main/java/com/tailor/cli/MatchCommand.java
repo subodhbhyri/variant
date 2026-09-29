@@ -14,6 +14,7 @@ import com.tailor.engine.match.Embedder;
 import com.tailor.engine.match.FakeEmbedder;
 import com.tailor.engine.match.JdParser;
 import com.tailor.engine.match.JobDescription;
+import com.tailor.engine.match.MiniLmEmbedder;
 import com.tailor.engine.match.MissingSkills;
 import com.tailor.engine.match.ResumeRenderer;
 import com.tailor.engine.match.Shapes;
@@ -37,10 +38,10 @@ import picocli.CommandLine.Parameters;
  * [--embedder fake|minilm]} — PHASE5_SPEC.md section 9. Writes {@code match.json} (parsed JD,
  * the 1-3 resumes with labels and missing skills) and {@code resume-1.pdf} (verified).
  *
- * <p>{@code --embedder fake} is for fixtures and tests; {@code minilm} is wired in with step
- * 5.2/P5-T7. The cache decision (section 6) needs a store of previously-parsed JD fingerprints
- * per (user, library version) that nothing in the spec's CLI surface names yet, so it's left out
- * of {@code match.json} here rather than guessed at.
+ * <p>{@code --embedder fake} is for fixtures and tests; {@code minilm} loads the real model from
+ * {@code VARIANT_MODEL_DIR} (section 7). The cache decision (section 6) needs a store of
+ * previously-parsed JD fingerprints per (user, library version) that nothing in the spec's CLI
+ * surface names yet, so it's left out of {@code match.json} here rather than guessed at.
  */
 @Command(name = "match", description = "Matches a job description to stored material and assembles resumes (spec section 9).")
 public final class MatchCommand implements Callable<Integer> {
@@ -94,56 +95,64 @@ public final class MatchCommand implements Callable<Integer> {
             SkillsDictionary skills = SkillsDictionary.load(skillsSeedPath());
             JobDescription jd = JdParser.parse(jdText, skills);
 
+            MiniLmEmbedder miniLm = null;
             Embedder embedder;
             if ("fake".equals(embedderName)) {
                 embedder = new FakeEmbedder();
             } else if ("minilm".equals(embedderName)) {
-                System.err.println("match failed: --embedder minilm is not wired up yet (PHASE5_SPEC.md step 5.2)");
-                return 1;
+                miniLm = MiniLmEmbedder.loadFromEnv();
+                embedder = miniLm;
             } else {
                 System.err.println("match failed: --embedder must be fake or minilm (got " + embedderName + ")");
                 return 1;
             }
 
-            Shapes shapes = Shapes.measure(onboardedPath, report);
+            try {
+                Shapes shapes = Shapes.measure(onboardedPath, report);
 
-            VariantsInput variants = MAPPER.readValue(variantsJsonPath.toFile(), VariantsInput.class);
-            Map<String, FitLoop.CandidateOutcome> jobOutcomes = variants.jobs().get(shapes.job().id());
-            if (jobOutcomes == null) {
-                System.err.println("match failed: variants.json has no job \"" + shapes.job().id() + "\"");
-                return 1;
+                VariantsInput variants = MAPPER.readValue(variantsJsonPath.toFile(), VariantsInput.class);
+                Map<String, FitLoop.CandidateOutcome> jobOutcomes = variants.jobs().get(shapes.job().id());
+                if (jobOutcomes == null) {
+                    System.err.println("match failed: variants.json has no job \"" + shapes.job().id() + "\"");
+                    return 1;
+                }
+                List<ModelResponse.BulletCandidate> jobCandidates = keptCandidates(jobOutcomes);
+
+                LibraryProject.Library library =
+                        MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
+
+                List<AssembledResume> resumes =
+                        Alternatives.top3(shapes, jobCandidates, library.projects(), jd, skills, embedder);
+
+                List<String> materialTexts = MissingSkills.materialTexts(jobCandidates, library.projects());
+                List<String> missing = MissingSkills.compute(jd, materialTexts, skills);
+
+                Files.createDirectories(outDir);
+
+                Map<String, ModelResponse.BulletCandidate> jobCandidatesById = new LinkedHashMap<>();
+                for (ModelResponse.BulletCandidate c : jobCandidates) {
+                    jobCandidatesById.put(c.id(), c);
+                }
+                Path resume1Docx = outDir.resolve("resume-1.docx");
+                ResumeRenderer.RenderResult rendered = ResumeRenderer.render(onboardedPath, report, resumes.get(0),
+                        jobCandidatesById, library.projects(), renderer, fontMap, workDir, resume1Docx);
+                if (!rendered.ok()) {
+                    System.err.println("match failed: resume #1 " + rendered.detail());
+                    return 1;
+                }
+                Path resume1Pdf = renderer.render(rendered.outputDocx(), workDir);
+                Files.copy(resume1Pdf, outDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
+
+                MatchOutput output = new MatchOutput(jd, resumes, missing);
+                MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
+
+                System.out.println("match ok -> " + outDir);
+                return 0;
+            } finally {
+                if (miniLm != null) {
+                    miniLm.close();
+                }
             }
-            List<ModelResponse.BulletCandidate> jobCandidates = keptCandidates(jobOutcomes);
-
-            LibraryProject.Library library = MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
-
-            List<AssembledResume> resumes =
-                    Alternatives.top3(shapes, jobCandidates, library.projects(), jd, skills, embedder);
-
-            List<String> materialTexts = MissingSkills.materialTexts(jobCandidates, library.projects());
-            List<String> missing = MissingSkills.compute(jd, materialTexts, skills);
-
-            Files.createDirectories(outDir);
-
-            Map<String, ModelResponse.BulletCandidate> jobCandidatesById = new LinkedHashMap<>();
-            for (ModelResponse.BulletCandidate c : jobCandidates) {
-                jobCandidatesById.put(c.id(), c);
-            }
-            Path resume1Docx = outDir.resolve("resume-1.docx");
-            ResumeRenderer.RenderResult rendered = ResumeRenderer.render(onboardedPath, report, resumes.get(0),
-                    jobCandidatesById, library.projects(), renderer, fontMap, workDir, resume1Docx);
-            if (!rendered.ok()) {
-                System.err.println("match failed: resume #1 " + rendered.detail());
-                return 1;
-            }
-            Path resume1Pdf = renderer.render(rendered.outputDocx(), workDir);
-            Files.copy(resume1Pdf, outDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
-
-            MatchOutput output = new MatchOutput(jd, resumes, missing);
-            MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
-
-            System.out.println("match ok -> " + outDir);
-            return 0;
         } catch (Exception e) {
             System.err.println("match failed: " + e);
             return 1;

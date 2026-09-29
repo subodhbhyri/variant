@@ -38,7 +38,7 @@ import org.w3c.dom.Element;
 
 /**
  * PHASE5_SPEC.md section 5 (step 5.6): renders an {@link AssembledResume} onto a normalized
- * document in two verified stages, producing one final assembled document.
+ * document in three verified stages, producing one final assembled document.
  *
  * <p>Stage 1 substitutes the job's own bullet slots (Phase 1 substitution + padding) and verifies
  * that in one {@link Verifier#verify} pass covering the whole document (every bullet slot,
@@ -46,9 +46,12 @@ import org.w3c.dom.Element;
  * {@code NewTextVerifierCorpusTest}/{@code VerifierCorpusTest}. Stage 2 chains one
  * {@link BlockSwapper#swap} per project position (Phase 3 swaps: positions, stack fit, date
  * tabs), the same pattern {@code SwapCommand} uses — each call is independently, fully
- * self-verified against its own immediate input. The result of stage 2 is one document that
- * passed the Verifier at every step of its construction; anything that doesn't is dropped
- * (never shown) and reported with a detail string.
+ * self-verified against its own immediate input. Stage 3 ({@link FinalVerifier}) checks the
+ * finished document once more, in one {@link Verifier#verifyRegions} pass spanning every job slot
+ * and every swapped position anchored together against the true original baseline — a 0.5pt bound
+ * held at each of stages 1-2's several steps doesn't itself bound the total drift across all of
+ * them; this pass measures the whole thing at once, end to end. Anything that doesn't pass any
+ * stage is dropped (never shown) and reported with a detail string.
  */
 public final class ResumeRenderer {
 
@@ -91,16 +94,29 @@ public final class ResumeRenderer {
             if (positionIndex == null) {
                 return RenderResult.failed("position id must look like P0, P1, ... (got " + assignment.position() + ")");
             }
+            // BlockSwapper.swap() always takes a project's bullets in their own natural order
+            // (project.bullets().get(j) for the position's j-th bullet slot) — it has no notion
+            // of Assembler's own computed selection/ordering (assignment.bullets(), e.g. forge's
+            // [0, 2, 1] for the platform fixture). Reordering/subsetting the bullets list here,
+            // before the swap, is how that selection actually reaches the document.
+            LibraryProject selected = new LibraryProject(project.id(), project.title(), project.detail(),
+                    project.links(), project.date(), selectedBullets(project, assignment));
             DocxPackage basePkg = DocxPackage.open(current);
             Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
             BlockSwapper.Result result =
-                    BlockSwapper.swap(basePkg, positionIndex, project, renderer, fontMap, workDir, stepOut);
+                    BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut);
             if (result.outcome() != SwapOutcome.OK) {
                 String detail = result.detail() == null ? "" : " (" + result.detail() + ")";
                 return RenderResult.failed(
                         assignment.position() + "=" + assignment.project() + ": " + result.outcome() + detail);
             }
             current = stepOut;
+        }
+
+        RenderResult finalCheck = FinalVerifier.verify(normalizedDocx, current, report, resume, jobCandidatesById,
+                library, renderer, fontMap, workDir);
+        if (!finalCheck.ok()) {
+            return finalCheck;
         }
 
         Files.copy(current, outputDocx, StandardCopyOption.REPLACE_EXISTING);
@@ -225,6 +241,15 @@ public final class ResumeRenderer {
             }
         }
         return "verify failed";
+    }
+
+    private static List<Map<String, String>> selectedBullets(LibraryProject project,
+            AssembledResume.ProjectAssignment assignment) {
+        List<Map<String, String>> out = new ArrayList<>(assignment.bullets().size());
+        for (int idx : assignment.bullets()) {
+            out.add(project.bullets().get(idx));
+        }
+        return out;
     }
 
     private static Integer parsePositionIndex(String key) {
