@@ -2,35 +2,24 @@ package com.tailor.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.tailor.engine.blocks.LibraryProject;
 import com.tailor.engine.fonts.FontMap;
-import com.tailor.engine.generate.FitLoop;
-import com.tailor.engine.generate.ModelResponse;
 import com.tailor.engine.generate.SkillsDictionary;
-import com.tailor.engine.generate.SlotReports;
 import com.tailor.engine.match.AliasQueue;
 import com.tailor.engine.match.AssembledResume;
-import com.tailor.engine.match.Alternatives;
 import com.tailor.engine.match.Embedder;
 import com.tailor.engine.match.FakeEmbedder;
 import com.tailor.engine.match.JdParser;
 import com.tailor.engine.match.JobDescription;
+import com.tailor.engine.match.MatchRunner;
 import com.tailor.engine.match.MiniLmEmbedder;
-import com.tailor.engine.match.MissingSkills;
-import com.tailor.engine.match.ResumeRenderer;
-import com.tailor.engine.match.Shapes;
 import com.tailor.engine.match.UnknownTerms;
-import com.tailor.engine.onboard.OnboardReport;
 import com.tailor.engine.render.LibreOfficeRenderer;
 import com.tailor.engine.render.Renderer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -70,9 +59,6 @@ public final class MatchCommand implements Callable<Integer> {
     @Option(names = "--embedder", description = "fake (fixtures/tests) or minilm (production)", defaultValue = "fake")
     private String embedderName;
 
-    record VariantsInput(Map<String, Map<String, FitLoop.CandidateOutcome>> jobs) {
-    }
-
     record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing) {
     }
 
@@ -89,14 +75,7 @@ public final class MatchCommand implements Callable<Integer> {
             Renderer renderer = new LibreOfficeRenderer();
             FontMap fontMap = FontMap.loadDefault();
             Path workDir = Files.createTempDirectory("match-cli");
-
-            List<OnboardReport.SlotReport> slotReports = SlotReports.build(onboardedPath, renderer, workDir);
-            int editableCount = (int) slotReports.stream().filter(OnboardReport.SlotReport::editable).count();
-            OnboardReport report = OnboardReport.accepted(
-                    0, 0.0, 0, 0, 0, List.of(), editableCount, slotReports, renderer.version());
-
             SkillsDictionary skills = SkillsDictionary.loadDefault();
-            JobDescription jd = JdParser.parse(jdText, skills);
 
             // Best-effort: queueing unknown terms for later operator review (section 7.1) must
             // never break the match itself — e.g. the read-only runtime sandbox has nowhere
@@ -120,42 +99,23 @@ public final class MatchCommand implements Callable<Integer> {
             }
 
             try {
-                Shapes shapes = Shapes.measure(onboardedPath, report);
-
-                VariantsInput variants = MAPPER.readValue(variantsJsonPath.toFile(), VariantsInput.class);
-                Map<String, FitLoop.CandidateOutcome> jobOutcomes = variants.jobs().get(shapes.job().id());
-                if (jobOutcomes == null) {
-                    System.err.println("match failed: variants.json has no job \"" + shapes.job().id() + "\"");
-                    return 1;
-                }
-                List<ModelResponse.BulletCandidate> jobCandidates = keptCandidates(jobOutcomes);
-
-                LibraryProject.Library library =
-                        MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
-
-                List<AssembledResume> resumes =
-                        Alternatives.top3(shapes, jobCandidates, library.projects(), jd, skills, embedder);
-
-                List<String> materialTexts = MissingSkills.materialTexts(jobCandidates, library.projects());
-                List<String> missing = MissingSkills.compute(jd, materialTexts, skills);
+                MatchRunner.Context ctx = MatchRunner.buildContext(
+                        onboardedPath, variantsJsonPath, libraryJsonPath, skills, embedder, renderer, fontMap, workDir);
 
                 Files.createDirectories(outDir);
-
-                Map<String, ModelResponse.BulletCandidate> jobCandidatesById = new LinkedHashMap<>();
-                for (ModelResponse.BulletCandidate c : jobCandidates) {
-                    jobCandidatesById.put(c.id(), c);
-                }
                 Path resume1Docx = outDir.resolve("resume-1.docx");
-                ResumeRenderer.RenderResult rendered = ResumeRenderer.render(onboardedPath, report, resumes.get(0),
-                        jobCandidatesById, library.projects(), renderer, fontMap, workDir, resume1Docx);
-                if (!rendered.ok()) {
-                    System.err.println("match failed: resume #1 " + rendered.detail());
+                MatchRunner.Result result;
+                try {
+                    result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
+                } catch (IllegalStateException e) {
+                    System.err.println("match failed: " + e.getMessage());
                     return 1;
                 }
-                Path resume1Pdf = renderer.render(rendered.outputDocx(), workDir);
+
+                Path resume1Pdf = renderer.render(result.resume1Docx(), workDir);
                 Files.copy(resume1Pdf, outDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
-                MatchOutput output = new MatchOutput(jd, resumes, missing);
+                MatchOutput output = new MatchOutput(result.jd(), result.resumes(), result.missing());
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
 
                 System.out.println("match ok -> " + outDir);
@@ -170,15 +130,4 @@ public final class MatchCommand implements Callable<Integer> {
             return 1;
         }
     }
-
-    private static List<ModelResponse.BulletCandidate> keptCandidates(Map<String, FitLoop.CandidateOutcome> outcomes) {
-        List<ModelResponse.BulletCandidate> out = new ArrayList<>();
-        for (var e : outcomes.entrySet()) {
-            if ("OK".equals(e.getValue().status())) {
-                out.add(new ModelResponse.BulletCandidate(e.getKey(), e.getValue().variants()));
-            }
-        }
-        return out;
-    }
-
 }
