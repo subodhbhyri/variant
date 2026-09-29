@@ -22,8 +22,9 @@ subprojects {
     tasks.withType<Test> {
         useJUnitPlatform()
         // Corpus tests shell out to LibreOffice; give them room. Grows with each phase's
-        // corpus-level tests (Phase 3 added two more full 9-resume onboard+render passes).
-        timeout.set(Duration.ofMinutes(30))
+        // corpus-level tests (Phase 3 added two more full 9-resume onboard+render passes; Phase 5
+        // added resume-#1 render+verify across 3 fixture JDs plus a live shape-measurement pass).
+        timeout.set(Duration.ofMinutes(45))
         testLogging {
             events("passed", "skipped", "failed")
             showStandardStreams = true

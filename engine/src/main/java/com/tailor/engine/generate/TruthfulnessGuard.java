@@ -135,7 +135,7 @@ public final class TruthfulnessGuard {
 
     /** Share (0.0-1.0) of {@code variant}'s content words that are grounded in {@code
      * sourceTexts} — 1.0 if the variant has no content words at all. */
-    static double grounding(String variant, List<String> sourceTexts) {
+    public static double grounding(String variant, List<String> sourceTexts) {
         Set<String> src = new HashSet<>();
         for (String t : sourceTexts) {
             src.addAll(contentStems(t));
@@ -168,7 +168,9 @@ public final class TruthfulnessGuard {
         return false;
     }
 
-    private static List<String> contentStems(String text) {
+    /** PHASE5_SPEC.md's {@code fake_similarity} and scoring reuse this directly (D1: no LLM,
+     * the same dictionary matcher and stem logic as Phase 4). */
+    public static List<String> contentStems(String text) {
         List<String> out = new ArrayList<>();
         Matcher m = WORD.matcher(text);
         while (m.find()) {
@@ -235,8 +237,9 @@ public final class TruthfulnessGuard {
     }
 
     /** A longer canonical term containing a shorter one ("React Native" vs "React") keeps both —
-     * fine, since the caller only ever takes a set difference against the sources' own techs. */
-    static Set<String> techs(String text, SkillsDictionary skills) {
+     * fine, since the caller only ever takes a set difference against the sources' own techs.
+     * PHASE5_SPEC.md section 1.1: also the skill matcher for job-description parsing and scoring. */
+    public static Set<String> techs(String text, SkillsDictionary skills) {
         Set<String> found = new TreeSet<>();
         for (Map.Entry<String, List<Pattern>> e : skills.patternsByCanonical().entrySet()) {
             for (Pattern p : e.getValue()) {
