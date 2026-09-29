@@ -84,7 +84,7 @@ public final class GenerateCommand implements Callable<Integer> {
             OnboardReport report = OnboardReport.accepted(
                     0, 0.0, 0, 0, 0, List.of(), editableCount, slotReports, renderer.version());
             SectionPositions positions = SectionPositions.detect(onboardedPath, report);
-            SkillsDictionary skills = SkillsDictionary.load(skillsSeedPath());
+            SkillsDictionary skills = SkillsDictionary.loadDefault();
 
             Map<String, List<ModelResponse>> recorded = live ? null : RecordedResponses.load(recordedPath);
             BudgetTracker tracker = new BudgetTracker(PriceTable.loadDefault());
@@ -188,21 +188,6 @@ public final class GenerateCommand implements Callable<Integer> {
             throw new IllegalStateException("no recorded responses for section " + sectionId);
         }
         return new RecordedModelClient(responses);
-    }
-
-    private static Path skillsSeedPath() {
-        // fixtures/phase4/skills_seed.json — the seed dictionary (PHASE4_SPEC.md section 5);
-        // Phase 5 grows it. Resolved the same way CorpusPaths walks up to fixtures/, since this
-        // is not (yet) a classpath resource.
-        Path dir = Path.of("").toAbsolutePath();
-        for (int i = 0; i < 6 && dir != null; i++) {
-            Path candidate = dir.resolve("fixtures/phase4/skills_seed.json");
-            if (Files.isRegularFile(candidate)) {
-                return candidate;
-            }
-            dir = dir.getParent();
-        }
-        throw new IllegalStateException("fixtures/phase4/skills_seed.json not found");
     }
 
     private static List<String> textsOf(List<Integer> slotIndices, OnboardReport report) {

@@ -92,10 +92,31 @@ COPY . /app
 CMD ["gradle", "--no-daemon", ":cli:run"]
 
 # =============================================================================
-# build: dev, run once to produce the CLI fat jar (PHASE2_SPEC.md section 3).
+# build: dev, run once to produce the CLI fat jar (PHASE2_SPEC.md section 3),
+# then extract ONNX Runtime's and DJL's tokenizer native libraries straight out
+# of their jars into a fixed directory (PHASE5_SPEC.md section 7). Both
+# libraries otherwise extract themselves into $TMPDIR and mmap the result
+# PROT_EXEC on first use — measured to fail under Docker's default `noexec`
+# `/tmp` ("failed to map segment from shared object" for ONNX Runtime).
+# Pointing each at a preset path via its own documented override
+# (`-Donnxruntime.native.path=<dir>`; `-DRUST_LIBRARY_PATH=<exact .so file>`,
+# baked in below as JDK_JAVA_OPTIONS) avoids the runtime extraction entirely,
+# so the sandbox's `/tmp` can stay `noexec`.
 # =============================================================================
 FROM dev AS build
 RUN gradle --no-daemon :cli:jar
+RUN set -eu; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) onnx_arch=linux-x64; tok_arch=linux-x86_64 ;; \
+        arm64) onnx_arch=linux-aarch64; tok_arch=linux-aarch64 ;; \
+        *) echo "unsupported architecture for native library extraction: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    onnx_jar=$(find /root/.gradle -iname 'onnxruntime-*.jar' ! -iname '*sources*' ! -iname '*javadoc*' | head -1); \
+    tok_jar=$(find /root/.gradle -iname 'tokenizers-*.jar' ! -iname '*sources*' ! -iname '*javadoc*' | head -1); \
+    test -n "$onnx_jar" && test -n "$tok_jar"; \
+    mkdir -p /opt/native-libs/onnxruntime /opt/native-libs/tokenizers; \
+    unzip -q -j "$onnx_jar" "ai/onnxruntime/native/${onnx_arch}/*" -d /opt/native-libs/onnxruntime; \
+    unzip -q -j "$tok_jar" "native/lib/${tok_arch}/cpu/libtokenizers.so" -d /opt/native-libs/tokenizers
 
 # =============================================================================
 # runtime: os + a JRE (not JDK) + the non-root user + only tailor.jar. No
@@ -110,6 +131,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=build /app/cli/build/libs/tailor.jar /app/tailor.jar
+COPY --from=build /opt/native-libs /opt/native-libs
+# Points ONNX Runtime and DJL's tokenizer at their build-time-extracted native
+# libraries (see the "build" stage above) instead of each extracting its own
+# copy into $TMPDIR and mmap-ing it PROT_EXEC on first use — so /tmp can stay
+# noexec. Picked up automatically by any `java` invocation; harmless for
+# subcommands that never touch either library.
+ENV JDK_JAVA_OPTIONS="-Donnxruntime.native.path=/opt/native-libs/onnxruntime -DRUST_LIBRARY_PATH=/opt/native-libs/tokenizers/libtokenizers.so"
 USER variant
 
 # No ENTRYPOINT: the sandbox's own `docker run` invocation supplies the full

@@ -8,6 +8,7 @@ import com.tailor.engine.generate.FitLoop;
 import com.tailor.engine.generate.ModelResponse;
 import com.tailor.engine.generate.SkillsDictionary;
 import com.tailor.engine.generate.SlotReports;
+import com.tailor.engine.match.AliasQueue;
 import com.tailor.engine.match.AssembledResume;
 import com.tailor.engine.match.Alternatives;
 import com.tailor.engine.match.Embedder;
@@ -18,9 +19,11 @@ import com.tailor.engine.match.MiniLmEmbedder;
 import com.tailor.engine.match.MissingSkills;
 import com.tailor.engine.match.ResumeRenderer;
 import com.tailor.engine.match.Shapes;
+import com.tailor.engine.match.UnknownTerms;
 import com.tailor.engine.onboard.OnboardReport;
 import com.tailor.engine.render.LibreOfficeRenderer;
 import com.tailor.engine.render.Renderer;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -92,8 +95,17 @@ public final class MatchCommand implements Callable<Integer> {
             OnboardReport report = OnboardReport.accepted(
                     0, 0.0, 0, 0, 0, List.of(), editableCount, slotReports, renderer.version());
 
-            SkillsDictionary skills = SkillsDictionary.load(skillsSeedPath());
+            SkillsDictionary skills = SkillsDictionary.loadDefault();
             JobDescription jd = JdParser.parse(jdText, skills);
+
+            // Best-effort: queueing unknown terms for later operator review (section 7.1) must
+            // never break the match itself — e.g. the read-only runtime sandbox has nowhere
+            // writable for the queue's default location unless the operator configures one.
+            try {
+                AliasQueue.addAll(AliasQueue.resolvePath(), UnknownTerms.detect(jdText, skills));
+            } catch (IOException e) {
+                System.err.println("warning: could not update the alias queue: " + e);
+            }
 
             MiniLmEmbedder miniLm = null;
             Embedder embedder;
@@ -169,17 +181,4 @@ public final class MatchCommand implements Callable<Integer> {
         return out;
     }
 
-    private static Path skillsSeedPath() {
-        // fixtures/phase4/skills_seed.json — Phase 5 grows this into O*NET-backed data (section
-        // 1.1); resolved the same way GenerateCommand does, since it's not yet a classpath resource.
-        Path dir = Path.of("").toAbsolutePath();
-        for (int i = 0; i < 6 && dir != null; i++) {
-            Path candidate = dir.resolve("fixtures/phase4/skills_seed.json");
-            if (Files.isRegularFile(candidate)) {
-                return candidate;
-            }
-            dir = dir.getParent();
-        }
-        throw new IllegalStateException("fixtures/phase4/skills_seed.json not found");
-    }
 }
