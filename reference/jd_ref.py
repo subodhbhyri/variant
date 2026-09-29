@@ -206,3 +206,33 @@ def cache_decision(jd_a, jd_b, sim):
     if jd_a["skills"] == jd_b["skills"] or j >= 0.9: return "HIT", round(j, 4)
     if j >= 0.8 and sim(jd_a["requirement_text"], jd_b["requirement_text"]) >= 0.95: return "HIT", round(j, 4)
     return "MISS", round(j, 4)
+
+# --- 7.1 alias suggestion rules (revision 2) ------------------------------------------
+# MiniLM cosine can't separate aliases from related-but-different skills (P5-T7:
+# React ~ React Native 0.74 > TS ~ TypeScript 0.40). Strict spelling rules can:
+# 7/10 fixture aliases, 0/12 hard negatives.
+ALIAS_AFFIXES = ("js", "lang", "ful")
+
+def _norm_term(t):
+    """Lower-case; drop spaces, hyphens and dots; KEEP + and # (C, C++ and C# stay different)."""
+    return re.sub(r"[\s.\-]", "", t.lower())
+
+def _parts(t):
+    return [p for p in re.findall(r"[A-Z][a-z]+|[a-z]+|[A-Z]+(?![a-z])|\d+", t) if p]
+
+def alias_rules(a, b):
+    """-> sorted list of rule names under which a and b are spellings of one term."""
+    na, nb = _norm_term(a), _norm_term(b)
+    hits = set()
+    if na == nb: hits.add("punctuation")
+    for x, y in ((na, nb), (nb, na)):
+        for suf in ALIAS_AFFIXES:
+            if x.endswith(suf) and len(y) >= 2 and x[: -len(suf)] == y: hits.add("affix")
+        m = re.fullmatch(r"([a-z])(\d+)([a-z])", x)          # K8s = k + 8 letters + s
+        if m and len(y) == int(m.group(2)) + 2 and y[0] == m.group(1) and y[-1] == m.group(3):
+            hits.add("numeronym")
+    for s, l in ((a, b), (b, a)):                           # TS = Type + Script
+        p = _parts(l)
+        if len(p) >= 2 and s.isupper() and len(s) == len(p) and "".join(w[0] for w in p).upper() == s:
+            hits.add("initialism")
+    return sorted(hits)

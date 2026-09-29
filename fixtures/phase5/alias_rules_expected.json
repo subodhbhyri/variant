@@ -1,0 +1,131 @@
+{
+ "aliases": [
+  {
+   "a": "K8s",
+   "b": "Kubernetes",
+   "rules": [
+    "numeronym"
+   ]
+  },
+  {
+   "a": "Golang",
+   "b": "Go",
+   "rules": [
+    "affix"
+   ]
+  },
+  {
+   "a": "Postgres",
+   "b": "PostgreSQL",
+   "rules": []
+  },
+  {
+   "a": "JS",
+   "b": "JavaScript",
+   "rules": [
+    "initialism"
+   ]
+  },
+  {
+   "a": "ReactJS",
+   "b": "React",
+   "rules": [
+    "affix"
+   ]
+  },
+  {
+   "a": "NodeJS",
+   "b": "Node.js",
+   "rules": [
+    "punctuation"
+   ]
+  },
+  {
+   "a": "sklearn",
+   "b": "scikit-learn",
+   "rules": []
+  },
+  {
+   "a": "GCP",
+   "b": "Google Cloud",
+   "rules": []
+  },
+  {
+   "a": "TS",
+   "b": "TypeScript",
+   "rules": [
+    "initialism"
+   ]
+  },
+  {
+   "a": "RESTful",
+   "b": "REST",
+   "rules": [
+    "affix"
+   ]
+  }
+ ],
+ "hard_negatives": [
+  {
+   "a": "Java",
+   "b": "JavaScript",
+   "rules": []
+  },
+  {
+   "a": "React",
+   "b": "React Native",
+   "rules": []
+  },
+  {
+   "a": "C",
+   "b": "C++",
+   "rules": []
+  },
+  {
+   "a": "C++",
+   "b": "C#",
+   "rules": []
+  },
+  {
+   "a": "AWS",
+   "b": "Azure",
+   "rules": []
+  },
+  {
+   "a": "PostgreSQL",
+   "b": "MySQL",
+   "rules": []
+  },
+  {
+   "a": "Spring",
+   "b": "Spring Boot",
+   "rules": []
+  },
+  {
+   "a": "TensorFlow",
+   "b": "PyTorch",
+   "rules": []
+  },
+  {
+   "a": "Kafka",
+   "b": "RabbitMQ",
+   "rules": []
+  },
+  {
+   "a": "Docker",
+   "b": "Kubernetes",
+   "rules": []
+  },
+  {
+   "a": "SQL",
+   "b": "NoSQL",
+   "rules": []
+  },
+  {
+   "a": "Go",
+   "b": "Rust",
+   "rules": []
+  }
+ ],
+ "_note": "P5-T11: alias_rules() must give exactly these results (7/10 aliases, 0/12 hard negatives)."
+}

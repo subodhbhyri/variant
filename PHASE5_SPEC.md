@@ -54,8 +54,11 @@ with aliases. Stored as data, versioned. Fixtures use
 
 **Unknown terms**: tech-looking tokens not in the dictionary (CamelCase,
 contain `.`/`+`/`#`/digits, or ALL-CAPS 2–6 letters) go to a review queue with
-MiniLM's nearest dictionary term as a **suggestion** (section 7). They're
-ignored for scoring until approved.
+suggestions (section 7.1). They're ignored for scoring until approved.
+
+The dictionary is **data shipped with the product**: bundled into the jar as a
+versioned resource (optional override path by config). Never located by
+walking up from the working directory; the runtime sandbox ships no fixtures.
 
 ---
 
@@ -131,7 +134,13 @@ Two earlier rules were tried and rejected on the fixtures:
 ## 5. Rendering and verification (step 5.6)
 
 Resume #1 is assembled with Phase 1 substitution (job slots, padding) and
-Phase 3 swaps (positions, stack fit, date tabs) in one document, and must pass
+Phase 3 swaps (positions, stack fit, date tabs) in one document. After the
+stage-by-stage checks, the **finished** document is verified once more against
+the original onboarded document, with every edit as a region, and must pass
+(the 0.5pt bound holds end to end; stage checks could add up). This final
+check also compares content: it caught `BlockSwapper` placing a project's
+bullets in library order instead of the order `Assembler` chose (forge
+`[0, 2, 1]`), which the layout-only stage checks missed. The result must pass
 the Verifier; anything else is `VERIFY_FAILED` and isn't shown. #2 and #3 are
 assembled only when the user opens them. A resume whose assembly fails
 verification is dropped from the offer and logged (never silently replaced).
@@ -162,9 +171,37 @@ then L2 normalization (the model's standard sentence embedding). Pin the model
 file (store its SHA-256) and the runtime version; a mismatch at startup is an
 error. Model files live outside git and the runtime image mounts them read-only.
 
-Uses: (a) the similarity term in scoring; (b) the cache tiebreak; (c) alias
-suggestions for unknown terms (nearest canonical term with cosine ≥ a
-threshold set in P5-T7), queued for the operator, never applied automatically.
+Uses: (a) the similarity term in scoring; (b) the cache tiebreak; (c) low-
+confidence alias hints (7.1). Uses (a) and (b) compare whole sentences, which
+the model is built for; (c) compares short terms, which it is not.
+
+**Native libraries.** ONNX Runtime (and DJL's tokenizer) load native code.
+Prefer extracting it into the runtime image at build time, in a root-owned,
+read-only directory the libraries are pointed at, so `/tmp` can stay
+`noexec`. Only if that isn't possible, mount `/tmp` with `exec` and document
+why in the README. Measured: with Docker's default `noexec` `/tmp`, ONNX
+Runtime fails to load its extracted library.
+
+### 7.1 Alias suggestions (revision 2)
+
+Measured (P5-T7, real model): MiniLM cosine **cannot** separate aliases from
+related-but-different skills. React ~ React Native scores 0.74 and Spring ~
+Spring Boot 0.70, above genuine aliases like TS ~ TypeScript (0.40) and
+Golang ~ Go (0.43). No threshold works, so none is used.
+
+Suggestions for an unknown term are shown to the operator in two tiers:
+
+1. **Spelling rules (high confidence)**, reference `alias_rules` in
+   `jd_ref.py`: equal after dropping spaces, hyphens and dots but **keeping `+`
+   and `#`** (C, C++ and C# stay distinct); a known affix (`js`, `lang`, `ful`:
+   ReactJS, Golang, RESTful); a numeronym (K8s); an initialism of CamelCase
+   parts (TS, JS). Measured: 7 of 10 fixture aliases, **0 of 12** hard negatives.
+2. **MiniLM nearest neighbours (low confidence)**: the top 3 canonical terms
+   with their cosines, labelled as hints. This is where irregular aliases
+   (Postgres, sklearn, GCP) show up.
+
+The operator approves or rejects every suggestion. Nothing is applied
+automatically, whatever the tier.
 
 ---
 
@@ -199,7 +236,9 @@ fake` is for fixtures and tests.
 | P5-T4 | Alternatives | #2 for each JD equals expected (label, job, projects); achievement groups equal expected; no resume ever has two candidates of one group |
 | P5-T5 | Cache + missing | The four cache decisions and Jaccard values, and each JD's missing skills, equal expected |
 | P5-T6 | Render | Resume #1 for each fixture JD assembled on `fixtures/phase3/projects_synthetic.docx` passes the Verifier (`corpusTest` tag) |
-| P5-T7 | MiniLM (manual) | With the real model: report cosine for every pair in `alias_pairs.json`. Pass: every hard negative scores **below** the alias-suggestion threshold you set, and report how many aliases clear it. Also report embedding time per 100 bullets |
+| P5-T7 | MiniLM (manual) | With the real model: report cosine for every pair in `alias_pairs.json` (report only; done in revision 1: no threshold separates them) and embedding time per 100 bullets (measured 815 ms). Also run `tailor match --embedder minilm` in the runtime sandbox with `--network none` and a `noexec` `/tmp` |
+| P5-T11 | Alias rules | `alias_rules` gives exactly `fixtures/phase5/alias_rules_expected.json`: 7 of 10 aliases matched, 0 of 12 hard negatives |
+| P5-T12 | Packaging | In the runtime image, with no fixtures or repo present: `tailor match` and `tailor generate` find the bundled dictionary; `tailor aliases review` shows both suggestion tiers for a queued unknown term |
 | P5-T8 | Tuning set (manual, operator) | The operator's ~20 real JDs run through `tailor match --embedder minilm`; report per JD the top skills, #1's projects and missing skills, for the operator to judge |
 | P5-T9 | Determinism | Running P5-T3 twice gives byte-identical `match.json` |
 | P5-T10 | No regressions | `test`, `corpusTest`, `corpus-check` ALL PASS |
@@ -222,6 +261,5 @@ Stop for an **Opus review after P5-T7** with its pair scores and timings.
 - Any fixture result differs from `expected_selection.json`.
 - A resume places two candidates of one achievement group, or a project in a
   shape it can't fill.
-- In P5-T7 any hard negative scores above the alias threshold you'd need for
-  the aliases.
+- `alias_rules` matches any hard negative, on the fixtures or in real use.
 - Anything that would change a weight, threshold or rule here.
