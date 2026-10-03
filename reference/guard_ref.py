@@ -8,7 +8,10 @@ WORD_NUMS = {w: i for i, w in enumerate(
     "sixteen seventeen eighteen nineteen twenty".split())}
 # Number words: not "one" (too ambiguous: "one of the"), and not inside a hyphenated word ("zero-downtime", "two-phase").
 _WORDS = [w for w in WORD_NUMS if w != "one"]
-NUM = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)*)\s*([kKmMbB])?(?![\w])|(?<![\w-])(" + "|".join(_WORDS) + r")(?![\w-])", re.I)
+# A number, optionally followed by a short unit glued on or after one space (48ms, 300 s, 1.5x, 15 km).
+# Only K / k / M / B / bn are multipliers (4K = 4,000); a lowercase "m" is a unit (metres, minutes).
+NUM = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)*)(?:\s?([A-Za-z]{1,4}))?(?![\w])|(?<![\w-])(" + "|".join(_WORDS) + r")(?![\w-])", re.I)
+MULTIPLIER = {"K": 1e3, "k": 1e3, "M": 1e6, "B": 1e9, "bn": 1e9}
 URL = re.compile(r"https?://|www\.|\b[\w.+-]+@[\w-]+\.\w|\b[\w-]+\.(?:com|io|dev|org|net|ai|app|co|me|xyz)\b(?:/\S*)?", re.I)
 FIRST_PERSON = re.compile(r"(?<![\w'])(I|me|my|mine|we|our|ours|us)(?![\w'])")
 
@@ -17,9 +20,11 @@ def numbers(text):
     for m in NUM.finditer(text):
         if m.group(3):
             out.add(float(WORD_NUMS[m.group(3).lower()])); continue
-        v = float(m.group(1).replace(",", ""))
-        mult = {"k": 1e3, "m": 1e6, "b": 1e9}.get((m.group(2) or "").lower(), 1)
-        out.add(v * mult)
+        raw = m.group(1)
+        if raw.count(".") > 1:              # a version like 0.111.0: compare as text, never as a value
+            out.add(raw); continue
+        v = float(raw.replace(",", ""))
+        out.add(v * MULTIPLIER.get(m.group(2) or "", 1))
     return out
 
 def _alias_re(alias):
@@ -81,8 +86,8 @@ def guard(variant, source_texts, budget_chars, skills):
     if FIRST_PERSON.search(v): reasons.append("FIRST_PERSON")
     if budget_chars is not None and len(v) > budget_chars: reasons.append("OVER_BUDGET")
     source = "\n".join(source_texts)
-    missing_nums = sorted(n for n in numbers(v) if n not in numbers(source))
-    for n in missing_nums: reasons.append("UNSUPPORTED_NUMBER:" + (str(int(n)) if n == int(n) else str(n)))
+    missing_nums = sorted((n for n in numbers(v) if n not in numbers(source)), key=str)
+    for n in missing_nums: reasons.append("UNSUPPORTED_NUMBER:" + (n if isinstance(n, str) else str(int(n)) if n == int(n) else str(n)))
     for t in sorted(techs(v, skills) - techs(source, skills)): reasons.append("UNSUPPORTED_TECH:" + t)
     if grounding(v, source_texts) < GROUNDING_MIN: reasons.append("UNGROUNDED")
     return reasons

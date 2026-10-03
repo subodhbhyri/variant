@@ -1,0 +1,81 @@
+{
+ "_note": "Number parsing cases (PHASE4_SPEC 5, revision 5): units glued or spaced, K/M/B multipliers only (lowercase m is a unit), versions compared as text.",
+ "cases": [
+  {
+   "name": "units_spaced_vs_glued",
+   "variant": "Detected completion in 520 ms.",
+   "source_texts": [
+    "status detection latency 520ms"
+   ],
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "invented_glued_unit",
+   "variant": "Detected completion in 999ms.",
+   "source_texts": [
+    "status detection latency 520ms"
+   ],
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_NUMBER:999"
+   ]
+  },
+  {
+   "name": "metres_not_millions",
+   "variant": "Notified shopkeepers within a 100 m radius of the buyer.",
+   "source_texts": [
+    "Buyers post a need with a radius of 100–15000m to notify nearby shopkeepers."
+   ],
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "k_multiplier",
+   "variant": "Served 4,000 requests per second.",
+   "source_texts": [
+    "Served 4K requests per second."
+   ],
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "m_multiplier_upper",
+   "variant": "Scaled the service to 1.5M users.",
+   "source_texts": [
+    "Scaled the service to 1.5M users."
+   ],
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "glued_x",
+   "variant": "Widened the search radius 1.5x when results were sparse.",
+   "source_texts": [
+    "Widened the search radius 1.5x when results were sparse."
+   ],
+   "budget_chars": null,
+   "expected": []
+  },
+  {
+   "name": "version_changed",
+   "variant": "Upgraded the FastAPI backend to 0.112.0.",
+   "source_texts": [
+    "Built the FastAPI backend on FastAPI 0.111.0."
+   ],
+   "budget_chars": null,
+   "expected": [
+    "UNSUPPORTED_NUMBER:0.112.0"
+   ]
+  },
+  {
+   "name": "version_same",
+   "variant": "Built the backend on FastAPI 0.111.0.",
+   "source_texts": [
+    "Built the backend on FastAPI 0.111.0."
+   ],
+   "budget_chars": null,
+   "expected": []
+  }
+ ]
+}
