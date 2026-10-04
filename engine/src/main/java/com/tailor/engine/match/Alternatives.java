@@ -44,61 +44,28 @@ public final class Alternatives {
 
         List<Option> options = new ArrayList<>();
 
-        // force an unused project in
+        // force an unused project in, best-first as in #1 (D3): the lexicographically best
+        // feasible assignment among those that place this project somewhere, not "wherever the
+        // total is highest" (revision 2, which put a data project atop a platform resume).
         for (LibraryProject p : library) {
             if (usedProjects.contains(p.id())) {
                 continue;
             }
-            Double bestTotal = null;
-            int bestPosI = -1;
-            AssembledResume bestResume = null;
-            for (int posI = 0; posI < shapes.positions().size(); posI++) {
-                List<LibraryProject> others = new ArrayList<>();
-                for (LibraryProject q : library) {
-                    if (!q.id().equals(p.id())) {
-                        others.add(q);
-                    }
-                }
-                Assembler.ProjectScoreResult fixed =
-                        Assembler.projectScore(p, shapes.positions().get(posI), jd, skills, embedder);
-                if (fixed == null) {
-                    continue;
-                }
-                List<Shapes.PositionShape> restPositions = new ArrayList<>();
-                for (int i = 0; i < shapes.positions().size(); i++) {
-                    if (i != posI) {
-                        restPositions.add(shapes.positions().get(i));
-                    }
-                }
-                List<AssembledResume.ProjectAssignment> rest =
-                        Assembler.assignProjects(restPositions, others, jd, skills, embedder, Set.of());
-                if (rest.size() != restPositions.size()) {
-                    continue;
-                }
-                List<AssembledResume.ProjectAssignment> merged = new ArrayList<>(rest);
-                merged.add(new AssembledResume.ProjectAssignment(shapes.positions().get(posI).id(), p.id(),
-                        fixed.bullets(), fixed.score(), null));
-                List<String> positionOrder = shapes.positions().stream().map(Shapes.PositionShape::id).toList();
-                merged.sort(Comparator.comparingInt(d -> positionOrder.indexOf(d.position())));
-
-                AssembledResume cand = new AssembledResume(first.job(), merged, null, null);
-                double t = Assembler.totalScore(cand, shapes, jobCands, jd, skills, embedder);
-                if (bestTotal == null || t > bestTotal || (t == bestTotal && posI < bestPosI)) {
-                    bestTotal = t;
-                    bestPosI = posI;
-                    bestResume = cand;
-                }
+            List<AssembledResume.ProjectAssignment> projs = Assembler.assignProjects(
+                    shapes.positions(), library, jd, skills, embedder, Set.of(), p.id());
+            if (projs.size() != shapes.positions().size()) {
+                continue;
             }
-            if (bestResume != null) {
-                Set<String> keptProjects = new LinkedHashSet<>();
-                for (AssembledResume.ProjectAssignment d : bestResume.projects()) {
-                    keptProjects.add(d.project());
-                }
-                List<String> dropped = new ArrayList<>(new TreeSet<>(diff(usedProjects, keptProjects)));
-                String label = "includes " + p.id()
-                        + (dropped.isEmpty() ? "" : " instead of " + String.join(", ", dropped));
-                options.add(new Option(bestTotal, label, bestResume));
+            AssembledResume cand = new AssembledResume(first.job(), projs, null, null);
+            Set<String> keptProjects = new LinkedHashSet<>();
+            for (AssembledResume.ProjectAssignment d : projs) {
+                keptProjects.add(d.project());
             }
+            List<String> dropped = new ArrayList<>(new TreeSet<>(diff(usedProjects, keptProjects)));
+            String label = "includes " + p.id()
+                    + (dropped.isEmpty() ? "" : " instead of " + String.join(", ", dropped));
+            double total = Assembler.totalScore(cand, shapes, jobCands, jd, skills, embedder);
+            options.add(new Option(total, label, cand));
         }
 
         // force an unused achievement in

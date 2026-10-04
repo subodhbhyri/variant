@@ -104,11 +104,9 @@ public final class MatchCommand implements Callable<Integer> {
 
                 Files.createDirectories(outDir);
                 Path resume1Docx = outDir.resolve("resume-1.docx");
-                MatchRunner.Result result;
-                try {
-                    result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
-                } catch (IllegalStateException e) {
-                    System.err.println("match failed: " + e.getMessage());
+                MatchRunner.Result result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
+                if (result.renderFailureReason() != null) {
+                    System.err.println("match failed: " + result.renderFailureReason());
                     return 1;
                 }
 

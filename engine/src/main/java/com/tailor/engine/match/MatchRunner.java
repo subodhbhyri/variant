@@ -44,7 +44,14 @@ public final class MatchRunner {
             FontMap fontMap) {
     }
 
-    public record Result(JobDescription jd, List<AssembledResume> resumes, List<String> missing, Path resume1Docx) {
+    /** {@code resume1Docx}/{@code renderFailureReason} are mutually exclusive: a null reason
+     * means resume #1 rendered (after PHASE5_SPEC.md section 5's fail-soft re-solves, if any —
+     * {@code resumes.get(0)} already reflects whatever it settled on, including any {@code
+     * degraded} positions); a non-null reason means it was dropped (no feasible assignment, or
+     * the final whole-document verify failed) and {@code resumes.get(0)} is the original,
+     * unrendered best-first candidate — never silently replaced, per the spec. */
+    public record Result(JobDescription jd, List<AssembledResume> resumes, List<String> missing, Path resume1Docx,
+            String renderFailureReason) {
     }
 
     public static Context buildContext(Path onboardedDocx, Path variantsJsonPath, Path libraryJsonPath,
@@ -82,13 +89,23 @@ public final class MatchRunner {
         List<String> materialTexts = MissingSkills.materialTexts(ctx.jobCandidates(), ctx.library());
         List<String> missing = MissingSkills.compute(jd, materialTexts, ctx.skills());
 
-        ResumeRenderer.RenderResult rendered = ResumeRenderer.render(ctx.onboardedDocx(), ctx.report(),
-                resumes.get(0), ctx.jobCandidatesById(), ctx.library(), ctx.renderer(), ctx.fontMap(), workDir,
-                resume1DocxOut);
-        if (!rendered.ok()) {
-            throw new IllegalStateException("resume #1 " + rendered.detail());
+        AssembledResume first = resumes.get(0);
+        ResumeRenderer.FailSoftResult rendered = ResumeRenderer.renderFailSoft(ctx.onboardedDocx(), ctx.report(),
+                ctx.shapes(), first.job(), ctx.library(), jd, ctx.skills(), ctx.embedder(), ctx.jobCandidatesById(),
+                ctx.renderer(), ctx.fontMap(), workDir, resume1DocxOut);
+        if (!rendered.render().ok()) {
+            return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail());
         }
-        return new Result(jd, resumes, missing, rendered.outputDocx());
+
+        double total = Assembler.totalScore(
+                new AssembledResume(first.job(), rendered.resume().projects(), null, null), ctx.shapes(),
+                ctx.jobCandidates(), jd, ctx.skills(), ctx.embedder());
+        AssembledResume settled = new AssembledResume(
+                first.job(), rendered.resume().projects(), first.label(), total, rendered.resume().degraded());
+        List<AssembledResume> finalResumes = new ArrayList<>(resumes);
+        finalResumes.set(0, settled);
+
+        return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null);
     }
 
     private static List<BulletCandidate> keptCandidates(Map<String, FitLoop.CandidateOutcome> outcomes) {

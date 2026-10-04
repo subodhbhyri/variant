@@ -39,6 +39,13 @@ public final class MatchBatchSummary {
                 cacheAgainstPrevious(result.jd(), previousJds, previousNames, embedder));
     }
 
+    /** PHASE5_SPEC.md section 5: resume #1 dropped outright (no feasible project assignment, or
+     * the final whole-document verify failed after fail-soft gave up) — still one row, never a
+     * silently-skipped posting. */
+    public static Row failedRow(String jdName, JobDescription jd, String reason) {
+        return new Row(jdName, jd.title(), topSkills(jd, 5), "FAILED: " + reason, "(none)", "(none)", "(none)");
+    }
+
     public static String topSkills(JobDescription jd, int n) {
         return jd.skills().entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
@@ -47,10 +54,20 @@ public final class MatchBatchSummary {
                 .collect(Collectors.joining(", "));
     }
 
+    /** PHASE5_SPEC.md section 5: a position fail-soft gave up on (left unswapped, at its own
+     * original content) is appended as a note, so a degraded posting's row still carries its
+     * reason, same as the fully-dropped ({@link #failedRow}) case. */
     public static String projectsSummary(AssembledResume resume) {
-        return resume.projects().stream()
+        String base = resume.projects().stream()
                 .map(p -> p.position() + ":" + p.project())
                 .collect(Collectors.joining(", "));
+        if (resume.degraded().isEmpty()) {
+            return base;
+        }
+        String note = resume.degraded().stream()
+                .map(d -> d.position() + " degraded: " + d.reason())
+                .collect(Collectors.joining("; "));
+        return base.isEmpty() ? note : base + " (" + note + ")";
     }
 
     public static String alternativesSummary(List<AssembledResume> resumes) {

@@ -102,13 +102,17 @@ public final class MatchBatchCommand implements Callable<Integer> {
                     Files.createDirectories(jdOutDir);
                     Path resume1Docx = jdOutDir.resolve("resume-1.docx");
 
-                    MatchRunner.Result result;
-                    try {
-                        result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
-                    } catch (IllegalStateException e) {
-                        System.err.println(jdFile.getFileName() + ": " + e.getMessage());
+                    MatchRunner.Result result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
+                    if (result.renderFailureReason() != null) {
+                        // PHASE5_SPEC.md section 5: a dropped resume still gets a summary.md row,
+                        // with its reason -- never silently skipped like a parse failure above.
+                        System.err.println(jdFile.getFileName() + ": " + result.renderFailureReason());
+                        rows.add(MatchBatchSummary.failedRow(baseName, result.jd(), result.renderFailureReason()));
+                        processedJds.add(result.jd());
+                        processedNames.add(baseName);
                         continue;
                     }
+
                     Path resume1Pdf = renderer.render(result.resume1Docx(), workDir);
                     Files.copy(resume1Pdf, jdOutDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 

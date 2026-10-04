@@ -111,9 +111,9 @@ public final class HeaderParser {
         if (!links.isEmpty()) {
             core = core.replace("[", "").replace("]", "").strip();
         }
-        String[] pieces = core.split(" \\| ", -1);
+        String[] pieces = DatePattern.SEP_RE.split(core, -1);
         for (int i = 0; i < pieces.length; i++) {
-            pieces[i] = pieces[i].strip();
+            pieces[i] = Vocab.stripChars(pieces[i], DatePattern.SEP_CHARS);
         }
         String title = Vocab.stripChars(pieces[0], " |");
         String detail = null;

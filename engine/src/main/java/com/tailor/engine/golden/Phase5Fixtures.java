@@ -45,6 +45,12 @@ public final class Phase5Fixtures {
         return MAPPER.readValue(requireFile(aliasRulesExpectedJson).toFile(), AliasRulesExpected.class);
     }
 
+    /** fixtures/phase5/jd_patterns/expected.json (P5-T13): one synthetic posting per pattern
+     * found in 20 real job descriptions, parsed with {@code parse_jd_v3} and dictionary v2. */
+    public static JdPatterns loadJdPatterns(Path jdPatternsJson) throws IOException {
+        return MAPPER.readValue(requireFile(jdPatternsJson).toFile(), JdPatterns.class);
+    }
+
     private static Path requireFile(Path p) throws IOException {
         if (!Files.isRegularFile(p)) {
             throw new IOException("phase5 fixture not found: " + p.toAbsolutePath());
@@ -86,5 +92,13 @@ public final class Phase5Fixtures {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record AliasRulesExpected(List<AliasRuleCase> aliases, List<AliasRuleCase> hardNegatives) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record JdPatterns(Map<String, JdPatternCase> cases) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record JdPatternCase(String title, Map<String, Double> skills) {
     }
 }

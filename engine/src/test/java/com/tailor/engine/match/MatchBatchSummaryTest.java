@@ -30,7 +30,7 @@ class MatchBatchSummaryTest {
         JobDescription platform = s.jds.get("platform");
         AssembledResume resume =
                 Assembler.assemble(s.shapes, s.jobCandidates(), s.library, platform, s.skills, s.embedder, Set.of());
-        assertEquals("P0:forge, P1:quill, P2:harbor, P3:relay", MatchBatchSummary.projectsSummary(resume));
+        assertEquals("P0:forge, P1:harbor, P2:sprout, P3:quill", MatchBatchSummary.projectsSummary(resume));
     }
 
     @Test

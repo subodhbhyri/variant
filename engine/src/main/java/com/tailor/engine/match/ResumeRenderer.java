@@ -13,6 +13,7 @@ import com.tailor.engine.edit.Substituter;
 import com.tailor.engine.fonts.FontMap;
 import com.tailor.engine.generate.ModelResponse.BulletCandidate;
 import com.tailor.engine.generate.SectionPositions;
+import com.tailor.engine.generate.SkillsDictionary;
 import com.tailor.engine.measure.AnchorMeasurer;
 import com.tailor.engine.measure.PdfLines;
 import com.tailor.engine.numbering.NumberingResolver;
@@ -31,8 +32,12 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.function.Function;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -55,6 +60,10 @@ import org.w3c.dom.Element;
  */
 public final class ResumeRenderer {
 
+    /** PHASE5_SPEC.md section 5: at most 3 re-solves after a swap first fails verification at a
+     * given position, before that position is given up on (left at its own original content). */
+    private static final int MAX_RESOLVES = 3;
+
     public record RenderResult(boolean ok, String detail, Path outputDocx) {
         static RenderResult ok(Path outputDocx) {
             return new RenderResult(true, null, outputDocx);
@@ -65,7 +74,147 @@ public final class ResumeRenderer {
         }
     }
 
+    /** {@code resume} is the resume actually rendered — its {@code projects()} reflect every
+     * re-solve, and its {@code degraded()} lists any position given up on — or null when {@code
+     * render} failed outright (no feasible assignment at all, or the final whole-document verify
+     * failed: PHASE5_SPEC.md section 5's "a resume is dropped" case, never retried). */
+    public record FailSoftResult(RenderResult render, AssembledResume resume) {
+    }
+
     private ResumeRenderer() {
+    }
+
+    /**
+     * PHASE5_SPEC.md section 5 (fail-soft assembly): renders resume #1 like {@link #render}, but
+     * when a project's swap into a position fails verification, that (position, project) pairing
+     * is marked infeasible and the whole project assignment is re-solved (same best-first rule,
+     * {@link Assembler#assignProjects}) excluding it — up to {@value #MAX_RESOLVES} times at any
+     * one position. A position that still can't be filled after that is dropped from the
+     * assignment entirely (rendered with its own original, unswapped content) and recorded under
+     * {@link AssembledResume#degraded()} with the swap's own failure detail as the reason. Only
+     * the final whole-document {@link FinalVerifier} failing, or no feasible assignment existing
+     * at all, drops the resume outright (never retried).
+     */
+    public static FailSoftResult renderFailSoft(Path normalizedDocx, OnboardReport report, Shapes shapes,
+            List<String> job, List<LibraryProject> library, JobDescription jd, SkillsDictionary skills,
+            Embedder embedder, Map<String, BulletCandidate> jobCandidatesById, Renderer renderer, FontMap fontMap,
+            Path workDir, Path outputDocx) throws Exception {
+        AssembledResume jobOnly = new AssembledResume(job, List.of(), null, null);
+        Path jobStageOut = workDir.resolve("job-slots-" + System.nanoTime() + ".docx");
+        RenderResult jobStage =
+                substituteJobSlots(normalizedDocx, report, jobOnly, jobCandidatesById, renderer, fontMap, workDir,
+                        jobStageOut);
+        if (!jobStage.ok()) {
+            return new FailSoftResult(jobStage, null);
+        }
+
+        Map<String, LibraryProject> byId = new LinkedHashMap<>();
+        for (LibraryProject p : library) {
+            byId.put(p.id(), p);
+        }
+
+        Path[] current = {jobStageOut};
+        Function<AssembledResume.ProjectAssignment, String> attemptSwap = assignment -> {
+            LibraryProject project = byId.get(assignment.project());
+            Integer positionIndex = parsePositionIndex(assignment.position());
+            LibraryProject selected = new LibraryProject(project.id(), project.title(), project.detail(),
+                    project.links(), project.date(), selectedBullets(project, assignment), project.homeSection());
+            try {
+                DocxPackage basePkg = DocxPackage.open(current[0]);
+                Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
+                BlockSwapper.Result result =
+                        BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut);
+                if (result.outcome() != SwapOutcome.OK) {
+                    return result.outcome() + (result.detail() == null ? "" : " (" + result.detail() + ")");
+                }
+                current[0] = stepOut;
+                return null;
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        };
+
+        List<AssembledResume.Degraded> degraded = new ArrayList<>();
+        List<AssembledResume.ProjectAssignment> projects;
+        try {
+            projects = resolveAssignment(shapes, library, jd, skills, embedder, () -> current[0] = jobStageOut,
+                    attemptSwap, degraded);
+        } catch (CompletionException e) {
+            throw (Exception) e.getCause();
+        }
+        if (projects == null) {
+            return new FailSoftResult(RenderResult.failed("no feasible project assignment for every position"),
+                    null);
+        }
+
+        AssembledResume forVerify = new AssembledResume(job, projects, null, null);
+        RenderResult finalCheck = FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
+                jobCandidatesById, library, renderer, fontMap, workDir);
+        if (!finalCheck.ok()) {
+            return new FailSoftResult(finalCheck, forVerify);
+        }
+        Files.copy(current[0], outputDocx, StandardCopyOption.REPLACE_EXISTING);
+        AssembledResume finalResume = new AssembledResume(job, projects, null, null, degraded);
+        return new FailSoftResult(RenderResult.ok(outputDocx), finalResume);
+    }
+
+    /**
+     * PHASE5_SPEC.md section 5's re-solve/degrade bookkeeping, isolated from the real
+     * DocxPackage/BlockSwapper I/O so it's directly testable (P5-T14) with a fake {@code
+     * attemptSwap}: tries every position's assignment, in order, via {@code attemptSwap} (null
+     * = that swap succeeded; non-null = its failure detail); on the first failure, marks that
+     * (position, project) pairing infeasible and re-solves the whole assignment (same best-first
+     * rule, excluding it) — {@code onPassStart} runs once per fresh attempt, before any swap in
+     * it. A position still failing after {@value #MAX_RESOLVES} re-solves is dropped from the
+     * assignment (appended to {@code degradedOut}) and the remaining positions are re-solved
+     * without it. Returns null if some active position has no feasible project at all.
+     */
+    static List<AssembledResume.ProjectAssignment> resolveAssignment(Shapes shapes, List<LibraryProject> library,
+            JobDescription jd, SkillsDictionary skills, Embedder embedder, Runnable onPassStart,
+            Function<AssembledResume.ProjectAssignment, String> attemptSwap,
+            List<AssembledResume.Degraded> degradedOut) {
+        Set<String> infeasible = new LinkedHashSet<>();
+        Map<String, String> degradedReason = new LinkedHashMap<>();
+        Map<String, String> degradedProject = new LinkedHashMap<>();
+
+        while (true) {
+            List<Shapes.PositionShape> active =
+                    shapes.positions().stream().filter(p -> !degradedReason.containsKey(p.id())).toList();
+            List<AssembledResume.ProjectAssignment> projects = Assembler.attachStacks(
+                    Assembler.assignProjects(active, library, jd, skills, embedder, Set.of(), null, infeasible),
+                    library, jd, skills);
+            if (projects.size() != active.size()) {
+                return null;
+            }
+
+            onPassStart.run();
+            AssembledResume.ProjectAssignment failedAssignment = null;
+            String failedDetail = null;
+            for (AssembledResume.ProjectAssignment assignment : projects) {
+                String detail = attemptSwap.apply(assignment);
+                if (detail != null) {
+                    failedAssignment = assignment;
+                    failedDetail = detail;
+                    break;
+                }
+            }
+
+            if (failedAssignment == null) {
+                for (var e : degradedReason.entrySet()) {
+                    degradedOut.add(new AssembledResume.Degraded(
+                            e.getKey(), degradedProject.get(e.getKey()), e.getValue()));
+                }
+                return projects;
+            }
+
+            infeasible.add(failedAssignment.position() + "=" + failedAssignment.project());
+            String prefix = failedAssignment.position() + "=";
+            long failuresAtPosition = infeasible.stream().filter(p -> p.startsWith(prefix)).count();
+            if (failuresAtPosition > MAX_RESOLVES) {
+                degradedReason.put(failedAssignment.position(), failedDetail);
+                degradedProject.put(failedAssignment.position(), failedAssignment.project());
+            }
+        }
     }
 
     public static RenderResult render(Path normalizedDocx, OnboardReport report, AssembledResume resume,

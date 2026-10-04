@@ -184,6 +184,25 @@ public final class Assembler {
     public static List<AssembledResume.ProjectAssignment> assignProjects(List<Shapes.PositionShape> positions,
             List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder,
             Set<String> penalty) {
+        return assignProjects(positions, library, jd, skills, embedder, penalty, null, Set.of());
+    }
+
+    /** @param mustInclude if non-null, only assignments that place this library project id in
+     *     one of {@code positions} are considered (PHASE5_SPEC.md section 4: an alternative is
+     *     the best-first assignment among those that include the item resume #1 left out). */
+    public static List<AssembledResume.ProjectAssignment> assignProjects(List<Shapes.PositionShape> positions,
+            List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder,
+            Set<String> penalty, String mustInclude) {
+        return assignProjects(positions, library, jd, skills, embedder, penalty, mustInclude, Set.of());
+    }
+
+    /** @param infeasiblePairs {@code "<position id>=<project id>"} pairings excluded up front —
+     *     PHASE5_SPEC.md section 5's fail-soft assembly: a swap that failed verification is
+     *     never retried at the same position, but the same project may still fill a different
+     *     one and a different project may still be tried here. */
+    public static List<AssembledResume.ProjectAssignment> assignProjects(List<Shapes.PositionShape> positions,
+            List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder,
+            Set<String> penalty, String mustInclude, Set<String> infeasiblePairs) {
         List<String> ids = library.stream().map(LibraryProject::id).toList();
         int n = library.size();
         int k = positions.size();
@@ -200,6 +219,10 @@ public final class Assembler {
             for (int i = 0; i < k; i++) {
                 Shapes.PositionShape pos = positions.get(i);
                 int libI = combo[i];
+                if (infeasiblePairs.contains(pos.id() + "=" + ids.get(libI))) {
+                    ok = false;
+                    break;
+                }
                 ProjectScoreResult r = projectScore(library.get(libI), pos, jd, skills, embedder);
                 if (r == null) {
                     ok = false;
@@ -212,6 +235,9 @@ public final class Assembler {
                         null));
             }
             if (!ok) {
+                continue;
+            }
+            if (mustInclude != null && !comboIds.contains(mustInclude)) {
                 continue;
             }
             if (bestNegScores == null || isBetterKey(effScores, comboIds, bestNegScores, bestIds)) {
@@ -285,6 +311,14 @@ public final class Assembler {
         List<String> job = fillJob(shapes.job().slots(), jobCands, jd, skills, embedder, penalty);
         List<AssembledResume.ProjectAssignment> projects =
                 assignProjects(shapes.positions(), library, jd, skills, embedder, penalty);
+        return new AssembledResume(job, attachStacks(projects, library, jd, skills), null, null);
+    }
+
+    /** Each assignment's stack, in JD order (PHASE5_SPEC.md section 3's {@code order_stack}) —
+     * {@link #assemble} uses this on its own fresh {@link #assignProjects} output, and {@link
+     * ResumeRenderer#renderFailSoft} reuses it on every re-solved attempt, same rule each time. */
+    static List<AssembledResume.ProjectAssignment> attachStacks(List<AssembledResume.ProjectAssignment> projects,
+            List<LibraryProject> library, JobDescription jd, SkillsDictionary skills) {
         Map<String, LibraryProject> byId = new LinkedHashMap<>();
         for (LibraryProject p : library) {
             byId.put(p.id(), p);
@@ -295,7 +329,7 @@ public final class Assembler {
             withStack.add(new AssembledResume.ProjectAssignment(d.position(), d.project(), d.bullets(), d.score(),
                     stack));
         }
-        return new AssembledResume(job, withStack, null, null);
+        return withStack;
     }
 
     // --- total_score ------------------------------------------------------------------------------

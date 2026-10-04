@@ -8,10 +8,12 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -63,6 +65,13 @@ public final class SkillsDictionary {
     }
 
     private static SkillsDictionary parse(JsonNode root) {
+        Set<String> caseSensitive = new HashSet<>();
+        if (root.has("_case_sensitive")) {
+            for (JsonNode alias : root.get("_case_sensitive")) {
+                caseSensitive.add(alias.asText());
+            }
+        }
+
         Map<String, List<Pattern>> out = new LinkedHashMap<>();
         String version = null;
         Iterator<Map.Entry<String, JsonNode>> it = root.fields();
@@ -76,7 +85,8 @@ public final class SkillsDictionary {
             }
             List<Pattern> patterns = new ArrayList<>();
             for (JsonNode alias : e.getValue()) {
-                patterns.add(aliasPattern(alias.asText()));
+                String a = alias.asText();
+                patterns.add(aliasPattern(a, caseSensitive.contains(a)));
             }
             out.put(e.getKey(), patterns);
         }
@@ -98,10 +108,13 @@ public final class SkillsDictionary {
         return version;
     }
 
-    /** Aliases of <=2 characters (Go, JS, S3, ...) are case-sensitive; longer ones are
-     * case-insensitive and word-bounded ("JavaScript" != "Java"). */
-    private static Pattern aliasPattern(String alias) {
-        int flags = alias.length() <= 2 ? 0 : Pattern.CASE_INSENSITIVE;
+    /** Aliases of <=2 characters (Go, JS, S3, ...) are always case-sensitive; so is any alias
+     * listed in {@code _case_sensitive} (PHASE5_SPEC.md section 1.1) — one that doubles as
+     * ordinary English (React, Swift, Spring, Go, Express, Node, Lambda, ...), where a
+     * case-insensitive match would fire on the English word instead of the skill. Everything
+     * else is case-insensitive and word-bounded ("JavaScript" != "Java"). */
+    private static Pattern aliasPattern(String alias, boolean forceCaseSensitive) {
+        int flags = (forceCaseSensitive || alias.length() <= 2) ? 0 : Pattern.CASE_INSENSITIVE;
         return Pattern.compile("(?<![\\w+#.])" + Pattern.quote(alias) + "(?![\\w+#])", flags);
     }
 }

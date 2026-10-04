@@ -77,14 +77,18 @@ public final class HeaderTemplate {
         }
 
         int pos = 0;
-        String[] pieces = s.split(" \\| ", -1);
+        List<String> seps = new ArrayList<>();
+        String[] pieces = splitKeepingSeps(s, seps);
         for (int k = 0; k < pieces.length; k++) {
             String piece = pieces[k];
             if (k > 0) {
-                out.add(HeaderToken.sep(" | ", buf.get(pos).rPr()));
+                // Re-emit the exact separator text found (NBSP stays NBSP on whichever side it
+                // was): a hardcoded " | " here is what silently widened/narrowed a header by one
+                // non-breaking space when Word had inserted one around the "|".
+                out.add(HeaderToken.sep(seps.get(k - 1), buf.get(pos).rPr()));
                 pos += 3;
             }
-            String core = Vocab.stripChars(piece, " [(");
+            String core = Vocab.stripChars(piece, "  [(");
             String lead = core.isEmpty() ? piece : piece.substring(0, piece.indexOf(core));
             String trail = piece.substring(lead.length() + core.length());
             if (!lead.isEmpty()) {
@@ -103,6 +107,21 @@ public final class HeaderTemplate {
                 pos += trail.length();
             }
         }
+    }
+
+    /** {@code DatePattern.SEP_RE.split(s)} + {@code .findall(s)} together: the pieces between
+     * separators, and each separator's own exact matched text, in document order. */
+    private static String[] splitKeepingSeps(String s, List<String> sepsOut) {
+        List<String> pieces = new ArrayList<>();
+        Matcher m = DatePattern.SEP_RE.matcher(s);
+        int last = 0;
+        while (m.find()) {
+            pieces.add(s.substring(last, m.start()));
+            sepsOut.add(m.group());
+            last = m.end();
+        }
+        pieces.add(s.substring(last));
+        return pieces.toArray(new String[0]);
     }
 
     /** Flattens direct children into ("char", CharTok) / ("link", Element) / ("tab", Element) markers. */
