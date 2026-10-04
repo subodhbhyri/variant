@@ -1,6 +1,6 @@
 {
- "_version": "2",
- "_note": "Curated skills dictionary v2 (replaces the 74-term seed). Built and checked against 20 real job postings. Aliases listed in _case_sensitive must match exact case: they double as ordinary English words.",
+ "_version": "2.1",
+ "_note": "Curated skills dictionary v2 (replaces the 74-term seed). Built and checked against 20 real job postings. Aliases listed in _case_sensitive must match exact case: they double as ordinary English words. _implies: a skill that unambiguously implies broader ones (PostgreSQL implies SQL); applied transitively to material and bullets, never to the job description.",
  "_case_sensitive": [
   "Go",
   "Swift",
@@ -663,5 +663,142 @@
  "Power Platform": [
   "Power Platform",
   "Copilot Studio"
- ]
+ ],
+ "_implies": {
+  "PostgreSQL": [
+   "SQL"
+  ],
+  "MySQL": [
+   "SQL"
+  ],
+  "MariaDB": [
+   "SQL"
+  ],
+  "Oracle": [
+   "SQL"
+  ],
+  "SQL Server": [
+   "SQL"
+  ],
+  "SQLite": [
+   "SQL"
+  ],
+  "PL/SQL": [
+   "SQL"
+  ],
+  "Snowflake": [
+   "SQL"
+  ],
+  "Redshift": [
+   "SQL"
+  ],
+  "BigQuery": [
+   "GCP",
+   "SQL"
+  ],
+  "EC2": [
+   "AWS"
+  ],
+  "S3": [
+   "AWS"
+  ],
+  "Lambda": [
+   "AWS"
+  ],
+  "ECS": [
+   "AWS"
+  ],
+  "EKS": [
+   "AWS"
+  ],
+  "RDS": [
+   "AWS"
+  ],
+  "Aurora": [
+   "AWS"
+  ],
+  "EMR": [
+   "AWS"
+  ],
+  "SQS": [
+   "AWS"
+  ],
+  "AWS Bedrock": [
+   "AWS"
+  ],
+  "GitHub": [
+   "Git"
+  ],
+  "GitLab CI": [
+   "CI/CD",
+   "Git"
+  ],
+  "Bitbucket": [
+   "Git"
+  ],
+  "GitHub Actions": [
+   "CI/CD",
+   "GitHub",
+   "Git"
+  ],
+  "Jenkins": [
+   "CI/CD"
+  ],
+  "CircleCI": [
+   "CI/CD"
+  ],
+  "Bamboo": [
+   "CI/CD"
+  ],
+  "Spring Boot": [
+   "Spring",
+   "Java"
+  ],
+  "Spring Data JPA": [
+   "JPA",
+   "Spring",
+   "Java"
+  ],
+  "Hibernate": [
+   "JPA",
+   "Java"
+  ],
+  "Next.js": [
+   "React"
+  ],
+  "Express": [
+   "Node.js"
+  ],
+  "NestJS": [
+   "Node.js"
+  ],
+  "FastAPI": [
+   "Python"
+  ],
+  "Flask": [
+   "Python"
+  ],
+  "Django": [
+   "Python"
+  ],
+  "Pytest": [
+   "Python"
+  ],
+  "Pandas": [
+   "Python"
+  ],
+  "TypeScript": [
+   "JavaScript"
+  ],
+  "React": [
+   "JavaScript"
+  ],
+  "Supabase": [
+   "PostgreSQL",
+   "SQL"
+  ],
+  "Azure OpenAI": [
+   "Azure"
+  ]
+ }
 }

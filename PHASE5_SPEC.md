@@ -263,12 +263,37 @@ Fixture: frontend → `["React"]`; data → `["Airflow", "Spark"]`; platform →
 
 ---
 
+## 8.1 Implied skills and the whole resume (revision 4)
+
+Measured on the first real run: missing-skills lists claimed Git, SQL, CI/CD,
+REST, MySQL and AWS were missing from a resume whose Skills section lists them
+and whose projects use GitHub, PostgreSQL and GitHub Actions. Two rules:
+
+- **Material is the whole onboarded resume** (every paragraph, including the
+  Skills section and locked text) plus all stored variants and the library.
+- **Implications**: dictionary v2.1 has `_implies` (reference
+  `techs_implied`), e.g. PostgreSQL → SQL, GitHub Actions → CI/CD, GitHub, Git;
+  EC2 → AWS; Spring Boot → Spring, Java. They're applied transitively to the
+  user's material **and to bullets when scoring keyword coverage** (a
+  PostgreSQL bullet covers an SQL requirement), **never to the job
+  description** (a posting asking for PostgreSQL does not ask for every SQL
+  database).
+
+Measured on 5 real postings, missing lists shrank from 6–10 skills to 2–6, all
+genuinely absent from the material.
+
 ## 9. CLI and output
 
 ```
 tailor match <onboarded.docx> <variants.json> <library.json> <jd.txt> <outDir> [--embedder fake|minilm]
 tailor aliases review
 ```
+
+`match-batch` writes each posting's `match.json` into its subfolder, next to its
+PDF, and adds a **feasibility** table: for each library project, the positions
+whose shape it can fill (a project lacking 2-line variants can't fill an
+all-2-line position; in the real run this kept one project out of three of four
+positions for every posting).
 
 `match` writes `match.json` (parsed JD, the 1–3 resumes with labels,
 missing skills, cache decision) and `resume-1.pdf` (verified). `--embedder
@@ -282,6 +307,7 @@ fake` is for fixtures and tests.
 |---|---|---|
 | P5-T14 | Fail-soft assembly | A fixture position whose swap always fails verification (e.g. a header made unparseable on purpose) yields a delivered resume #1 with that position unswapped and listed under `degraded`, after at most 3 re-solves; `summary.md` has a row per posting including the degraded note |
 | P5-T15 | Separator spaces | A header `Title \| stack \| link` written with non-breaking spaces around either `\|` parses to `TITLE SEP DETAIL SEP LINK`, and re-emitting it keeps the original characters |
+| P5-T16 | Implied skills | With dictionary v2.1, a material text naming only PostgreSQL and GitHub Actions makes SQL, CI/CD, GitHub and Git present; a job description naming PostgreSQL does not acquire SQL; missing skills consider the whole onboarded resume |
 | P5-T13 | Real-world patterns | Every case in `fixtures/phase5/jd_patterns/expected.json` (10 synthetic postings, one per pattern found in 20 real ones) parses to exactly its title and weighted skills, with dictionary v2 |
 | P5-T1 | Parsing | Each fixture JD's title and weighted skills equal `expected_selection.json`; the platform rewording parses identically to the original |
 | P5-T2 | Scoring | `scores_job` for every JD equal the expected values exactly (FakeEmbedder) |

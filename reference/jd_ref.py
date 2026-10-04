@@ -302,3 +302,23 @@ def parse_jd_v3(text, skills):
 
 
 parse_jd = parse_jd_v3   # revision 3 is the parser (PHASE5_SPEC section 1)
+
+# --- 3.1 / 8: implied skills (revision 4) -------------------------------------------
+def load_implies(path):
+    return json.load(open(path)).get("_implies", {})
+
+def techs_implied(text, skills, implies):
+    """Skills a text names, plus everything they unambiguously imply (transitively).
+    Used for the user's material and bullets, never for the job description."""
+    out, todo = set(), list(techs(text, skills))
+    while todo:
+        t = todo.pop()
+        if t in out: continue
+        out.add(t); todo.extend(implies.get(t, []))
+    return out
+
+def missing_skills_v4(jd, material_texts, skills, implies):
+    """Required JD skills not named or implied anywhere in the user's material:
+    the WHOLE onboarded resume (including its Skills section) plus generated variants and library."""
+    have = set().union(*[techs_implied(t, skills, implies) for t in material_texts]) if material_texts else set()
+    return sorted(t for t, w in jd["skills"].items() if w >= 1.0 and t not in have)

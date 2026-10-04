@@ -209,6 +209,29 @@ leave that length out.
 
 "About N characters" = `len(variant) − budget` rounded up to the nearest 5.
 
+**Retries must be shortenings (revision 6).** In the first real onboarding,
+every faithful bullet was accepted in round 1, and the three inaccurate ones
+came out of retries: "an agent that finds nearby points of interest" and "a
+real-time event pipeline processing user actions for live analytics" were
+invented, yet scored 0.44 and 0.67 grounding against their fact sheets
+because they reuse the project's own words. A retried variant is therefore
+compared with **its own previous attempt** for that candidate and length: if
+fewer than **60%** of its content words occur in the previous attempt
+(`grounding(new, [previous])` < 0.60), it is rejected as `REWRITTEN` and the
+attempt counts as failed. Legitimate retries in the fixture keep 0.67 to 1.00.
+The 0.60 is provisional: recalibrate it from the attempts log below after the
+next real onboarding.
+
+**Feedback size:** "about N characters" uses N = max(len − budget, ⌈0.1 ×
+len⌉), rounded up to 5. A variant can be under its character budget and still
+render too long; N must never be zero or negative.
+
+**Attempts log:** `generation-report.json` records, for every candidate and
+length, every attempt in order: round, text, outcome (fits, rendered line
+count, guard reasons, `REWRITTEN` with its score) and the feedback sent. This
+file is the user's own output, so it may contain their text; application logs
+still never do.
+
 **Never ask the model to lengthen anything.** Revision 3 sent "renders on N
 lines; it must fill L. Lengthen it" for a too-short variant; in the live run
 the model, out of real facts, replaced a candidate's 2-line version with an
@@ -341,6 +364,7 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 
 | Id | Test | Pass condition |
 |---|---|---|
+| P4-T12 | Retry discipline | A recorded retry that rewrites instead of shortening (grounding against its previous attempt below 0.60) is rejected as `REWRITTEN`; the fixture's legitimate retries pass; feedback N is never below 5; the attempts log lists every attempt with its outcome |
 | P4-T1 | Guard | All 8 cases in `guard_number_cases.json` (each with its own sources) and all 24 cases in `guard_cases.json` give exactly the expected reasons (including `UNGROUNDED` for the two fabricated sentences, and none for the two faithful low scorers) |
 | P4-T11 | Reliability (live, manual) | Run `job-0` of `intake_jane_doe.json` live **20 times** (0 of 20 bounds the true empty rate far better than 0 of 10). Pass: **0 `NO_OUTPUT`**, the empty-output retry never fires, and runs returning a single candidate are reported separately, every kept variant passes the guard (grounding ≥ 0.4) and fits. Report per run: candidates returned, kept, dropped with reasons, lowest grounding, calls, cost. For this run only, on fixture input only, record the model's own text blocks and `stop_reason` (never for real user input), so an empty answer can be explained |
 | P4-T10 | Sibling consistency | `consistency_cases.json`: both faithful pairs consistent, the live fabrication's pair not; a fit-loop unit test where a candidate's longer version is inconsistent drops only that version; a too-short variant is kept as the shorter length or dropped, and is never sent back for a retry |
