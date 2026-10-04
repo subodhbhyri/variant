@@ -209,6 +209,36 @@ leave that length out.
 
 "About N characters" = `len(variant) − budget` rounded up to the nearest 5.
 
+**No retries for fit or guard failures (revision 7, supersedes the retry
+rules below).** Measured on the second real onboarding, with every attempt
+logged: of 20 retries, **none** was a genuine shortening. 12 were rewrites
+(caught as `REWRITTEN`), and 2 more were caught a round later and then
+**accepted**, because the next retry repeated the rejected text and matched
+it exactly ("Built measurement pipeline to track experiment outcomes", false
+about the project). Of bullets kept after a retry, 3 of 7 were inaccurate; of
+bullets kept in round 1, 0 of 24 were. So:
+
+- A variant that renders too long, fails any guard rule, or exceeds its
+  character budget (`OVER_BUDGET`, checked **before** rendering, with
+  budget(L) as the cap) is **dropped for that length**, never sent back.
+- A variant rendering on fewer lines than asked is kept as its shorter length
+  if the candidate has none, else dropped (unchanged).
+- The **only** retry left is the empty-output one ("Return at least one
+  candidate."), which asks for nothing to be rewritten.
+- First attempts fit 89% of the time at 1 line and 80% at 2 lines; 2-line
+  overflows had a median of 246 characters against a 230 budget, so the
+  `OVER_BUDGET` check removes most of them without a render.
+- **Guard implications:** the guard's technology check applies the dictionary's
+  `_implies` to the **sources** (Phase 5 section 8.1), so "CI/CD" is supported
+  by a source naming GitHub Actions. Never applied to the variant itself.
+- Request only the lengths some position actually needs (a 3-line length was
+  requested in the real run although no position has a 3-line bullet).
+- The attempts log records the real text of every attempt (`<UNKNOWN>`
+  appeared for some).
+
+The paragraphs below (revision 6) describe the retry rules this replaces; keep
+`REWRITTEN` only as a reason code in the log, never as a path to a retry.
+
 **Retries must be shortenings (revision 6).** In the first real onboarding,
 every faithful bullet was accepted in round 1, and the three inaccurate ones
 came out of retries: "an agent that finds nearby points of interest" and "a
@@ -364,7 +394,8 @@ All tests except P4-T6 are offline (a fake client serving recorded responses).
 
 | Id | Test | Pass condition |
 |---|---|---|
-| P4-T12 | Retry discipline | A recorded retry that rewrites instead of shortening (grounding against its previous attempt below 0.60) is rejected as `REWRITTEN`; the fixture's legitimate retries pass; feedback N is never below 5; the attempts log lists every attempt with its outcome |
+| P4-T13 | No fit retries | Replaying a recorded response with a too-long variant, an over-budget variant and a guard failure makes **no** second call: each is dropped for that length; an empty response still gets exactly one retry; a source naming GitHub Actions supports "CI/CD" |
+| P4-T12 | Retry discipline (superseded by P4-T13) | A recorded retry that rewrites instead of shortening (grounding against its previous attempt below 0.60) is rejected as `REWRITTEN`; the fixture's legitimate retries pass; feedback N is never below 5; the attempts log lists every attempt with its outcome |
 | P4-T1 | Guard | All 8 cases in `guard_number_cases.json` (each with its own sources) and all 24 cases in `guard_cases.json` give exactly the expected reasons (including `UNGROUNDED` for the two fabricated sentences, and none for the two faithful low scorers) |
 | P4-T11 | Reliability (live, manual) | Run `job-0` of `intake_jane_doe.json` live **20 times** (0 of 20 bounds the true empty rate far better than 0 of 10). Pass: **0 `NO_OUTPUT`**, the empty-output retry never fires, and runs returning a single candidate are reported separately, every kept variant passes the guard (grounding ≥ 0.4) and fits. Report per run: candidates returned, kept, dropped with reasons, lowest grounding, calls, cost. For this run only, on fixture input only, record the model's own text blocks and `stop_reason` (never for real user input), so an empty answer can be explained |
 | P4-T10 | Sibling consistency | `consistency_cases.json`: both faithful pairs consistent, the live fabrication's pair not; a fit-loop unit test where a candidate's longer version is inconsistent drops only that version; a too-short variant is kept as the shorter length or dropped, and is never sent back for a retry |
