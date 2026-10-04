@@ -43,10 +43,23 @@ public final class IntakeFillCommand implements Callable<Integer> {
     public Integer call() {
         try {
             Intake intake = IntakeIO.load(intakeJsonPath);
-            ProjectDataset.ProjectDatasets datasets =
-                    MAPPER.readValue(datasetsJsonPath.toFile(), ProjectDataset.ProjectDatasets.class);
 
-            IntakeFillBuilder.Result result = IntakeFillBuilder.fill(intake, datasets);
+            ProjectDataset.ProjectDatasets datasets;
+            try {
+                datasets = MAPPER.readValue(datasetsJsonPath.toFile(), ProjectDataset.ProjectDatasets.class);
+            } catch (Exception e) {
+                System.err.println("intake-fill failed: " + datasetsJsonPath + " must have the shape "
+                        + IntakeFillBuilder.EXPECTED_SHAPE);
+                return 1;
+            }
+
+            IntakeFillBuilder.Result result;
+            try {
+                result = IntakeFillBuilder.fill(intake, datasets);
+            } catch (IllegalArgumentException e) {
+                System.err.println("intake-fill failed: " + e.getMessage());
+                return 1;
+            }
 
             for (IntakeSection section : result.intake().sections()) {
                 IntakeValidator.Result v = IntakeValidator.validate(section, 0);
@@ -61,9 +74,9 @@ public final class IntakeFillCommand implements Callable<Integer> {
                 System.out.println("unmatched project sections (no dataset found): "
                         + String.join(", ", result.unmatchedSectionIds()));
             }
-            if (!result.unmatchedDatasetTitles().isEmpty()) {
+            if (!result.unmatchedDatasetNames().isEmpty()) {
                 System.out.println("unmatched datasets (no project section found): "
-                        + String.join(", ", result.unmatchedDatasetTitles()));
+                        + String.join(", ", result.unmatchedDatasetNames()));
             }
 
             if (outJson.getParent() != null) {

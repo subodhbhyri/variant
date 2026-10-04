@@ -2,6 +2,7 @@ package com.tailor.engine.match;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +15,7 @@ import com.tailor.engine.generate.IntakeSection;
 import com.tailor.engine.generate.IntakeValidator;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** P5-T8 operator tooling: {@code tailor intake-fill}'s matching, mode-setting and
@@ -54,7 +56,8 @@ class IntakeFillBuilderTest {
         assertEquals("", orphan.rawText(), "unmatched section is left unchanged");
 
         assertEquals(List.of("project-2"), result.unmatchedSectionIds());
-        assertEquals(List.of("Unmatched Dataset: nothing uses this"), result.unmatchedDatasetTitles());
+        assertEquals(List.of("Unused"), result.unmatchedDatasetNames(),
+                "the map key (display name) is what's reported, never the title");
     }
 
     @Test
@@ -76,8 +79,10 @@ class IntakeFillBuilderTest {
         Intake intake = new Intake(List.of(new IntakeSection(
                 "project-0", "project", "DETAILED", new IntakeFields("Big Project", null, List.of(), null), "")));
         String longText = "word ".repeat(1501).strip();
-        ProjectDataset.ProjectDatasets datasets = new ProjectDataset.ProjectDatasets(
-                List.of(new ProjectDataset("Big Project: too much text", null, List.of(), longText)));
+        ProjectDataset dataset = new ProjectDataset(
+                new IntakeFields("Big Project: too much text", null, List.of(), null), longText);
+        ProjectDataset.ProjectDatasets datasets =
+                new ProjectDataset.ProjectDatasets(Map.of("Big Project", dataset));
 
         IntakeFillBuilder.Result result = IntakeFillBuilder.fill(intake, datasets);
         IntakeSection filled = result.intake().sections().get(0);
@@ -86,6 +91,30 @@ class IntakeFillBuilderTest {
         IntakeValidator.Result v = IntakeValidator.validate(filled, 0);
         assertFalse(v.accepted(), "1,500+ word raw_text must be refused");
         assertEquals("RAW_TEXT_TOO_LONG", v.reason());
+    }
+
+    @Test
+    void aMissingProjectsKeyGivesAClearErrorNotAnException() {
+        Intake intake = new Intake(List.of());
+        ProjectDataset.ProjectDatasets malformed = new ProjectDataset.ProjectDatasets(null);
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> IntakeFillBuilder.fill(intake, malformed));
+        assertTrue(e.getMessage().contains(IntakeFillBuilder.EXPECTED_SHAPE),
+                "error must name the expected shape: " + e.getMessage());
+    }
+
+    @Test
+    void anEntryMissingFieldsTitleGivesAClearErrorNotAnException() {
+        Intake intake = new Intake(List.of());
+        ProjectDataset badEntry = new ProjectDataset(null, "some text");
+        ProjectDataset.ProjectDatasets malformed =
+                new ProjectDataset.ProjectDatasets(Map.of("Broken Entry", badEntry));
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> IntakeFillBuilder.fill(intake, malformed));
+        assertTrue(e.getMessage().contains("Broken Entry"));
+        assertTrue(e.getMessage().contains(IntakeFillBuilder.EXPECTED_SHAPE));
     }
 
     private static IntakeSection sectionById(Intake intake, String id) {

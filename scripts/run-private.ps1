@@ -92,31 +92,40 @@ Write-Host "Resume:       $docxName"
 Write-Host "Models dir:   $ModelsDir"
 Write-Host "Output dir:   $OutDir"
 
-# --- build the image fresh, so every step below runs the current code -----------------------
-Invoke-DockerStep -Name "docker build" -DockerArgs @("build", "-f", "docker/Dockerfile", "-t", "resume-tailor", $RepoRoot)
+# --- build the "build" stage fresh (dev + the compiled tailor.jar) -------------------------
+# Every step below invokes that jar directly with each argument as its own array element,
+# never through gradle's ":cli:run --args=<one joined string>" -- Gradle's --args splits that
+# string on whitespace before handing it to picocli, which silently breaks any path (a resume
+# filename, a folder name) that contains a space. Passing argv entries straight through, as an
+# array, has no such splitting at any step of the chain (PowerShell's @() splat -> Docker's own
+# array-form command -> the JVM's own argv) -- a path with spaces is simply one array element.
+Invoke-DockerStep -Name "docker build" -DockerArgs @(
+    "build", "-f", "docker/Dockerfile", "--target", "build", "-t", "resume-tailor", $RepoRoot
+)
+$Jar = "/app/cli/build/libs/tailor.jar"
 
 # --- 1. onboard -------------------------------------------------------------------------------
 Invoke-DockerStep -Name "onboard" -DockerArgs @(
     "run", "--rm",
     "-v", "${PrivateDir}:/private",
-    "resume-tailor", "gradle", "--no-daemon", ":cli:run",
-    "--args=onboard /private/$docxName /private/out/onboard"
+    "resume-tailor", "java", "-jar", $Jar,
+    "onboard", "/private/$docxName", "/private/out/onboard"
 )
 
 # --- 2. intake-template -------------------------------------------------------------------------
 Invoke-DockerStep -Name "intake-template" -DockerArgs @(
     "run", "--rm",
     "-v", "${PrivateDir}:/private",
-    "resume-tailor", "gradle", "--no-daemon", ":cli:run",
-    "--args=intake-template /private/out/onboard/normalized.docx /private/out/intake-template.json"
+    "resume-tailor", "java", "-jar", $Jar,
+    "intake-template", "/private/out/onboard/normalized.docx", "/private/out/intake-template.json"
 )
 
 # --- 3. intake-fill -----------------------------------------------------------------------------
 Invoke-DockerStep -Name "intake-fill" -DockerArgs @(
     "run", "--rm",
     "-v", "${PrivateDir}:/private",
-    "resume-tailor", "gradle", "--no-daemon", ":cli:run",
-    "--args=intake-fill /private/out/intake-template.json /private/project_datasets.json /private/out/intake-filled.json"
+    "resume-tailor", "java", "-jar", $Jar,
+    "intake-fill", "/private/out/intake-template.json", "/private/project_datasets.json", "/private/out/intake-filled.json"
 )
 
 # --- 4. generate --live (needs ANTHROPIC_API_KEY from the repo's own .env) ----------------------
@@ -124,8 +133,8 @@ Invoke-DockerStep -Name "generate --live" -CaptureVar "generateOutput" -DockerAr
     "run", "--rm",
     "--env-file", $EnvFile,
     "-v", "${PrivateDir}:/private",
-    "resume-tailor", "gradle", "--no-daemon", ":cli:run",
-    "--args=generate /private/out/onboard/normalized.docx /private/out/intake-filled.json /private/out/generate --live"
+    "resume-tailor", "java", "-jar", $Jar,
+    "generate", "/private/out/onboard/normalized.docx", "/private/out/intake-filled.json", "/private/out/generate", "--live"
 )
 
 # library.json needs the unwrapped {"projects": [...]} shape; generate's own output nests it one
@@ -140,8 +149,9 @@ Invoke-DockerStep -Name "match-batch" -DockerArgs @(
     "-v", "${PrivateDir}:/private",
     "-v", "${ModelsDir}:/models:ro",
     "-e", "VARIANT_MODEL_DIR=/models/all-MiniLM-L6-v2",
-    "resume-tailor", "gradle", "--no-daemon", ":cli:run",
-    "--args=match-batch /private/out/onboard/normalized.docx /private/out/generate/variants.json /private/out/library.json /private/jds /private/out/match-batch --embedder minilm"
+    "resume-tailor", "java", "-jar", $Jar,
+    "match-batch", "/private/out/onboard/normalized.docx", "/private/out/generate/variants.json",
+    "/private/out/library.json", "/private/jds", "/private/out/match-batch", "--embedder", "minilm"
 )
 
 Write-Host ""
