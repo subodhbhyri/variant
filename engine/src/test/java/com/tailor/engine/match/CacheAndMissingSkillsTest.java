@@ -17,7 +17,7 @@ class CacheAndMissingSkillsTest {
     @Test
     void missingSkillsMatchExpectedForEveryJd() throws Exception {
         Phase5TestSetup s = Phase5TestSetup.load();
-        List<String> materialTexts = MissingSkills.materialTexts(s.jobCandidates(), s.library);
+        List<String> materialTexts = MissingSkills.materialTexts(null, s.jobCandidates(), s.library);
 
         for (String name : JD_NAMES) {
             JobDescription jd = s.jds.get(name);

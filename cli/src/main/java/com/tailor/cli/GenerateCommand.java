@@ -352,10 +352,10 @@ public final class GenerateCommand implements Callable<Integer> {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SectionReportEntry(
             String status, Integer rounds, Map<String, FitLoop.CandidateOutcome> candidates,
-            Integer calls, ModelResponse.Usage tokens, Double costUsd) {
+            Integer calls, ModelResponse.Usage tokens, Double costUsd, List<FitLoop.Attempt> attempts) {
 
         static SectionReportEntry locked(String status) {
-            return new SectionReportEntry(status, null, null, null, null, null);
+            return new SectionReportEntry(status, null, null, null, null, null, List.of());
         }
 
         static SectionReportEntry of(FitLoop.FitLoopResult result, PriceTable prices) {
@@ -373,7 +373,7 @@ public final class GenerateCommand implements Callable<Integer> {
             }
             ModelResponse.Usage totals = new ModelResponse.Usage(inputTokens, outputTokens, cacheCreation, cacheRead);
             return new SectionReportEntry(result.status(), result.rounds(), result.finalResults(),
-                    result.callUsages().size(), totals, cost);
+                    result.callUsages().size(), totals, cost, result.attempts());
         }
     }
 }

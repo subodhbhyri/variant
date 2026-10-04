@@ -121,11 +121,15 @@ Invoke-DockerStep -Name "intake-template" -DockerArgs @(
 )
 
 # --- 3. intake-fill -----------------------------------------------------------------------------
+# --add-unmatched: a dataset with no matching position becomes an added project (project-new-N)
+# instead of failing the run -- the operator's own project_datasets.json commonly has more
+# projects than the resume has existing positions for.
 Invoke-DockerStep -Name "intake-fill" -DockerArgs @(
     "run", "--rm",
     "-v", "${PrivateDir}:/private",
     "resume-tailor", "java", "-jar", $Jar,
-    "intake-fill", "/private/out/intake-template.json", "/private/project_datasets.json", "/private/out/intake-filled.json"
+    "intake-fill", "/private/out/intake-template.json", "/private/project_datasets.json", "/private/out/intake-filled.json",
+    "--add-unmatched"
 )
 
 # --- 4. generate --live (needs ANTHROPIC_API_KEY from the repo's own .env) ----------------------

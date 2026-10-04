@@ -1,8 +1,10 @@
 package com.tailor.engine.generate;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -295,5 +297,24 @@ public final class TruthfulnessGuard {
             }
         }
         return found;
+    }
+
+    /** PHASE5_SPEC.md section 8.1 (revision 4, reference {@code techs_implied}): every skill
+     * {@code text} names, plus everything they unambiguously imply, transitively (dictionary
+     * v2.1's {@code _implies} — PostgreSQL implies SQL, GitHub Actions implies CI/CD/GitHub/Git).
+     * Used for the user's own material and for a bullet's keyword coverage when scoring it
+     * against a job description, never for the job description's own skill set (a posting
+     * asking for PostgreSQL does not ask for every SQL database). */
+    public static Set<String> techsImplied(String text, SkillsDictionary skills) {
+        Set<String> out = new TreeSet<>();
+        Deque<String> todo = new ArrayDeque<>(techs(text, skills));
+        while (!todo.isEmpty()) {
+            String t = todo.pop();
+            if (!out.add(t)) {
+                continue;
+            }
+            todo.addAll(skills.implies().getOrDefault(t, List.of()));
+        }
+        return out;
     }
 }

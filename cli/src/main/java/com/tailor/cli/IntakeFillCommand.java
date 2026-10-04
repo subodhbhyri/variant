@@ -25,7 +25,8 @@ import picocli.CommandLine.Parameters;
  * LinkValidator}) before anything is written — a failure here refuses the whole file rather than
  * writing something {@code tailor generate} would only reject later. A dataset that matches no
  * project section is also refused by default (its content would otherwise be silently dropped),
- * unless {@code --allow-unmatched} is passed.
+ * unless {@code --allow-unmatched} is passed, or {@code --add-unmatched} turns it into a brand
+ * new added project ({@code project-new-N}, up to the usual 8) instead.
  */
 @Command(name = "intake-fill", description = "Fills an intake-template output from the operator's own project datasets.")
 public final class IntakeFillCommand implements Callable<Integer> {
@@ -46,6 +47,11 @@ public final class IntakeFillCommand implements Callable<Integer> {
             description = "Don't fail when a dataset matches no project section; just report it.")
     private boolean allowUnmatched;
 
+    @Option(names = "--add-unmatched",
+            description = "Turn a dataset matching no existing position into an added project "
+                    + "(project-new-N) instead of reporting it unmatched.")
+    private boolean addUnmatched;
+
     @Override
     public Integer call() {
         try {
@@ -62,18 +68,22 @@ public final class IntakeFillCommand implements Callable<Integer> {
 
             IntakeFillBuilder.Result result;
             try {
-                result = IntakeFillBuilder.fill(intake, datasets);
+                result = IntakeFillBuilder.fill(intake, datasets, addUnmatched);
             } catch (IllegalArgumentException e) {
                 System.err.println("intake-fill failed: " + e.getMessage());
                 return 1;
             }
 
+            int addedProjectsSeen = 0;
             for (IntakeSection section : result.intake().sections()) {
-                IntakeValidator.Result v = IntakeValidator.validate(section, 0);
+                IntakeValidator.Result v = IntakeValidator.validate(section, addedProjectsSeen);
                 if (!v.accepted()) {
                     System.err.println(
                             "intake-fill failed: " + section.id() + ": " + v.reason() + " - " + v.message());
                     return 1;
+                }
+                if ("project".equals(section.kind()) && section.id().startsWith("project-new-")) {
+                    addedProjectsSeen++;
                 }
             }
 

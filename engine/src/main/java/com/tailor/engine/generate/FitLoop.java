@@ -29,6 +29,12 @@ public final class FitLoop {
     private static final double DUPLICATE_JACCARD = 0.8;
     private static final String RETURN_AT_LEAST_ONE = "Return at least one candidate.";
 
+    /** PHASE4_SPEC.md section 6 (revision 6): a retry whose content words are less than 60%
+     * grounded in its own previous attempt (same candidate and length) rewrites instead of
+     * shortening, and is rejected as {@code REWRITTEN} — provisional, recalibrate from the
+     * attempts log after the next real onboarding. */
+    private static final double REWRITE_GROUNDING_MIN = 0.60;
+
     public record CandidateOutcome(
             String status, Map<String, String> variants, Integer acceptedInRound, String reason, Integer attempts) {
         static CandidateOutcome ok(Map<Integer, String> variantsByLength, int acceptedInRound) {
@@ -47,6 +53,16 @@ public final class FitLoop {
     public record RoundOneFeedback(String reason, Integer targetLines, Integer measuredLines) {
     }
 
+    /** One (candidate, length) submission in one round (PHASE4_SPEC.md section 6 revision 6's
+     * "attempts log"): {@code outcome} is {@code FITS}, {@code TOO_SHORT}, {@code TOO_LONG}, a
+     * guard reason, or {@code REWRITTEN}; {@code renderedLines} is set only for the three render
+     * outcomes; {@code reworkScore} (the grounding score against this length's own previous
+     * attempt) only for {@code REWRITTEN}; {@code feedbackSent} is the retry feedback this
+     * attempt produced, or null if it passed (nothing to retry). */
+    public record Attempt(String candidateId, int length, int round, String text, String outcome,
+            Integer renderedLines, Double reworkScore, String feedbackSent) {
+    }
+
     /** {@code status}: {@code GENERATED} (normal) or {@code NO_OUTPUT} (section 6 point 3: the
      * model returned no candidates twice in a row; the section stays locked). */
     public record FitLoopResult(
@@ -55,7 +71,8 @@ public final class FitLoop {
             int rounds,
             Map<String, CandidateOutcome> finalResults,
             Map<String, RoundOneFeedback> round1Feedback,
-            List<ModelResponse.Usage> callUsages) {
+            List<ModelResponse.Usage> callUsages,
+            List<Attempt> attempts) {
     }
 
     private record RenderItem(String candidateId, int length, String text) {
@@ -80,6 +97,7 @@ public final class FitLoop {
         Map<String, CandidateState> candidates = new LinkedHashMap<>();
         Map<String, RoundOneFeedback> round1Feedback = new LinkedHashMap<>();
         List<ModelResponse.Usage> usages = new ArrayList<>();
+        List<Attempt> attempts = new ArrayList<>();
 
         String initialUserMessage = PromptBuilder.userMessage(ctx.kind(), ctx.mode(), ctx.fields(),
                 ctx.currentBullets(), ctx.rawText(),
@@ -93,12 +111,12 @@ public final class FitLoop {
             usages.add(retryResponse.usage());
             if (retryResponse.bullets().isEmpty()) {
                 return new FitLoopResult(
-                        "NO_OUTPUT", ctx.slotLineCounts(), usages.size(), Map.of(), Map.of(), usages);
+                        "NO_OUTPUT", ctx.slotLineCounts(), usages.size(), Map.of(), Map.of(), usages, List.of());
             }
             round1Response = retryResponse;
         }
 
-        ingestAndCheck(ctx, skills, candidates, round1Feedback, round1Response, 1);
+        ingestAndCheck(ctx, skills, candidates, round1Feedback, round1Response, 1, attempts);
 
         int round = 1;
         for (round = 2; round <= MAX_ROUNDS; round++) {
@@ -110,7 +128,7 @@ public final class FitLoop {
             String userMessage = PromptBuilder.retryMessage(retryItems);
             ModelResponse response = client.call(PromptBuilder.SYSTEM_PROMPT, userMessage);
             usages.add(response.usage());
-            ingestAndCheck(ctx, skills, candidates, round1Feedback, response, round);
+            ingestAndCheck(ctx, skills, candidates, round1Feedback, response, round, attempts);
 
             if (candidates.values().stream().noneMatch(s -> !s.failingLengths.isEmpty())) {
                 break;
@@ -138,14 +156,20 @@ public final class FitLoop {
         dropDuplicates(finalResults);
 
         return new FitLoopResult(
-                "GENERATED", ctx.slotLineCounts(), roundsRun, finalResults, round1Feedback, usages);
+                "GENERATED", ctx.slotLineCounts(), roundsRun, finalResults, round1Feedback, usages, attempts);
     }
 
     /** Ingests one round's response (assigning candidate ids/variants) and runs guard + batched
      * render check on every length just (re)submitted. */
     private static void ingestAndCheck(SectionContext ctx, SkillsDictionary skills,
             Map<String, CandidateState> candidates, Map<String, RoundOneFeedback> round1Feedback,
-            ModelResponse response, int round) throws Exception {
+            ModelResponse response, int round, List<Attempt> attempts) throws Exception {
+        // PHASE4_SPEC.md section 6 (revision 6): a retry whose content words are < 60% grounded in
+        // its OWN previous attempt (same candidate+length) rewrites instead of shortening, and is
+        // rejected as REWRITTEN before guard/render ever run on it. Checked and recorded right at
+        // ingestion, since both texts are already in hand; rewrittenThisRound keeps the later
+        // guard/render loop from re-processing a length already settled this way this round.
+        Map<String, Set<Integer>> rewrittenThisRound = new HashMap<>();
         for (ModelResponse.BulletCandidate bc : response.bullets()) {
             CandidateState state = candidates.computeIfAbsent(bc.id(), id -> new CandidateState());
             state.lastRoundTouched = round;
@@ -170,8 +194,21 @@ public final class FitLoop {
                 if (ownMaxLength != null && length > ownMaxLength) {
                     continue;
                 }
-                state.variants.put(length, e.getValue());
+                String previousText = round > 1 ? state.variants.get(length) : null;
+                String newText = e.getValue();
+                state.variants.put(length, newText);
                 state.failingLengths.add(length); // re-check every (re)submitted length below
+
+                if (previousText != null) {
+                    double reworkScore = TruthfulnessGuard.grounding(newText, List.of(previousText));
+                    if (reworkScore < REWRITE_GROUNDING_MIN) {
+                        fail(state, length, "REWRITTEN", null);
+                        rewrittenThisRound.computeIfAbsent(bc.id(), k -> new HashSet<>()).add(length);
+                        String feedback = feedbackText(ctx, "REWRITTEN", length, null, newText);
+                        attempts.add(new Attempt(bc.id(), length, round, newText, "REWRITTEN", null,
+                                roundTo4(reworkScore), feedback));
+                    }
+                }
             }
         }
 
@@ -185,6 +222,9 @@ public final class FitLoop {
                 continue; // not part of this round's response
             }
             for (int length : new ArrayList<>(state.failingLengths)) {
+                if (rewrittenThisRound.getOrDefault(id, Set.of()).contains(length)) {
+                    continue; // already settled (and logged) as REWRITTEN at ingestion, above
+                }
                 String text = state.variants.get(length);
                 // No budget here (unlike the prompt's <lengths> range and "about N characters"
                 // retry feedback, which do use it): the batched render check right below is the
@@ -197,6 +237,8 @@ public final class FitLoop {
                 if (!guardReasons.isEmpty()) {
                     fail(state, length, guardReasons.get(0), null);
                     recordRoundOneFeedback(round1Feedback, round, id, guardReasons.get(0), null, null);
+                    String feedback = feedbackText(ctx, guardReasons.get(0), length, null, text);
+                    attempts.add(new Attempt(id, length, round, text, guardReasons.get(0), null, null, feedback));
                 } else {
                     toRender.add(new RenderItem(id, length, text));
                 }
@@ -236,7 +278,11 @@ public final class FitLoop {
             RenderItem item = bySlot.get(r.slotIndex()).get(r.candidateIndex());
             CandidateState state = candidates.get(item.candidateId());
             switch (r.outcome()) {
-                case FITS -> pass(state, item.length());
+                case FITS -> {
+                    pass(state, item.length());
+                    attempts.add(new Attempt(item.candidateId(), item.length(), round, item.text(), "FITS",
+                            r.measuredLines(), null, null));
+                }
                 case FITS_WITH_PADDING -> {
                     // k < L, section 6 point 1: never retried ("never ask the model to lengthen
                     // anything" - section 4). Keep it as its own real (shorter) length if the
@@ -244,6 +290,8 @@ public final class FitLoop {
                     int measured = r.measuredLines();
                     recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_SHORT",
                             item.length(), measured);
+                    attempts.add(new Attempt(item.candidateId(), item.length(), round, item.text(), "TOO_SHORT",
+                            measured, null, null));
                     state.failingLengths.remove(item.length());
                     state.reasonByLength.put(item.length(), "TOO_SHORT");
                     Set<Integer> requested = requestedLengthsSnapshot.getOrDefault(item.candidateId(), Set.of());
@@ -259,6 +307,9 @@ public final class FitLoop {
                     fail(state, item.length(), "TOO_LONG", r.measuredLines());
                     recordRoundOneFeedback(round1Feedback, round, item.candidateId(), "TOO_LONG",
                             item.length(), r.measuredLines());
+                    String feedback = feedbackText(ctx, "TOO_LONG", item.length(), r.measuredLines(), item.text());
+                    attempts.add(new Attempt(item.candidateId(), item.length(), round, item.text(), "TOO_LONG",
+                            r.measuredLines(), null, feedback));
                 }
             }
         }
@@ -372,11 +423,19 @@ public final class FitLoop {
         // without a retry at all (section 6 point 1), so the only render failure that ever
         // reaches here is TOO_LONG.
         if ("TOO_LONG".equals(reason) && measuredLines != null) {
-            // "About N characters" = len(variant) - budget, rounded up to the nearest 5 (section 4).
+            // "About N characters" (revision 6) = max(len - budget, ceil(0.1 x len)), rounded up to
+            // the nearest 5, never below 5: a variant can be under its own character budget and
+            // still render too long, so len - budget alone could be zero or negative.
             Integer budget = ctx.budgetCharsByLineCount().get(targetLines);
-            int aboutN = budget == null ? 5 : roundUpToNearest5(Math.max(1, text.length() - budget));
+            int tenPercent = (int) Math.ceil(text.length() * 0.1);
+            int raw = budget == null ? tenPercent : Math.max(text.length() - budget, tenPercent);
+            int aboutN = Math.max(5, roundUpToNearest5(raw));
             return "renders on " + measuredLines + " lines; it must fit in " + targetLines
                     + ". Shorten it by about " + aboutN + " characters by removing words.";
+        }
+        if ("REWRITTEN".equals(reason)) {
+            return "invented new content instead of shortening its own previous attempt at this length; "
+                    + "revise using the same facts as before, just shorter. If you cannot, leave this length out.";
         }
         if (reason != null && reason.startsWith("UNSUPPORTED_TECH:")) {
             return "mentions " + reason.substring("UNSUPPORTED_TECH:".length())
@@ -400,6 +459,10 @@ public final class FitLoop {
 
     private static int roundUpToNearest5(int n) {
         return (int) (Math.ceil(n / 5.0) * 5);
+    }
+
+    private static double roundTo4(double n) {
+        return Math.round(n * 10_000.0) / 10_000.0;
     }
 
     private static Map<Integer, List<RenderItem>> distributeAcrossSlots(

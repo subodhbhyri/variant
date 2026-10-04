@@ -3,12 +3,14 @@ package com.tailor.engine.match;
 import com.tailor.engine.generate.Intake;
 import com.tailor.engine.generate.IntakeFields;
 import com.tailor.engine.generate.IntakeSection;
+import com.tailor.engine.generate.IntakeValidator;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * P5-T8 operator tooling: {@code tailor intake-fill} matches each project section of an
@@ -20,7 +22,11 @@ import java.util.Set;
  * {@code intake-template} found it, since datasets don't carry one. Job sections are set to
  * {@code EXISTING_ONLY} (D2: the operator reviews/polishes existing job bullets through this
  * tool, not regenerates them from scratch). Each dataset is used at most once; unmatched sections
- * and unmatched datasets are both reported, never silently dropped.
+ * and unmatched datasets are both reported, never silently dropped — unless {@code addUnmatched}
+ * turns a dataset matching no existing section into a brand-new added project ({@code
+ * project-new-N}, {@code DETAILED}, up to {@link IntakeValidator#MAX_ADDED_PROJECTS} total; its
+ * home section follows the same rule {@code tailor generate} already uses for any other added
+ * project — the section whose heading contains "project", else the one with the most positions).
  */
 public final class IntakeFillBuilder {
 
@@ -30,6 +36,8 @@ public final class IntakeFillBuilder {
             "{\"projects\": {\"<display name>\": {\"fields\": {\"title\": \"...\", \"detail\": \"...\", "
                     + "\"links\": [{\"label\": \"...\", \"url\": \"...\"}]}, \"raw_text\": \"...\"}}}";
 
+    private static final Pattern ADDED_PROJECT_ID = Pattern.compile("^project-new-(\\d+)$");
+
     public record Result(Intake intake, List<String> unmatchedSectionIds, List<String> unmatchedDatasetNames) {
     }
 
@@ -37,6 +45,10 @@ public final class IntakeFillBuilder {
     }
 
     public static Result fill(Intake intake, ProjectDataset.ProjectDatasets datasets) {
+        return fill(intake, datasets, false);
+    }
+
+    public static Result fill(Intake intake, ProjectDataset.ProjectDatasets datasets, boolean addUnmatched) {
         if (datasets == null || datasets.projects() == null) {
             throw new IllegalArgumentException(
                     "project_datasets.json must have the shape " + EXPECTED_SHAPE);
@@ -52,6 +64,7 @@ public final class IntakeFillBuilder {
         Set<Integer> used = new HashSet<>();
         List<IntakeSection> outSections = new ArrayList<>();
         List<String> unmatchedSectionIds = new ArrayList<>();
+        int existingAddedProjects = 0;
 
         for (IntakeSection s : intake.sections()) {
             if ("job".equals(s.kind())) {
@@ -61,6 +74,9 @@ public final class IntakeFillBuilder {
             if (!"project".equals(s.kind())) {
                 outSections.add(s);
                 continue;
+            }
+            if (ADDED_PROJECT_ID.matcher(s.id()).matches()) {
+                existingAddedProjects++;
             }
             String currentTitle = s.fields() == null ? null : s.fields().title();
             Integer matchIndex = findMatch(currentTitle, entries, used);
@@ -78,10 +94,31 @@ public final class IntakeFillBuilder {
         }
 
         List<String> unmatchedDatasetNames = new ArrayList<>();
+        List<Integer> unmatchedIndices = new ArrayList<>();
         for (int i = 0; i < entries.size(); i++) {
             if (!used.contains(i)) {
                 unmatchedDatasetNames.add(entries.get(i).getKey());
+                unmatchedIndices.add(i);
             }
+        }
+
+        if (addUnmatched) {
+            int addedSoFar = existingAddedProjects;
+            List<String> turnedIntoProjects = new ArrayList<>();
+            for (int i : unmatchedIndices) {
+                if (addedSoFar >= IntakeValidator.MAX_ADDED_PROJECTS) {
+                    break; // cap reached; the rest stay reported as unmatched, never silently dropped
+                }
+                addedSoFar++;
+                Map.Entry<String, ProjectDataset> entry = entries.get(i);
+                ProjectDataset d = entry.getValue();
+                IntakeFields fields =
+                        new IntakeFields(beforeColon(d.fields().title()), d.fields().detail(), d.fields().links(), null);
+                outSections.add(
+                        new IntakeSection("project-new-" + addedSoFar, "project", "DETAILED", fields, d.rawText()));
+                turnedIntoProjects.add(entry.getKey());
+            }
+            unmatchedDatasetNames.removeAll(turnedIntoProjects);
         }
 
         return new Result(new Intake(outSections), unmatchedSectionIds, unmatchedDatasetNames);

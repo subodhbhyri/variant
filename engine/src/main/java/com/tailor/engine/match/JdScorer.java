@@ -21,7 +21,11 @@ public final class JdScorer {
         if (total == 0) {
             return 0.0;
         }
-        Set<String> present = TruthfulnessGuard.techs(text, skills);
+        // PHASE5_SPEC.md section 8.1: implications apply to the text being scored (a PostgreSQL
+        // bullet covers an SQL requirement) -- never to jd.skills() itself, which stays exactly
+        // what parse_jd_v3 found (a posting asking for PostgreSQL does not ask for every SQL
+        // database).
+        Set<String> present = TruthfulnessGuard.techsImplied(text, skills);
         double sum = 0;
         for (var e : jd.skills().entrySet()) {
             if (present.contains(e.getKey())) {

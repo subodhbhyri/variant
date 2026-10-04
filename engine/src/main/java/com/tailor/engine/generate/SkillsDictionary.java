@@ -31,10 +31,13 @@ public final class SkillsDictionary {
 
     private final Map<String, List<Pattern>> patternsByCanonical;
     private final String version;
+    private final Map<String, List<String>> implies;
 
-    private SkillsDictionary(Map<String, List<Pattern>> patternsByCanonical, String version) {
+    private SkillsDictionary(Map<String, List<Pattern>> patternsByCanonical, String version,
+            Map<String, List<String>> implies) {
         this.patternsByCanonical = patternsByCanonical;
         this.version = version;
+        this.implies = implies;
     }
 
     /** {@code VARIANT_SKILLS_DICT} if set, else the bundled, versioned resource
@@ -72,6 +75,19 @@ public final class SkillsDictionary {
             }
         }
 
+        Map<String, List<String>> implies = new LinkedHashMap<>();
+        if (root.has("_implies")) {
+            Iterator<Map.Entry<String, JsonNode>> impliesIt = root.get("_implies").fields();
+            while (impliesIt.hasNext()) {
+                Map.Entry<String, JsonNode> e = impliesIt.next();
+                List<String> targets = new ArrayList<>();
+                for (JsonNode t : e.getValue()) {
+                    targets.add(t.asText());
+                }
+                implies.put(e.getKey(), targets);
+            }
+        }
+
         Map<String, List<Pattern>> out = new LinkedHashMap<>();
         String version = null;
         Iterator<Map.Entry<String, JsonNode>> it = root.fields();
@@ -90,7 +106,7 @@ public final class SkillsDictionary {
             }
             out.put(e.getKey(), patterns);
         }
-        return new SkillsDictionary(out, version);
+        return new SkillsDictionary(out, version, implies);
     }
 
     Map<String, List<Pattern>> patternsByCanonical() {
@@ -106,6 +122,14 @@ public final class SkillsDictionary {
      * operator override, or an older fixture). */
     public String version() {
         return version;
+    }
+
+    /** PHASE5_SPEC.md section 8.1 (dictionary v2.1, reference {@code _implies}): a skill that
+     * unambiguously implies broader ones (PostgreSQL implies SQL) -> canonical term -> the terms
+     * it implies directly (applied transitively by {@link
+     * TruthfulnessGuard#techsImplied}). Empty (never null) for a dictionary with no such key. */
+    public Map<String, List<String>> implies() {
+        return implies;
     }
 
     /** Aliases of <=2 characters (Go, JS, S3, ...) are always case-sensitive; so is any alias

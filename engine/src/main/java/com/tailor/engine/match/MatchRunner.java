@@ -86,7 +86,8 @@ public final class MatchRunner {
         List<AssembledResume> resumes =
                 Alternatives.top3(ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), ctx.embedder());
 
-        List<String> materialTexts = MissingSkills.materialTexts(ctx.jobCandidates(), ctx.library());
+        String wholeResume = MissingSkills.wholeResumeText(ctx.onboardedDocx());
+        List<String> materialTexts = MissingSkills.materialTexts(wholeResume, ctx.jobCandidates(), ctx.library());
         List<String> missing = MissingSkills.compute(jd, materialTexts, ctx.skills());
 
         AssembledResume first = resumes.get(0);

@@ -1,5 +1,7 @@
 package com.tailor.cli;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.tailor.engine.fonts.FontMap;
 import com.tailor.engine.generate.SkillsDictionary;
 import com.tailor.engine.match.Embedder;
@@ -26,13 +28,16 @@ import picocli.CommandLine.Parameters;
  * {@code tailor match-batch <onboarded.docx> <variants.json> <library.json> <jdFolder> <outDir>
  * [--embedder fake|minilm]} — P5-T8 operator tooling. Runs {@code match} for every {@code .txt}
  * file in {@code jdFolder} (sorted by filename, for a deterministic report and cache order) and
- * writes {@code summary.md} ({@link MatchBatchSummary}). Each job description's own {@code
- * resume-1.docx}/{@code resume-1.pdf} land in their own subfolder, named after the {@code .txt}
- * file.
+ * writes {@code summary.md} ({@link MatchBatchSummary}, with a library-project feasibility table
+ * — section 9 revision 4). Each job description's own {@code resume-1.docx}/{@code
+ * resume-1.pdf}/{@code match.json} land in their own subfolder, named after the {@code .txt} file.
  */
 @Command(name = "match-batch",
         description = "Runs match for every job description in a folder and writes a summary (spec P5-T8).")
 public final class MatchBatchCommand implements Callable<Integer> {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
     @Parameters(index = "0", description = "An already-onboarded (normalized) .docx")
     private Path onboardedPath;
@@ -116,12 +121,19 @@ public final class MatchBatchCommand implements Callable<Integer> {
                     Path resume1Pdf = renderer.render(result.resume1Docx(), workDir);
                     Files.copy(resume1Pdf, jdOutDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
+                    MatchCommand.MatchOutput matchOutput =
+                            new MatchCommand.MatchOutput(result.jd(), result.resumes(), result.missing());
+                    MAPPER.writerWithDefaultPrettyPrinter()
+                            .writeValue(jdOutDir.resolve("match.json").toFile(), matchOutput);
+
                     rows.add(MatchBatchSummary.rowFor(baseName, result, processedJds, processedNames, embedder));
                     processedJds.add(result.jd());
                     processedNames.add(baseName);
                 }
 
-                Files.writeString(outDir.resolve("summary.md"), MatchBatchSummary.toMarkdown(rows));
+                String feasibility = MatchBatchSummary.feasibilityMarkdown(
+                        MatchBatchSummary.feasibility(ctx.library(), ctx.shapes().positions(), skills, embedder));
+                Files.writeString(outDir.resolve("summary.md"), MatchBatchSummary.toMarkdown(rows) + feasibility);
                 System.out.println("match-batch ok -> " + outDir);
                 return 0;
             } finally {

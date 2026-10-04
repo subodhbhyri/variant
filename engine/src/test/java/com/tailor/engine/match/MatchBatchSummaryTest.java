@@ -3,9 +3,12 @@ package com.tailor.engine.match;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.tailor.engine.blocks.LibraryProject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -72,6 +75,32 @@ class MatchBatchSummaryTest {
         String result = MatchBatchSummary.cacheAgainstPrevious(
                 data, List.of(platform), List.of("platform"), s.embedder);
         assertEquals("MISS", result);
+    }
+
+    /** PHASE5_SPEC.md section 9 (revision 4): a feasibility entry per library project, listing
+     * the swappable positions whose shape it can fill -- same for every posting (no job
+     * description involved), so it's checked once against the fixture's own real library/shapes
+     * rather than per JD. */
+    @Test
+    void feasibilityListsEveryLibraryProjectAndTheMarkdownHasItsOwnHeading() throws Exception {
+        Phase5TestSetup s = Phase5TestSetup.load();
+
+        Map<String, List<String>> feasibility =
+                MatchBatchSummary.feasibility(s.library, s.shapes.positions(), s.skills, s.embedder);
+
+        assertEquals(s.library.stream().map(LibraryProject::id).collect(Collectors.toSet()), feasibility.keySet());
+        for (var e : feasibility.entrySet()) {
+            for (String positionId : e.getValue()) {
+                assertTrue(s.shapes.positions().stream().anyMatch(p -> p.id().equals(positionId)),
+                        e.getKey() + ": \"" + positionId + "\" is not one of this fixture's own position ids");
+            }
+        }
+
+        String markdown = MatchBatchSummary.feasibilityMarkdown(feasibility);
+        assertTrue(markdown.contains("## Library project feasibility"));
+        for (LibraryProject p : s.library) {
+            assertTrue(markdown.contains("| " + p.id() + " |"), "missing a row for " + p.id());
+        }
     }
 
     @Test

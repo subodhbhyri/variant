@@ -60,6 +60,52 @@ class IntakeFillBuilderTest {
                 "the map key (display name) is what's reported, never the title");
     }
 
+    /** {@code --add-unmatched}: a dataset matching no existing section becomes an added project
+     * instead of being merely reported. */
+    @Test
+    void addUnmatchedTurnsAnOrphanDatasetIntoAnAddedProject() throws Exception {
+        Path dir = CorpusPaths.phase5FixturesDir().resolve("intake_fill");
+        Intake intake = IntakeIO.load(dir.resolve("intake_template_sample.json"));
+        ProjectDataset.ProjectDatasets datasets = MAPPER.readValue(
+                dir.resolve("project_datasets_sample.json").toFile(), ProjectDataset.ProjectDatasets.class);
+
+        IntakeFillBuilder.Result result = IntakeFillBuilder.fill(intake, datasets, true);
+
+        assertEquals(List.of(), result.unmatchedDatasetNames(), "the orphan dataset is no longer unmatched");
+
+        IntakeSection added = sectionById(result.intake(), "project-new-1");
+        assertEquals("project", added.kind());
+        assertEquals("DETAILED", added.mode());
+        assertEquals("Unmatched Dataset", added.fields().title());
+        assertTrue(added.rawText().startsWith("orphan dataset text"));
+
+        for (IntakeSection s : result.intake().sections()) {
+            IntakeValidator.Result v = IntakeValidator.validate(s, 0);
+            assertTrue(v.accepted(), s.id() + ": " + v.reason() + " - " + v.message());
+        }
+    }
+
+    /** More orphan datasets than {@code MAX_ADDED_PROJECTS} allows: the ones that fit become
+     * added projects, the rest stay reported as unmatched rather than silently dropped. */
+    @Test
+    void addUnmatchedStopsAtTheAddedProjectCapAndStillReportsTheRest() {
+        Intake intake = new Intake(List.of());
+        Map<String, ProjectDataset> projects = new java.util.LinkedHashMap<>();
+        for (int i = 1; i <= IntakeValidator.MAX_ADDED_PROJECTS + 2; i++) {
+            projects.put("Orphan " + i, new ProjectDataset(
+                    new IntakeFields("Orphan Project " + i, null, List.of(), null), "text " + i));
+        }
+        ProjectDataset.ProjectDatasets datasets = new ProjectDataset.ProjectDatasets(projects);
+
+        IntakeFillBuilder.Result result = IntakeFillBuilder.fill(intake, datasets, true);
+
+        long addedCount = result.intake().sections().stream()
+                .filter(s -> s.id().startsWith("project-new-")).count();
+        assertEquals(IntakeValidator.MAX_ADDED_PROJECTS, addedCount);
+        assertEquals(2, result.unmatchedDatasetNames().size(),
+                "datasets beyond the cap must stay reported, not silently dropped");
+    }
+
     @Test
     void everyFilledSectionPassesIntakeValidator() throws Exception {
         Path dir = CorpusPaths.phase5FixturesDir().resolve("intake_fill");

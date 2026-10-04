@@ -1,5 +1,9 @@
 package com.tailor.engine.match;
 
+import com.tailor.engine.blocks.LibraryProject;
+import com.tailor.engine.generate.SkillsDictionary;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,5 +102,39 @@ public final class MatchBatchSummary {
 
     private static String escape(String s) {
         return s == null ? "" : s.replace("|", "\\|");
+    }
+
+    /** PHASE5_SPEC.md section 9 (revision 4): for each library project, the swappable positions
+     * whose shape it can fill — independent of any job description (a project lacking 2-line
+     * variants can't fill an all-2-line position, whatever the posting asks for), so it's the
+     * same for every posting in a batch and computed once. {@code jd}/{@code skills}/{@code
+     * embedder} are only needed because {@link Assembler#placeProject} always scores as it
+     * checks fit; an empty job description scores everything 0 without affecting which
+     * permutations exist at all. */
+    public static Map<String, List<String>> feasibility(List<LibraryProject> library,
+            List<Shapes.PositionShape> positions, SkillsDictionary skills, Embedder embedder) {
+        JobDescription empty = new JobDescription("", Map.of(), "");
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        for (LibraryProject p : library) {
+            List<String> fits = new ArrayList<>();
+            for (Shapes.PositionShape pos : positions) {
+                if (Assembler.placeProject(p, pos.shape(), empty, skills, embedder) != null) {
+                    fits.add(pos.id());
+                }
+            }
+            out.put(p.id(), fits);
+        }
+        return out;
+    }
+
+    public static String feasibilityMarkdown(Map<String, List<String>> feasibility) {
+        StringBuilder md = new StringBuilder();
+        md.append("\n## Library project feasibility\n\n");
+        md.append("| Project | Positions it can fill |\n|---|---|\n");
+        for (Map.Entry<String, List<String>> e : feasibility.entrySet()) {
+            md.append("| ").append(e.getKey()).append(" | ")
+                    .append(e.getValue().isEmpty() ? "(none)" : String.join(", ", e.getValue())).append(" |\n");
+        }
+        return md.toString();
     }
 }
