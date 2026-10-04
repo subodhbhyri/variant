@@ -14,7 +14,7 @@ import picocli.CommandLine.Command;
         subcommands = {RenderCommand.class, NormalizeCommand.class, DetectCommand.class, CorpusCheckCommand.class,
                 OnboardCommand.class, BlocksCommand.class, SwapCommand.class, ProjectCheckCommand.class,
                 GenerateCommand.class, MatchCommand.class, AliasesCommand.class, IntakeTemplateCommand.class,
-                MatchBatchCommand.class})
+                MatchBatchCommand.class, IntakeFillCommand.class})
 public final class TailorCli implements Runnable {
 
     @Override

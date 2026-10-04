@@ -2,6 +2,7 @@ package com.tailor.engine.generate;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -39,10 +40,16 @@ public final class TruthfulnessGuard {
     private static final List<String> NUM_WORDS =
             WORD_NUM_ORDER.stream().filter(w -> !w.equals("one")).toList();
 
+    // A number, optionally followed by a short unit glued on or after one space (48ms, 300 s,
+    // 1.5x, 15 km). Only K/k/M/B/bn are multipliers (4K = 4,000); a lowercase "m" is a unit
+    // (metres, minutes) — MULTIPLIER's lookup below is deliberately case-sensitive.
     private static final Pattern NUM = Pattern.compile(
-            "(?<![\\w.])(\\d+(?:[.,]\\d+)*)\\s*([kKmMbB])?(?![\\w])|(?<![\\w-])("
+            "(?<![\\w.])(\\d+(?:[.,]\\d+)*)(?:\\s?([A-Za-z]{1,4}))?(?![\\w])|(?<![\\w-])("
                     + String.join("|", NUM_WORDS) + ")(?![\\w-])",
             Pattern.CASE_INSENSITIVE);
+
+    private static final Map<String, Double> MULTIPLIER =
+            Map.of("K", 1e3, "k", 1e3, "M", 1e6, "B", 1e9, "bn", 1e9);
 
     private static final Pattern URL = Pattern.compile(
             "https?://|www\\.|\\b[\\w.+-]+@[\\w-]+\\.\\w|\\b[\\w-]+\\.(?:com|io|dev|org|net|ai|app|co|me|xyz)\\b(?:/\\S*)?",
@@ -101,16 +108,16 @@ public final class TruthfulnessGuard {
         }
 
         String source = String.join("\n", sourceTexts);
-        Set<Double> sourceNums = numbers(source);
-        List<Double> missingNums = new ArrayList<>();
-        for (double n : numbers(v)) {
+        Set<NumberToken> sourceNums = numbers(source);
+        List<NumberToken> missingNums = new ArrayList<>();
+        for (NumberToken n : numbers(v)) {
             if (!sourceNums.contains(n)) {
                 missingNums.add(n);
             }
         }
-        Collections.sort(missingNums);
-        for (double n : missingNums) {
-            reasons.add("UNSUPPORTED_NUMBER:" + formatNumber(n));
+        missingNums.sort(Comparator.comparing(TruthfulnessGuard::sortKey));
+        for (NumberToken n : missingNums) {
+            reasons.add("UNSUPPORTED_NUMBER:" + formatToken(n));
         }
 
         Set<String> sourceTechs = techs(source, skills);
@@ -204,6 +211,27 @@ public final class TruthfulnessGuard {
         return s.substring(start, end);
     }
 
+    /** Either a parsed numeric value, or (for a version like "0.111.0", two or more dots) its
+     * literal text, compared and sorted as text rather than a number — the two kinds never equal
+     * each other even if their text happens to coincide, since exactly one field is null. */
+    private record NumberToken(Double value, String versionText) {
+        static NumberToken ofValue(double v) {
+            return new NumberToken(v, null);
+        }
+
+        static NumberToken ofVersion(String s) {
+            return new NumberToken(null, s);
+        }
+    }
+
+    private static String sortKey(NumberToken n) {
+        return n.versionText() != null ? n.versionText() : pythonFloatStr(n.value());
+    }
+
+    private static String formatToken(NumberToken n) {
+        return n.versionText() != null ? n.versionText() : formatNumber(n.value());
+    }
+
     private static String formatNumber(double n) {
         if (!Double.isInfinite(n) && n == Math.rint(n)) {
             return String.valueOf((long) n);
@@ -211,27 +239,44 @@ public final class TruthfulnessGuard {
         return String.valueOf(n);
     }
 
-    static Set<Double> numbers(String text) {
-        Set<Double> out = new LinkedHashSet<>();
+    /** Mimics Python's {@code str(float)} closely enough for the guard's own sort key (every
+     * whole value gets a trailing ".0", matching Python's repr) — only relative order among a
+     * variant's own handful of missing numbers matters, never an external comparison. */
+    private static String pythonFloatStr(double n) {
+        if (!Double.isInfinite(n) && n == Math.rint(n) && Math.abs(n) < 1e16) {
+            return (long) n + ".0";
+        }
+        return String.valueOf(n);
+    }
+
+    private static int countDots(String s) {
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == '.') {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static Set<NumberToken> numbers(String text) {
+        Set<NumberToken> out = new LinkedHashSet<>();
         Matcher m = NUM.matcher(text);
         while (m.find()) {
             String word = m.group(3);
             if (word != null) {
-                out.add((double) WORD_NUMS.get(word.toLowerCase()));
+                out.add(NumberToken.ofValue(WORD_NUMS.get(word.toLowerCase())));
                 continue;
             }
-            double v = Double.parseDouble(m.group(1).replace(",", ""));
-            String suffix = m.group(2);
-            double mult = 1;
-            if (suffix != null) {
-                mult = switch (suffix.toLowerCase()) {
-                    case "k" -> 1e3;
-                    case "m" -> 1e6;
-                    case "b" -> 1e9;
-                    default -> 1;
-                };
+            String raw = m.group(1);
+            if (countDots(raw) > 1) {
+                out.add(NumberToken.ofVersion(raw));
+                continue;
             }
-            out.add(v * mult);
+            double v = Double.parseDouble(raw.replace(",", ""));
+            String unit = m.group(2);
+            double mult = unit == null ? 1 : MULTIPLIER.getOrDefault(unit, 1.0);
+            out.add(NumberToken.ofValue(v * mult));
         }
         return out;
     }

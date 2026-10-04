@@ -1,0 +1,27 @@
+{
+ "datasets": [
+  {
+   "title": "Beacon Analytics: real-time analytics platform for retail",
+   "detail": "Kotlin, Spark, Delta Lake, Airflow",
+   "links": [
+    {
+     "label": "GitHub",
+     "url": "https://github.com/example/beacon"
+    }
+   ],
+   "raw_text": "Built a real-time analytics dashboard that processed clickstream events from 200 retail stores, aggregating sales and inventory signals every five minutes for store managers."
+  },
+  {
+   "title": "ledger sync: payments reconciliation",
+   "detail": "Go, Postgres, gRPC",
+   "links": [],
+   "raw_text": "Built a reconciliation service that matched 50,000 daily payment records across three ledgers and flagged discrepancies for manual review within an hour."
+  },
+  {
+   "title": "Unmatched Dataset: nothing uses this",
+   "detail": null,
+   "links": [],
+   "raw_text": "orphan dataset text that no intake section should ever receive"
+  }
+ ]
+}

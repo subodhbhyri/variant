@@ -1,0 +1,52 @@
+{
+ "sections": [
+  {
+   "id": "job-0",
+   "kind": "job",
+   "mode": "DETAILED",
+   "fields": {
+    "title": "Senior Engineer",
+    "detail": "Acme Corp",
+    "links": [],
+    "date": "Jan 2023 – Present"
+   },
+   "raw_text": ""
+  },
+  {
+   "id": "project-0",
+   "kind": "project",
+   "mode": "DETAILED",
+   "fields": {
+    "title": "Beacon Analytics",
+    "detail": null,
+    "links": [],
+    "date": null
+   },
+   "raw_text": ""
+  },
+  {
+   "id": "project-1",
+   "kind": "project",
+   "mode": "DETAILED",
+   "fields": {
+    "title": "Ledger Sync",
+    "detail": null,
+    "links": [],
+    "date": null
+   },
+   "raw_text": ""
+  },
+  {
+   "id": "project-2",
+   "kind": "project",
+   "mode": "DETAILED",
+   "fields": {
+    "title": "Orphan Project",
+    "detail": null,
+    "links": [],
+    "date": null
+   },
+   "raw_text": ""
+  }
+ ]
+}

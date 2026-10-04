@@ -24,6 +24,10 @@ public final class Phase4Fixtures {
         return MAPPER.readValue(requireFile(guardCasesJson).toFile(), GuardCases.class);
     }
 
+    public static GuardNumberCases loadGuardNumberCases(Path guardNumberCasesJson) throws IOException {
+        return MAPPER.readValue(requireFile(guardNumberCasesJson).toFile(), GuardNumberCases.class);
+    }
+
     public static ConsistencyCases loadConsistencyCases(Path consistencyCasesJson) throws IOException {
         return MAPPER.readValue(requireFile(consistencyCasesJson).toFile(), ConsistencyCases.class);
     }
@@ -46,6 +50,15 @@ public final class Phase4Fixtures {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record GuardCase(String name, String variant, Integer budgetChars, List<String> expected) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record GuardNumberCases(List<GuardNumberCase> cases) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record GuardNumberCase(
+            String name, String variant, List<String> sourceTexts, Integer budgetChars, List<String> expected) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

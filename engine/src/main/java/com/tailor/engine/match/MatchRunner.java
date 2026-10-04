@@ -1,5 +1,6 @@
 package com.tailor.engine.match;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.tailor.engine.blocks.LibraryProject;
@@ -31,6 +32,9 @@ public final class MatchRunner {
     private MatchRunner() {
     }
 
+    // ignoreUnknown: tailor generate's own output file has both "jobs" and "projects" at the top
+    // level, and callers are free to pass that whole file as <variants.json> here directly.
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record VariantsInput(Map<String, Map<String, FitLoop.CandidateOutcome>> jobs) {
     }
 
