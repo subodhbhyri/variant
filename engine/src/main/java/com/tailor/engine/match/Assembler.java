@@ -162,6 +162,13 @@ public final class Assembler {
 
     static ProjectScoreResult projectScore(LibraryProject project, Shapes.PositionShape position, JobDescription jd,
             SkillsDictionary skills, Embedder embedder) {
+        // A project never places outside its own home section (PHASE3_SPEC.md section 2: a resume
+        // can have more than one "projects"-role section) — null/null (older shapes.json or
+        // library.json fixtures with no section info at all) is always eligible, unconstrained.
+        if (position.section() != null && project.homeSection() != null
+                && !position.section().equals(project.homeSection())) {
+            return null;
+        }
         PlaceResult placed = placeProject(project, position.shape(), jd, skills, embedder);
         if (placed == null) {
             return null;

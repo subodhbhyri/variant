@@ -126,6 +126,7 @@ public final class GenerateCommand implements Callable<Integer> {
 
             TargetBuilder.SectionTarget projectTarget = TargetBuilder.forProjects(report, positions);
             Map<Integer, List<Integer>> pooledSlots = pooledProjectSlots(report, positions);
+            String addedProjectHomeSection = addedProjectHomeSection(positions);
             for (IntakeSection section : intake.sections()) {
                 if (!"project".equals(section.kind())) {
                     continue;
@@ -157,10 +158,13 @@ public final class GenerateCommand implements Callable<Integer> {
                 tracker.recordAll(result.callUsages());
 
                 IntakeFields fields = section.fields();
+                String homeSection = existingIndex != null && existingIndex < positions.projectPositionSections().size()
+                        ? positions.projectPositionSections().get(existingIndex)
+                        : addedProjectHomeSection;
                 libraryProjects.add(new LibraryProject(
                         section.id(), fields == null ? null : fields.title(), fields == null ? null : fields.detail(),
                         toLibraryLinks(fields), fields == null ? null : fields.date(),
-                        keptBulletsInOrder(result.finalResults())));
+                        keptBulletsInOrder(result.finalResults()), homeSection));
                 reportSections.put(section.id(), SectionReportEntry.of(result, tracker.prices()));
             }
 
@@ -282,6 +286,28 @@ public final class GenerateCommand implements Callable<Integer> {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** A brand-new added project (no existing position of its own) goes to the {@code "projects"}-
+     * role section whose heading contains "project" (case-insensitive, first in document order);
+     * if none does, the one with the most positions (first in document order on a tie); if the
+     * resume has no {@code "projects"}-role section at all, null. */
+    private static String addedProjectHomeSection(SectionPositions positions) {
+        List<com.tailor.engine.blocks.ProjectSections.Entry> entries = positions.projectSectionEntries();
+        for (com.tailor.engine.blocks.ProjectSections.Entry e : entries) {
+            if (e.section().heading().toLowerCase(java.util.Locale.ROOT).contains("project")) {
+                return e.section().heading();
+            }
+        }
+        String best = null;
+        int bestCount = -1;
+        for (com.tailor.engine.blocks.ProjectSections.Entry e : entries) {
+            if (e.positions().size() > bestCount) {
+                bestCount = e.positions().size();
+                best = e.section().heading();
+            }
+        }
+        return best;
     }
 
     /** Every swappable project position's bullet slots, grouped by line count and pooled

@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
@@ -22,7 +23,9 @@ import picocli.CommandLine.Parameters;
  * EXISTING_ONLY}. Reports any project section or dataset left unmatched. Every filled section is
  * re-validated (PHASE4_SPEC.md section 1: the 1,500-word raw-text limit; links through {@code
  * LinkValidator}) before anything is written — a failure here refuses the whole file rather than
- * writing something {@code tailor generate} would only reject later.
+ * writing something {@code tailor generate} would only reject later. A dataset that matches no
+ * project section is also refused by default (its content would otherwise be silently dropped),
+ * unless {@code --allow-unmatched} is passed.
  */
 @Command(name = "intake-fill", description = "Fills an intake-template output from the operator's own project datasets.")
 public final class IntakeFillCommand implements Callable<Integer> {
@@ -38,6 +41,10 @@ public final class IntakeFillCommand implements Callable<Integer> {
 
     @Parameters(index = "2", description = "Output intake.json path")
     private Path outJson;
+
+    @Option(names = "--allow-unmatched",
+            description = "Don't fail when a dataset matches no project section; just report it.")
+    private boolean allowUnmatched;
 
     @Override
     public Integer call() {
@@ -75,6 +82,12 @@ public final class IntakeFillCommand implements Callable<Integer> {
                         + String.join(", ", result.unmatchedSectionIds()));
             }
             if (!result.unmatchedDatasetNames().isEmpty()) {
+                if (!allowUnmatched) {
+                    System.err.println("intake-fill failed: dataset(s) matched no project section: "
+                            + String.join(", ", result.unmatchedDatasetNames())
+                            + " (pass --allow-unmatched to accept this)");
+                    return 1;
+                }
                 System.out.println("unmatched datasets (no project section found): "
                         + String.join(", ", result.unmatchedDatasetNames()));
             }

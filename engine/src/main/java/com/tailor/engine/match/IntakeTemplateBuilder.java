@@ -28,7 +28,24 @@ import org.w3c.dom.Element;
  */
 public final class IntakeTemplateBuilder {
 
+    /** Per {@code "projects"}-role section: its heading and how many positions (total and
+     * swappable) {@link #build} found there — printed by {@code tailor intake-template} so a
+     * section that structurally looks like projects but yields nothing swappable (e.g. a
+     * headerless bullet list) is visible instead of silently contributing zero sections. */
+    public record SectionSummary(String heading, int positionCount, int swappableCount) {
+    }
+
     private IntakeTemplateBuilder() {
+    }
+
+    public static List<SectionSummary> summarize(Path normalizedDocx, OnboardReport report) throws Exception {
+        SectionPositions positions = SectionPositions.detect(normalizedDocx, report);
+        List<SectionSummary> out = new ArrayList<>();
+        for (var entry : positions.projectSectionEntries()) {
+            long swappable = entry.positions().stream().filter(Position::swappable).count();
+            out.add(new SectionSummary(entry.section().heading(), entry.positions().size(), (int) swappable));
+        }
+        return out;
     }
 
     public static Intake build(Path normalizedDocx, OnboardReport report) throws Exception {

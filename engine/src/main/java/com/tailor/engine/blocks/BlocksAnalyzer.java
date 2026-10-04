@@ -46,25 +46,22 @@ public final class BlocksAnalyzer {
 
         List<Section> sections = SectionDetector.detect(doc);
 
-        Section projectsSection = null;
-        for (Section s : sections) {
-            if ("projects".equals(s.role())) {
-                projectsSection = s;
-                break;
-            }
-        }
-
-        if (projectsSection == null) {
-            return new BlocksReport(sections, null, List.of());
-        }
-
         // No renderer here, so no fresh Locker run for the render-based shared_lines lock —
         // only the cheap Phase 1 bullet-lock check applies for this inspection-only entry point.
         // Every corpus/fixture position currently has no locked bullet of any kind in its
         // projects section, so this doesn't change any tested output; BlockSwapper's own
         // locate() runs Locker fresh instead, since a swap actually needs the render.
-        List<Position> positions =
-                PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement, Map.of());
-        return new BlocksReport(sections, projectsSection.heading(), positions);
+        List<ProjectSections.Entry> projectEntries =
+                ProjectSections.detect(sections, slotByElement::containsKey, slotByElement, Map.of());
+
+        if (projectEntries.isEmpty()) {
+            return new BlocksReport(sections, null, List.of(), List.of());
+        }
+
+        List<Position> positions = ProjectSections.flatten(projectEntries);
+        List<BlocksReport.ProjectSectionReport> projectSections = projectEntries.stream()
+                .map(e -> new BlocksReport.ProjectSectionReport(e.section().heading(), e.positions()))
+                .toList();
+        return new BlocksReport(sections, projectEntries.get(0).section().heading(), positions, projectSections);
     }
 }

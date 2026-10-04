@@ -301,7 +301,7 @@ class CorpusRotationTest {
                             .map(DateEdgeMeasurer.Measurement::rightEdgeTwips).orElse(null);
                 }
                 LibraryProject probeProject = new LibraryProject(
-                        null, adapter.title(), adapter.detail(), adapter.links(), adapter.date(), null);
+                        null, adapter.title(), adapter.detail(), adapter.links(), adapter.date(), null, null);
                 // Not BlockSwapper.resolveDetail: its candidate-header anchor search starts at
                 // cursor 0 across the whole page, which a real swap never collides on (a library
                 // title is never also, independently, still sitting elsewhere on the same page).

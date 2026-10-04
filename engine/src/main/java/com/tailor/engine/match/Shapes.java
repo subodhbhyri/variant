@@ -28,7 +28,7 @@ public record Shapes(JobShape job, List<PositionShape> positions, List<PositionS
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record PositionShape(String id, List<Integer> shape, boolean showsDetail) {
+    public record PositionShape(String id, List<Integer> shape, boolean showsDetail, String section) {
     }
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -63,6 +63,7 @@ public record Shapes(JobShape job, List<PositionShape> positions, List<PositionS
         List<PositionShape> swappable = new ArrayList<>();
         List<PositionShape> locked = new ArrayList<>();
         List<Position> projectPositions = positions.projectPositions();
+        List<String> projectPositionSections = positions.projectPositionSections();
         for (int i = 0; i < projectPositions.size(); i++) {
             Position p = projectPositions.get(i);
             // An inline position's bullets aren't separate paragraph slots (bulletSlotIndices is
@@ -73,7 +74,7 @@ public record Shapes(JobShape job, List<PositionShape> positions, List<PositionS
                     ? p.segmentsPerBullet()
                     : linesOf(positions.bulletSlotIndices(p), bySlotIndex);
             boolean showsDetail = p.header() != null && p.header().fields().contains("DETAIL");
-            PositionShape ps = new PositionShape("P" + i, shape, showsDetail);
+            PositionShape ps = new PositionShape("P" + i, shape, showsDetail, projectPositionSections.get(i));
             (p.swappable() ? swappable : locked).add(ps);
         }
         return new Shapes(jobShape, swappable, locked);

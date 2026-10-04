@@ -2,6 +2,7 @@ package com.tailor.engine.generate;
 
 import com.tailor.engine.blocks.Position;
 import com.tailor.engine.blocks.PositionBuilder;
+import com.tailor.engine.blocks.ProjectSections;
 import com.tailor.engine.blocks.Section;
 import com.tailor.engine.blocks.SectionDetector;
 import com.tailor.engine.docx.DocxPackage;
@@ -30,12 +31,22 @@ public final class SectionPositions {
 
     private final List<Position> jobPositions;
     private final List<Position> projectPositions;
+    private final List<String> projectPositionSections;
+    private final List<ProjectSections.Entry> projectEntries;
     private final Map<Element, Slot> slotByElement;
 
-    private SectionPositions(List<Position> jobPositions, List<Position> projectPositions,
+    private SectionPositions(List<Position> jobPositions, List<ProjectSections.Entry> projectEntries,
             Map<Element, Slot> slotByElement) {
         this.jobPositions = jobPositions;
-        this.projectPositions = projectPositions;
+        this.projectEntries = projectEntries;
+        this.projectPositions = ProjectSections.flatten(projectEntries);
+        List<String> headings = new ArrayList<>();
+        for (ProjectSections.Entry e : projectEntries) {
+            for (int i = 0; i < e.positions().size(); i++) {
+                headings.add(e.section().heading());
+            }
+        }
+        this.projectPositionSections = headings;
         this.slotByElement = slotByElement;
     }
 
@@ -44,9 +55,23 @@ public final class SectionPositions {
         return jobPositions;
     }
 
-    /** The "projects" section's positions, in Phase 3 position order (not filtered to swappable). */
+    /** Every {@code "projects"}-role section's positions, concatenated in document order (not
+     * filtered to swappable) — the same flattened order {@code "project-N"}/{@code "P"+N} ids use. */
     public List<Position> projectPositions() {
         return projectPositions;
+    }
+
+    /** {@link #projectPositions()}'s own originating section heading, index-for-index — so a
+     * project position's home section (PHASE3/5: swaps and assembly never place a project outside
+     * the section its position actually lives in) can be looked up by the same {@code N}. */
+    public List<String> projectPositionSections() {
+        return projectPositionSections;
+    }
+
+    /** Every {@code "projects"}-role section with its own positions, in document order — used to
+     * decide a brand-new (no existing position) added project's home section. */
+    public List<ProjectSections.Entry> projectSectionEntries() {
+        return projectEntries;
     }
 
     /** A paragraph-kind position's bullets, resolved to their {@link Slot#index()} in document
@@ -105,12 +130,10 @@ public final class SectionPositions {
         List<Section> sections = SectionDetector.detect(doc);
         Section experienceSection = sections.stream().filter(s -> "experience".equals(s.role())).findFirst()
                 .orElse(null);
-        Section projectsSection = sections.stream().filter(s -> "projects".equals(s.role())).findFirst()
-                .orElse(null);
         List<Position> jobPositions = experienceSection == null ? List.of()
                 : PositionBuilder.build(experienceSection, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
-        List<Position> projectPositions = projectsSection == null ? List.of()
-                : PositionBuilder.build(projectsSection, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
-        return new SectionPositions(jobPositions, projectPositions, slotByElement);
+        List<ProjectSections.Entry> projectEntries = ProjectSections.detect(
+                sections, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
+        return new SectionPositions(jobPositions, projectEntries, slotByElement);
     }
 }

@@ -396,10 +396,12 @@ public final class BlockSwapper {
         }
 
         List<Section> sections = SectionDetector.detect(doc);
-        Section projectsSection = sections.stream().filter(s -> "projects".equals(s.role())).findFirst()
-                .orElseThrow(() -> new IllegalStateException("no projects section detected"));
-        List<Position> positions = PositionBuilder.build(
-                projectsSection, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
+        List<ProjectSections.Entry> projectEntries = ProjectSections.detect(
+                sections, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
+        if (projectEntries.isEmpty()) {
+            throw new IllegalStateException("no projects section detected");
+        }
+        List<Position> positions = ProjectSections.flatten(projectEntries);
         if (positionIndex < 0 || positionIndex >= positions.size()) {
             throw new IllegalArgumentException(
                     "position " + positionIndex + " out of range (0.." + (positions.size() - 1) + ")");

@@ -16,7 +16,8 @@ public record LibraryProject(
         String detail,
         List<Link> links,
         String date,
-        List<Map<String, String>> bullets) {
+        List<Map<String, String>> bullets,
+        String homeSection) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Link(String label, String url) {

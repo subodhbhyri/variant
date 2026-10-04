@@ -44,6 +44,22 @@ public final class IntakeTemplateCommand implements Callable<Integer> {
                     0, 0.0, 0, 0, 0, List.of(), editableCount, slotReports, renderer.version());
 
             Intake intake = IntakeTemplateBuilder.build(onboardedPath, report);
+            List<IntakeTemplateBuilder.SectionSummary> summaries =
+                    IntakeTemplateBuilder.summarize(onboardedPath, report);
+
+            int totalSwappable = 0;
+            for (IntakeTemplateBuilder.SectionSummary s : summaries) {
+                System.out.printf("project section %-30s positions=%d swappable=%d%n",
+                        s.heading(), s.positionCount(), s.swappableCount());
+                totalSwappable += s.swappableCount();
+                if (s.positionCount() > 0 && s.swappableCount() == 0) {
+                    System.out.println("warning: project section \"" + s.heading()
+                            + "\" has no swappable position (every position there is locked/headerless)");
+                }
+            }
+            if (totalSwappable == 0) {
+                System.out.println("warning: no swappable project position found anywhere in this resume");
+            }
 
             if (outJson.getParent() != null) {
                 Files.createDirectories(outJson.getParent());

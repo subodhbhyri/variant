@@ -100,7 +100,7 @@ public final class ResumeRenderer {
             // [0, 2, 1] for the platform fixture). Reordering/subsetting the bullets list here,
             // before the swap, is how that selection actually reaches the document.
             LibraryProject selected = new LibraryProject(project.id(), project.title(), project.detail(),
-                    project.links(), project.date(), selectedBullets(project, assignment));
+                    project.links(), project.date(), selectedBullets(project, assignment), project.homeSection());
             DocxPackage basePkg = DocxPackage.open(current);
             Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
             BlockSwapper.Result result =
