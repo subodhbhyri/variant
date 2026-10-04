@@ -26,31 +26,68 @@ Verifier before it's shown.
 
 ## 1. Parsing a job description (step 5.1)
 
-Reference: `parse_jd`. Input: plain text (from the extension or pasted),
-capped at **20,000 characters** (longer → reject `JD_TOO_LONG`).
+Reference: `parse_jd` (= `parse_jd_v3`). Input: plain text (from the extension or
+pasted), capped at **20,000 characters** (longer → reject `JD_TOO_LONG`).
+Revision 3 was built on **20 real postings**; revision 1 got 12 of their titles
+wrong and inverted required/preferred on some. Their patterns are captured as
+synthetic cases in `fixtures/phase5/jd_patterns/` (the real postings stay
+private).
 
-- **Title** = first non-empty line. A skill in the title counts as required.
-- **Sections**: a line that looks like a heading (short, ends with `:`, or
-  title-cased with no sentence punctuation) and names a section sets the weight
-  for the lines after it:
-  - required ×1.0: requirements, qualifications, must have, what you'll need, you have, minimum;
-  - preferred ×0.5: nice to have, preferred, bonus, plus, good to have;
-  - any other heading ×0.3 (responsibilities, about us, …); the text before the first heading is ×0.3.
-- **Skills** are found with the Phase 4 dictionary matcher (`techs`); each skill's
-  weight is the **highest** weight of any line it appears on.
-- **Requirement text** = the lines under required and preferred headings,
-  joined. It's what embeddings compare against.
+**Title** (`extract_title`), first rule that applies:
+1. A label line: `Job Title:`, `Role -`, `Position:`, `Title:` followed by a role.
+2. One of the first 3 lines that names a role (engineer, developer, SDET,
+   programmer, architect, scientist, analyst, tester, assistant, as a **whole
+   word**: "Engineering" is not "Engineer"), is at most 10 words, doesn't end
+   like a sentence, and isn't itself a "seeking a…" phrase. Boilerplate lines
+   are skipped: "About…", "Job Description", "Description", "Overview",
+   "General Information", "Company:", "Summary", "Apply", "Job Details".
+3. A role at the end of one of the first 8 lines after `>`, `:` or `,`
+   ("Job Area: … > IT Software Developer").
+4. A phrase "as a / seeking (a) / hiring (a) / looking for (a) … <role>",
+   preferring multi-word roles ("backend engineers" → "Backend engineer") over a
+   bare "engineer".
+5. Otherwise **no title** (empty). Never a guessed line: 2 of the 20 real
+   postings have no title, and a guessed line put skills into the title.
 
-Measured on the fixtures: the reworded platform posting ("Qualifications",
-"Preferred") parses to exactly the same weighted skills as the original
-("Requirements", "Nice to have").
+A skill named in the title counts as required.
+
+**Sections.** A heading is a short line (≤ 70 characters, ≤ 6 words or ending in
+`:` or all caps), not ending in sentence punctuation, and **not** a `label:
+value` line ("Education: Bachelor's preferred" is content). Its kind, first
+match wins:
+
+| Kind | Weight | Heading words |
+|---|---|---|
+| ignore | 0 (skills not counted) | benefits, perks, salary, compensation, pay range/scale, equal opportunity, EEO, privacy, disclosures, physical, work environment, interview process, "About <company>" (not "About the role/you/the job"), our purpose/virtues/stands, who thrives, why work/join, E-Verify, accommodation |
+| preferred | 0.5 | nice to have, preferred, bonus, desired/desirable, additional skills, good to have, a plus |
+| required | 1.0 | requirements, required, qualifications, must have, minimum, what you'll need, what you bring/have, who you are, about you, what we're looking for, skills (but see below), knowledge, education and experience, you have |
+| duties | 0.5 | responsibilities, what you'll do, what you will do/work on, duties, essential functions, the opportunity, the role, role description, your role, how we work, outcomes, day to day |
+| other | 0.3 | any other heading ending in `:`, and text before the first heading |
+
+A bare "Skills" or "Job Details" heading is a job-board tag list, so "other".
+A parenthesised heading like "(Required)" counts. Inside a **required**
+section, a line containing preferred, a plus, bonus, nice to have, desired,
+desirable or "not required" weighs 0.5.
+
+**Requirement text** = lines weighted ≥ 0.5, joined.
 
 ### 1.1 Skills dictionary
 
-Production dictionary: the Phase 4 seed **plus O*NET's Technology Skills
-list** (free US Department of Labor data), about 1,500 canonical terms, each
-with aliases. Stored as data, versioned. Fixtures use
-`fixtures/phase5/skills_fixture.json` (the seed + 6 terms).
+**Version 2** (`reference/data/skills_dictionary_v2.json`, bundled as the jar
+resource, replacing the 74-term seed): 182 canonical terms, 267 aliases,
+curated and checked against the 20 real postings. The seed missed Playwright,
+Cypress, Selenium, Pytest, Hibernate, JPA, Maven, Gradle, Oracle, Snowflake,
+Android, Jira, Copilot, microservices, HTML, CSS, Tomcat and Redux. The O*NET
+import (about 1,500 terms) remains the next step, with this file as its seed.
+
+**Case-sensitive aliases**: `_case_sensitive` lists aliases that double as
+ordinary English (React, Swift, Spring, Go, Express, Node, Lambda…); they match
+exact case only, so "react quickly to swift changes in spring" names no skill.
+Aliases of 2 characters or fewer stay case-sensitive as before. The same
+matcher serves the Phase 4 guard.
+
+Fixtures keep their own small dictionary (`skills_fixture.json`) so fixture
+results don't move when the production dictionary grows.
 
 **Unknown terms**: tech-looking tokens not in the dictionary (CamelCase,
 contain `.`/`+`/`#`/digits, or ALL-CAPS 2–6 letters) go to a review queue with
@@ -119,7 +156,10 @@ Quill the frontend one, Relay the data one.
 
 Reference: `top3`. **An alternative is the best resume that includes one item
 #1 left out**: an unused library project, or an unused job achievement group,
-with everything else re-optimized. Candidates are ranked by total score; the
+with everything else re-optimized **by the same best-first rule as #1** (D3):
+the project assignment is the lexicographic best among those that include the
+left-out project. (Revision 2 placed it wherever the total was highest, which
+put a data project at the top of a platform resume.) Candidates are ranked by total score; the
 top 2 are offered. Each is labelled with what it adds ("includes harbor
 instead of relay"). If nothing was left out, fewer than 3 resumes are offered.
 
@@ -142,8 +182,18 @@ check also compares content: it caught `BlockSwapper` placing a project's
 bullets in library order instead of the order `Assembler` chose (forge
 `[0, 2, 1]`), which the layout-only stage checks missed. The result must pass
 the Verifier; anything else is `VERIFY_FAILED` and isn't shown. #2 and #3 are
-assembled only when the user opens them. A resume whose assembly fails
-verification is dropped from the offer and logged (never silently replaced).
+assembled only when the user opens them. **If a swap fails verification**, mark that (project, position)
+pair infeasible for this resume and re-solve (section 3, same rules), at most
+3 times. If a position still can't be filled, it keeps its original content
+(the user's own, unswapped) and `match.json` records it under `degraded` with
+the reason. A resume is dropped only if it still fails verification after
+that, and the drop is logged with its reason, never silently replaced.
+Measured: one mis-parsed header made resume #1 fail for all 20 real postings,
+so nothing at all was delivered.
+
+`match-batch` writes a `summary.md` row for **every** posting, including
+failed or degraded ones, with the reason; an empty summary is never valid
+output.
 
 ---
 
@@ -230,6 +280,9 @@ fake` is for fixtures and tests.
 
 | Id | Test | Pass condition |
 |---|---|---|
+| P5-T14 | Fail-soft assembly | A fixture position whose swap always fails verification (e.g. a header made unparseable on purpose) yields a delivered resume #1 with that position unswapped and listed under `degraded`, after at most 3 re-solves; `summary.md` has a row per posting including the degraded note |
+| P5-T15 | Separator spaces | A header `Title \| stack \| link` written with non-breaking spaces around either `\|` parses to `TITLE SEP DETAIL SEP LINK`, and re-emitting it keeps the original characters |
+| P5-T13 | Real-world patterns | Every case in `fixtures/phase5/jd_patterns/expected.json` (10 synthetic postings, one per pattern found in 20 real ones) parses to exactly its title and weighted skills, with dictionary v2 |
 | P5-T1 | Parsing | Each fixture JD's title and weighted skills equal `expected_selection.json`; the platform rewording parses identically to the original |
 | P5-T2 | Scoring | `scores_job` for every JD equal the expected values exactly (FakeEmbedder) |
 | P5-T3 | Assembly | Resume #1 for platform, frontend and data equals expected: job slots, positions, projects, chosen bullet indices, project scores |

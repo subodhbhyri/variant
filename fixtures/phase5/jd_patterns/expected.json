@@ -1,0 +1,85 @@
+{
+ "_note": "Synthetic postings, one per pattern found in 20 real job descriptions (PHASE5_SPEC 1, revision 3). Parsed with reference parse_jd_v3 and dictionary v2.",
+ "cases": {
+  "p01_boilerplate_phrase": {
+   "title": "Java Developer",
+   "skills": {
+    "Hibernate": 0.5,
+    "Java": 1.0,
+    "Spring": 1.0,
+    "Spring Boot": 1.0
+   }
+  },
+  "p02_title_label": {
+   "title": "Software Engineer",
+   "skills": {
+    "Docker": 0.5,
+    "Java": 1.0,
+    "MySQL": 1.0,
+    "Redis": 1.0
+   }
+  },
+  "p03_job_area": {
+   "title": "IT Software Developer",
+   "skills": {
+    "Java": 1.0,
+    "Python": 1.0,
+    "REST": 0.5
+   }
+  },
+  "p04_required_label": {
+   "title": "QA Automation Engineer",
+   "skills": {
+    "Cypress": 1.0,
+    "GitHub": 0.5,
+    "GitHub Actions": 0.5,
+    "Playwright": 1.0
+   }
+  },
+  "p05_board_tags_desired": {
+   "title": "Associate Data Engineer",
+   "skills": {
+    "Elasticsearch": 0.3,
+    "Informatica": 0.5,
+    "Python": 0.3,
+    "Spark": 0.5
+   }
+  },
+  "p06_ignored_sections": {
+   "title": "Backend Engineer",
+   "skills": {
+    "Go": 1.0
+   }
+  },
+  "p07_no_title": {
+   "title": "",
+   "skills": {
+    "Java": 1.0,
+    "Spring": 1.0,
+    "Spring Boot": 1.0
+   }
+  },
+  "p08_engineering_word": {
+   "title": "Software development Engineer",
+   "skills": {
+    "Android": 0.3,
+    "Java": 1.0,
+    "Kotlin": 1.0
+   }
+  },
+  "p09_multiword_title": {
+   "title": "Backend engineer",
+   "skills": {
+    "Java": 1.0,
+    "SQL": 1.0
+   }
+  },
+  "p10_english_words": {
+   "title": "Frontend Engineer",
+   "skills": {
+    "React": 1.0,
+    "Swift": 1.0
+   }
+  }
+ }
+}

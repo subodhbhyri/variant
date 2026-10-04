@@ -1,0 +1,6 @@
+About the job
+Company DescriptionAcme lends securities.
+Major Duties and responsibilities
+Java (Spring Boot) for transaction processing.
+Qualifications
+Backend Expertise: Proficient in Java and Spring Boot.

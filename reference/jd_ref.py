@@ -18,7 +18,7 @@ PREFERRED = re.compile(r"\b(nice[- ]to[- ]haves?|preferred|bonus|plus|good to ha
 HEADING = re.compile(r"^\s*[A-Z][^.!?]{0,60}:\s*$|^\s*[A-Z][A-Za-z ,'’&/-]{2,40}$")
 
 # --- 5.1 parse ---------------------------------------------------------------
-def parse_jd(text, skills):
+def parse_jd_v1(text, skills):  # revision 1, kept for reference only
     """-> {'title', 'skills': {canon: weight}, 'requirement_text'}"""
     lines = [l.rstrip() for l in text.strip().splitlines()]
     title = next((l.strip() for l in lines if l.strip()), "")
@@ -94,7 +94,7 @@ def project_score(project, position, jd, skills, sim):
         s += DETAIL_WEIGHT * keyword_coverage(project.get("detail") or "", jd, skills)
     return round(s, 4), placed[0]
 
-def assign_projects(positions, library, jd, skills, sim, penalty=frozenset()):
+def assign_projects(positions, library, jd, skills, sim, penalty=frozenset(), must_include=None):
     """Best project in the top position (decision 2): among all feasible
     assignments (each project at most once), maximize the first position's
     score, then the second's, and so on. Reused items score x REUSE_FACTOR."""
@@ -109,6 +109,7 @@ def assign_projects(positions, library, jd, skills, sim, penalty=frozenset()):
             scores.append(eff)
             detail.append({"position": pos["id"], "project": ids[lib_i], "bullets": r[1], "score": r[0]})
         else:
+            if must_include and must_include not in [d["project"] for d in detail]: continue
             key = (tuple(-x for x in scores), tuple(d["project"] for d in detail))
             if best is None or key < best[0]: best = (key, detail)
     return [] if best is None else best[1]
@@ -151,25 +152,14 @@ def top3(shapes, job_cands, library, jd, skills, sim):
     used_groups = {groups[c] for c in first["job"] if c}
     used_projects = {d["project"] for d in first["projects"]}
     options = []
-    for p in library:                                   # force an unused project in
+    for p in library:                                   # force an unused project in, best-first as in #1 (D3)
         if p["id"] in used_projects: continue
-        best = None
-        for pos_i in range(len(shapes["positions"])):
-            others = [q for q in library if q["id"] != p["id"]]
-            fixed = project_score(p, shapes["positions"][pos_i], jd, skills, sim)
-            if fixed is None: continue
-            rest_pos = [q for i, q in enumerate(shapes["positions"]) if i != pos_i]
-            rest = assign_projects(rest_pos, others, jd, skills, sim)
-            if len(rest) != len(rest_pos): continue
-            projs = sorted(rest + [{"position": shapes["positions"][pos_i]["id"], "project": p["id"],
-                                    "bullets": fixed[1], "score": fixed[0]}],
-                           key=lambda d: [q["id"] for q in shapes["positions"]].index(d["position"]))
-            cand = {"job": first["job"], "projects": projs}
-            t = total_score(cand, shapes, job_cands, jd, skills, sim)
-            if best is None or (-t, pos_i) < (-best[0], best[1]): best = (t, pos_i, cand)
-        if best:
-            dropped = sorted(used_projects - {d["project"] for d in best[2]["projects"]})
-            options.append((best[0], "includes " + p["id"] + (" instead of " + ", ".join(dropped) if dropped else ""), best[2]))
+        projs = assign_projects(shapes["positions"], library, jd, skills, sim, must_include=p["id"])
+        if len(projs) != len(shapes["positions"]): continue
+        cand = {"job": first["job"], "projects": projs}
+        dropped = sorted(used_projects - {d["project"] for d in projs})
+        options.append((total_score(cand, shapes, job_cands, jd, skills, sim),
+                        "includes " + p["id"] + (" instead of " + ", ".join(dropped) if dropped else ""), cand))
     for g in sorted(set(groups.values()) - used_groups):   # force an unused achievement in
         members = [c for c in job_cands if groups[c["id"]] == g]
         slots = shapes["job"]["slots"]
@@ -236,3 +226,79 @@ def alias_rules(a, b):
         if len(p) >= 2 and s.isupper() and len(s) == len(p) and "".join(w[0] for w in p).upper() == s:
             hits.add("initialism")
     return sorted(hits)
+
+# --- 5.1 parser, revision 3 (measured on 20 real postings) -------------------------
+BOILERPLATE_TITLE = re.compile(r"^(?:(job description( summary)?|description|overview|general information|"
+                               r"company|summary|apply|job details|position description)\s*:?\s*$|about\b)", re.I)
+TITLE_LABEL = re.compile(r"^\s*(?:job title|role|position|title)\s*[:\-–]\s*(.+?)\s*$", re.I)
+ROLE_NOUN = r"(?:engineer|developer|sdet|programmer|architect|scientist|analyst|tester|assistant)s?\b"
+TITLE_PHRASE = re.compile(r"\b(?:as an?|seeking (?:an?\s+)?|hiring (?:an?\s+)?|looking for (?:an?\s+)?|join us as an?)\s*((?:[A-Za-z0-9/+#.&()-]+\s+){0,6}\b" + ROLE_NOUN + r")", re.I)
+SECTION_RULES = [   # (kind, pattern) checked in order on heading-like lines
+    ("ignore",    re.compile(r"\b(benefits?|perks|salary|compensation|pay (range|scale)|equal opportunity|eeo\b|privacy|disclosures?|"
+                             r"physical|work environment|interview process|about (?!the role|you|the job)\w|our (purpose|virtues|stands)|"
+                             r"who thrives|why work|why join|e-verify|accommodation)", re.I)),
+    ("preferred", re.compile(r"\b(nice[- ]to[- ]haves?|preferred|bonus|desir(ed|able)|additional skills|good to have|a plus)\b", re.I)),
+    ("required",  re.compile(r"\b(requirements?|required|qualifications?|must[- ]haves?|minimum|what you('|’)ll need|what you (bring|have)|"
+                             r"who you are|about you|what we('|’)re looking for|skills|knowledge|education and experience|you have)\b", re.I)),
+    ("duties",    re.compile(r"\b(responsibilit|what you('|’)ll do|what you will (do|work on)|duties|essential (job )?functions|"
+                             r"the opportunity|the role|role description|your role|how we work|outcomes|day to day)", re.I)),
+]
+WEIGHT = {"required": 1.0, "preferred": 0.5, "duties": 0.5, "other": 0.3, "ignore": 0.0}
+LINE_PREFERRED = re.compile(r"\b(preferred|a plus|is a plus|bonus|nice to have|desired|desirable|not required)\b", re.I)
+
+def _heading_kind(line):
+    s = line.strip().strip("()").strip()
+    if not s or len(s) > 70 or s.endswith((".", "!", "?")): return None
+    if ":" in s.rstrip(":"): return None                       # "Education: Bachelor's preferred" is a label, not a heading
+    if re.fullmatch(r"skills|job details", s.rstrip(":").strip(), re.I): return "other"   # job-board tag lists
+    words = s.rstrip(":").split()
+    looks = s.endswith(":") or len(words) <= 6 or s.isupper()
+    if not looks: return None
+    for kind, pat in SECTION_RULES:
+        if pat.search(s): return kind
+    return "other" if s.endswith(":") else None
+
+def extract_title(lines):
+    """Explicit label > first meaningful line naming a role > 'As a X' phrase > first meaningful line."""
+    head = [l.strip() for l in lines[:40] if l.strip()]
+    for l in head:
+        m = TITLE_LABEL.match(l)
+        if m and re.search(ROLE_NOUN, m.group(1), re.I): return m.group(1)
+    for l in head[:3]:
+        if BOILERPLATE_TITLE.match(l): continue
+        if (re.search(r"\b" + ROLE_NOUN, l, re.I) and len(l) <= 90 and len(l.split()) <= 10
+                and not re.search(r"[.!?]$", l) and not TITLE_PHRASE.search(l)): return l
+    for l in head[:8]:                                         # "Job Area: ... > IT Software Developer"
+        m = re.search(r"(?:^|[>:,])\s*([^>:,]{2,60}\b" + ROLE_NOUN + r")\s*$", l, re.I)
+        if m and not BOILERPLATE_TITLE.match(l): return m.group(1).strip()
+    found = []                                                  # "As a Software Engineer at ..." phrases
+    for l in head:
+        for m in TITLE_PHRASE.finditer(l):
+            t = re.sub(r"^(skilled|passionate|talented|motivated)\s+", "", m.group(1), flags=re.I).strip()
+            t = re.sub(r"(?i)(engineer|developer|programmer|architect|scientist|analyst|tester)s$", r"\1", t)
+            found.append(t[0].upper() + t[1:])
+    multi = [t for t in found if len(t.split()) >= 2]           # prefer "Backend Engineer" over a bare "Engineer"
+    if multi: return multi[0]
+    if found: return found[0]
+    return ""                                                   # no recognisable title: none, never a guessed line
+
+def parse_jd_v3(text, skills):
+    lines = [l.rstrip() for l in text.strip().splitlines()]
+    title = extract_title(lines)
+    kind, found, req_lines = "other", {}, []
+    for l in lines:
+        s = l.strip()
+        if not s: continue
+        k = _heading_kind(s)
+        if k: kind = k; continue
+        w = WEIGHT[kind]
+        if w == 0: continue
+        if kind == "required" and LINE_PREFERRED.search(s): w = WEIGHT["preferred"]
+        if w >= 0.5: req_lines.append(s)
+        for t in techs(s, skills):
+            found[t] = max(found.get(t, 0.0), w)
+    for t in techs(title, skills): found[t] = 1.0
+    return {"title": title, "skills": dict(sorted(found.items())), "requirement_text": " ".join(req_lines)}
+
+
+parse_jd = parse_jd_v3   # revision 3 is the parser (PHASE5_SPEC section 1)

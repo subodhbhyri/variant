@@ -1,0 +1,5 @@
+About the job
+Job SummaryWe are seeking a skilled Java Developer to maintain payment services.
+Required Skills
+Strong Java and Spring Boot.
+Experience with Hibernate is a plus.

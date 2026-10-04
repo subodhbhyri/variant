@@ -1,5 +1,5 @@
 {
- "_note": "Produced by reference/jd_ref.py with fake_similarity (bag-of-stems cosine) standing in for MiniLM. Java must reproduce this exactly with the same stand-in.",
+ "_note": "Produced by reference/jd_ref.py with fake_similarity (bag-of-stems cosine) standing in for MiniLM. Java must reproduce this exactly with the same stand-in. Revision 3: regenerated with parse_jd_v3.",
  "library": "fixtures/phase3/library.json",
  "shapes": "fixtures/phase5/shapes.json",
  "job_variants": "fixtures/phase5/job_variants.json",
@@ -14,7 +14,7 @@
    "title": "Senior Backend Engineer, Build Platform",
    "skills": {
     "Bazel": 0.5,
-    "CI": 0.3,
+    "CI": 0.5,
     "Go": 1.0,
     "Kubernetes": 1.0,
     "Postgres": 1.0,
@@ -38,7 +38,7 @@
         2,
         1
        ],
-       "score": 0.3692,
+       "score": 0.3814,
        "stack": [
         "Go",
         "Kubernetes",
@@ -56,27 +56,12 @@
       },
       {
        "position": "P1",
-       "project": "quill",
-       "bullets": [
-        0,
-        1
-       ],
-       "score": 0.0517,
-       "stack": [
-        "Postgres",
-        "TypeScript",
-        "Next.js",
-        "Redis"
-       ]
-      },
-      {
-       "position": "P2",
        "project": "harbor",
        "bullets": [
-        0,
-        1
+        1,
+        0
        ],
-       "score": 0.0343,
+       "score": 0.057,
        "stack": [
         "Rust",
         "Tokio",
@@ -84,8 +69,18 @@
        ]
       },
       {
+       "position": "P2",
+       "project": "sprout",
+       "bullets": [
+        1,
+        0
+       ],
+       "score": 0.0109,
+       "stack": []
+      },
+      {
        "position": "P3",
-       "project": "relay",
+       "project": "quill",
        "bullets": [
         0,
         1,
@@ -93,20 +88,17 @@
        ],
        "score": 0.0,
        "stack": [
-        "Terraform",
-        "Python",
-        "FastAPI",
-        "Kafka",
-        "ClickHouse",
-        "Grafana",
-        "AWS"
+        "Postgres",
+        "TypeScript",
+        "Next.js",
+        "Redis"
        ]
       }
      ],
-     "total": 0.7473
+     "total": 0.7702
     },
     {
-     "label": "includes sprout instead of relay",
+     "label": "includes relay instead of quill",
      "job": [
       "n4",
       "n1"
@@ -120,29 +112,29 @@
         2,
         1
        ],
-       "score": 0.3692
+       "score": 0.3814
       },
       {
        "position": "P1",
-       "project": "quill",
+       "project": "harbor",
        "bullets": [
-        0,
-        1
+        1,
+        0
        ],
-       "score": 0.0517
+       "score": 0.057
       },
       {
        "position": "P2",
-       "project": "harbor",
+       "project": "sprout",
        "bullets": [
-        0,
-        1
+        1,
+        0
        ],
-       "score": 0.0343
+       "score": 0.0109
       },
       {
        "position": "P3",
-       "project": "sprout",
+       "project": "relay",
        "bullets": [
         0,
         1,
@@ -151,22 +143,22 @@
        "score": 0.0
       }
      ],
-     "total": 0.7473
+     "total": 0.7702
     }
    ],
    "missing": [],
    "scores_job": {
-    "n1": 0.1207,
-    "n2": 0.1681,
-    "n3": 0.1207,
-    "n4": 0.1714
+    "n1": 0.1325,
+    "n2": 0.1837,
+    "n3": 0.1167,
+    "n4": 0.1884
    }
   },
   "platform_reworded": {
    "title": "Backend Engineer (Senior) - Developer Platform",
    "skills": {
     "Bazel": 0.5,
-    "CI": 0.3,
+    "CI": 0.5,
     "Go": 1.0,
     "Kubernetes": 1.0,
     "Postgres": 1.0,
@@ -485,13 +477,13 @@
    "a": "platform",
    "b": "frontend",
    "decision": "MISS",
-   "weighted_jaccard": 0.102
+   "weighted_jaccard": 0.1
   },
   {
    "a": "platform",
    "b": "data",
    "decision": "MISS",
-   "weighted_jaccard": 0.0463
+   "weighted_jaccard": 0.0455
   },
   {
    "a": "frontend",

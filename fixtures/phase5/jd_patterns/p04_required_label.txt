@@ -1,0 +1,6 @@
+QA Automation Engineer
+Who You Are:
+(Required)
+You have experience with Playwright or Cypress.
+Preferred:
+You have used GitHub Actions.

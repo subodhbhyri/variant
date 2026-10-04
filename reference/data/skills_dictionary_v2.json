@@ -1,0 +1,667 @@
+{
+ "_version": "2",
+ "_note": "Curated skills dictionary v2 (replaces the 74-term seed). Built and checked against 20 real job postings. Aliases listed in _case_sensitive must match exact case: they double as ordinary English words.",
+ "_case_sensitive": [
+  "Go",
+  "Swift",
+  "Spring",
+  "React",
+  "Express",
+  "Rust",
+  "Ruby",
+  "Lambda",
+  "Render",
+  "Beam",
+  "Node",
+  "Vue",
+  "Angular",
+  "Helm",
+  "Spark",
+  "Flask",
+  "Gemini",
+  "Claude",
+  "Foundry",
+  "Aurora",
+  "Bamboo",
+  "Jest",
+  "Celery",
+  "Dart",
+  "Scala",
+  "C",
+  "R",
+  "Oracle",
+  "Rails",
+  "Vite"
+ ],
+ "Python": [
+  "Python"
+ ],
+ "Java": [
+  "Java"
+ ],
+ "JavaScript": [
+  "JavaScript",
+  "JS",
+  "ES6"
+ ],
+ "TypeScript": [
+  "TypeScript",
+  "TS"
+ ],
+ "Go": [
+  "Go",
+  "Golang"
+ ],
+ "Rust": [
+  "Rust"
+ ],
+ "C": [
+  "C"
+ ],
+ "C++": [
+  "C++",
+  "CPP"
+ ],
+ "C#": [
+  "C#",
+  ".NET C#"
+ ],
+ "Kotlin": [
+  "Kotlin"
+ ],
+ "Scala": [
+  "Scala"
+ ],
+ "Ruby": [
+  "Ruby"
+ ],
+ "PHP": [
+  "PHP"
+ ],
+ "Swift": [
+  "Swift",
+  "SwiftUI"
+ ],
+ "SQL": [
+  "SQL"
+ ],
+ "PL/SQL": [
+  "PL/SQL"
+ ],
+ "Bash": [
+  "Bash",
+  "Shell scripting"
+ ],
+ "R": [
+  "R"
+ ],
+ "MATLAB": [
+  "MATLAB"
+ ],
+ "Dart": [
+  "Dart"
+ ],
+ "Objective-C": [
+  "Objective-C"
+ ],
+ "HTML": [
+  "HTML",
+  "HTML5"
+ ],
+ "CSS": [
+  "CSS",
+  "CSS3",
+  "CSS Modules"
+ ],
+ "React": [
+  "React",
+  "React.js",
+  "ReactJS"
+ ],
+ "React Native": [
+  "React Native"
+ ],
+ "Next.js": [
+  "Next.js",
+  "NextJS"
+ ],
+ "Angular": [
+  "Angular",
+  "AngularJS"
+ ],
+ "Vue": [
+  "Vue",
+  "Vue.js",
+  "VueJS"
+ ],
+ "Redux": [
+  "Redux"
+ ],
+ "React Query": [
+  "React Query",
+  "TanStack Query"
+ ],
+ "Tailwind CSS": [
+  "Tailwind",
+  "Tailwind CSS"
+ ],
+ "Vite": [
+  "Vite"
+ ],
+ "Webpack": [
+  "Webpack"
+ ],
+ "jQuery": [
+  "jQuery"
+ ],
+ "Svelte": [
+  "Svelte"
+ ],
+ "Three.js": [
+  "Three.js"
+ ],
+ "D3.js": [
+  "D3",
+  "D3.js"
+ ],
+ "Recharts": [
+  "Recharts"
+ ],
+ "Jetpack Compose": [
+  "Jetpack Compose"
+ ],
+ "Android": [
+  "Android",
+  "Android Studio"
+ ],
+ "iOS": [
+  "iOS"
+ ],
+ "Node.js": [
+  "Node.js",
+  "NodeJS",
+  "Node"
+ ],
+ "Express": [
+  "Express",
+  "Express.js"
+ ],
+ "NestJS": [
+  "NestJS"
+ ],
+ "Spring": [
+  "Spring",
+  "Spring Framework",
+  "Spring MVC"
+ ],
+ "Spring Boot": [
+  "Spring Boot"
+ ],
+ "Spring Data JPA": [
+  "Spring Data JPA"
+ ],
+ "Hibernate": [
+  "Hibernate"
+ ],
+ "JPA": [
+  "JPA"
+ ],
+ "JDBC": [
+  "JDBC"
+ ],
+ "Java EE": [
+  "Java EE",
+  "Jakarta EE",
+  "J2EE"
+ ],
+ "Servlets": [
+  "Servlets",
+  "Java Servlets",
+  "JSP"
+ ],
+ "Tomcat": [
+  "Tomcat"
+ ],
+ "Django": [
+  "Django"
+ ],
+ "Flask": [
+  "Flask"
+ ],
+ "FastAPI": [
+  "FastAPI"
+ ],
+ "Ruby on Rails": [
+  "Ruby on Rails",
+  "Rails"
+ ],
+ "ASP.NET": [
+  "ASP.NET",
+  ".NET"
+ ],
+ "Hono": [
+  "Hono"
+ ],
+ "GraphQL": [
+  "GraphQL"
+ ],
+ "gRPC": [
+  "gRPC"
+ ],
+ "REST": [
+  "REST",
+  "RESTful",
+  "REST API",
+  "REST APIs"
+ ],
+ "WebSockets": [
+  "WebSockets",
+  "WebSocket",
+  "STOMP"
+ ],
+ "Microservices": [
+  "Microservices",
+  "microservice"
+ ],
+ "OAuth2": [
+  "OAuth2",
+  "OAuth",
+  "OAuth 2.0",
+  "OIDC"
+ ],
+ "JWT": [
+  "JWT"
+ ],
+ "RBAC": [
+  "RBAC"
+ ],
+ "PostgreSQL": [
+  "PostgreSQL",
+  "Postgres"
+ ],
+ "MySQL": [
+  "MySQL"
+ ],
+ "MariaDB": [
+  "MariaDB"
+ ],
+ "Oracle": [
+  "Oracle",
+  "Oracle Database"
+ ],
+ "SQL Server": [
+  "SQL Server",
+  "MS SQL Server",
+  "MSSQL"
+ ],
+ "SQLite": [
+  "SQLite"
+ ],
+ "MongoDB": [
+  "MongoDB",
+  "Mongo"
+ ],
+ "Redis": [
+  "Redis"
+ ],
+ "Cassandra": [
+  "Cassandra",
+  "Apache Cassandra"
+ ],
+ "DynamoDB": [
+  "DynamoDB"
+ ],
+ "Elasticsearch": [
+  "Elasticsearch",
+  "OpenSearch"
+ ],
+ "Neo4j": [
+  "Neo4j"
+ ],
+ "Snowflake": [
+  "Snowflake"
+ ],
+ "Redshift": [
+  "Redshift"
+ ],
+ "BigQuery": [
+  "BigQuery"
+ ],
+ "Databricks": [
+  "Databricks"
+ ],
+ "Supabase": [
+  "Supabase"
+ ],
+ "Firebase": [
+  "Firebase"
+ ],
+ "Kafka": [
+  "Kafka",
+  "Apache Kafka"
+ ],
+ "RabbitMQ": [
+  "RabbitMQ"
+ ],
+ "SQS": [
+  "SQS"
+ ],
+ "Pub/Sub": [
+  "Pub/Sub"
+ ],
+ "Spark": [
+  "Spark",
+  "Apache Spark",
+  "PySpark"
+ ],
+ "Apache Beam": [
+  "Apache Beam",
+  "Beam"
+ ],
+ "Scio": [
+  "Scio"
+ ],
+ "Airflow": [
+  "Airflow",
+  "Apache Airflow"
+ ],
+ "Hadoop": [
+  "Hadoop"
+ ],
+ "Flink": [
+  "Flink",
+  "Apache Flink"
+ ],
+ "dbt": [
+  "dbt"
+ ],
+ "Informatica": [
+  "Informatica"
+ ],
+ "Palantir Foundry": [
+  "Palantir Foundry",
+  "Foundry"
+ ],
+ "ETL": [
+  "ETL"
+ ],
+ "Pandas": [
+  "Pandas"
+ ],
+ "NumPy": [
+  "NumPy"
+ ],
+ "Celery": [
+  "Celery"
+ ],
+ "ClickHouse": [
+  "ClickHouse"
+ ],
+ "Delta Lake": [
+  "Delta Lake"
+ ],
+ "AWS": [
+  "AWS",
+  "Amazon Web Services"
+ ],
+ "EC2": [
+  "EC2"
+ ],
+ "S3": [
+  "S3"
+ ],
+ "Lambda": [
+  "Lambda",
+  "AWS Lambda"
+ ],
+ "ECS": [
+  "ECS"
+ ],
+ "EKS": [
+  "EKS"
+ ],
+ "RDS": [
+  "RDS"
+ ],
+ "Aurora": [
+  "Aurora"
+ ],
+ "EMR": [
+  "EMR"
+ ],
+ "AWS Bedrock": [
+  "Bedrock",
+  "AWS Bedrock"
+ ],
+ "GCP": [
+  "GCP",
+  "Google Cloud",
+  "Google Cloud Platform"
+ ],
+ "Azure": [
+  "Azure",
+  "Microsoft Azure"
+ ],
+ "Azure OpenAI": [
+  "Azure OpenAI"
+ ],
+ "Docker": [
+  "Docker",
+  "Docker Compose"
+ ],
+ "Podman": [
+  "Podman"
+ ],
+ "Kubernetes": [
+  "Kubernetes",
+  "K8s"
+ ],
+ "Helm": [
+  "Helm"
+ ],
+ "Terraform": [
+  "Terraform"
+ ],
+ "Ansible": [
+  "Ansible"
+ ],
+ "CI/CD": [
+  "CI/CD",
+  "CI",
+  "continuous integration"
+ ],
+ "Jenkins": [
+  "Jenkins"
+ ],
+ "GitHub Actions": [
+  "GitHub Actions"
+ ],
+ "GitLab CI": [
+  "GitLab CI",
+  "GitLab"
+ ],
+ "CircleCI": [
+  "CircleCI"
+ ],
+ "Bitbucket": [
+  "Bitbucket",
+  "Bitbucket Pipelines"
+ ],
+ "Bamboo": [
+  "Bamboo"
+ ],
+ "Git": [
+  "Git"
+ ],
+ "GitHub": [
+  "GitHub"
+ ],
+ "Maven": [
+  "Maven"
+ ],
+ "Gradle": [
+  "Gradle"
+ ],
+ "Bazel": [
+  "Bazel"
+ ],
+ "Linux": [
+  "Linux",
+  "Unix"
+ ],
+ "Nginx": [
+  "Nginx"
+ ],
+ "Vercel": [
+  "Vercel"
+ ],
+ "Render": [
+  "Render"
+ ],
+ "Heroku": [
+  "Heroku"
+ ],
+ "Prometheus": [
+  "Prometheus"
+ ],
+ "Grafana": [
+  "Grafana"
+ ],
+ "OpenTelemetry": [
+  "OpenTelemetry"
+ ],
+ "Datadog": [
+  "Datadog"
+ ],
+ "Splunk": [
+  "Splunk"
+ ],
+ "New Relic": [
+  "New Relic"
+ ],
+ "Playwright": [
+  "Playwright"
+ ],
+ "Cypress": [
+  "Cypress"
+ ],
+ "Selenium": [
+  "Selenium"
+ ],
+ "Pytest": [
+  "Pytest"
+ ],
+ "JUnit": [
+  "JUnit"
+ ],
+ "Mockito": [
+  "Mockito"
+ ],
+ "Jest": [
+  "Jest"
+ ],
+ "Cucumber": [
+  "Cucumber",
+  "Gherkin"
+ ],
+ "TestNG": [
+  "TestNG"
+ ],
+ "Postman": [
+  "Postman"
+ ],
+ "k6": [
+  "k6"
+ ],
+ "JMeter": [
+  "JMeter"
+ ],
+ "Appium": [
+  "Appium"
+ ],
+ "LabVIEW": [
+  "LabVIEW",
+  "TestStand"
+ ],
+ "LLM": [
+  "LLM",
+  "LLMs",
+  "large language model",
+  "large language models"
+ ],
+ "RAG": [
+  "RAG",
+  "retrieval-augmented generation"
+ ],
+ "MCP": [
+  "MCP",
+  "Model Context Protocol"
+ ],
+ "Prompt Engineering": [
+  "prompt engineering"
+ ],
+ "GitHub Copilot": [
+  "Copilot",
+  "GitHub Copilot"
+ ],
+ "OpenAI": [
+  "OpenAI",
+  "GPT-4o",
+  "GPT-4"
+ ],
+ "Anthropic": [
+  "Anthropic",
+  "Claude"
+ ],
+ "Gemini": [
+  "Gemini"
+ ],
+ "LangChain": [
+  "LangChain"
+ ],
+ "LangGraph": [
+  "LangGraph"
+ ],
+ "RAGAS": [
+  "RAGAS"
+ ],
+ "Embeddings": [
+  "embeddings",
+  "Embedding"
+ ],
+ "Vector Search": [
+  "vector search",
+  "Atlas Vector Search",
+  "vector database"
+ ],
+ "PyTorch": [
+  "PyTorch"
+ ],
+ "TensorFlow": [
+  "TensorFlow"
+ ],
+ "scikit-learn": [
+  "scikit-learn",
+  "sklearn"
+ ],
+ "XGBoost": [
+  "XGBoost"
+ ],
+ "Hugging Face": [
+  "Hugging Face",
+  "HuggingFace"
+ ],
+ "Jira": [
+  "Jira"
+ ],
+ "Confluence": [
+  "Confluence"
+ ],
+ "Figma": [
+  "Figma"
+ ],
+ "Power Platform": [
+  "Power Platform",
+  "Copilot Studio"
+ ]
+}

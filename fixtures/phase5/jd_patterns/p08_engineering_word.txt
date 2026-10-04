@@ -1,0 +1,6 @@
+General Information
+Career area: Software Engineering
+Description
+As a Software development Engineer, you'll build Android apps.
+Basic Requirements:
+Strong coding with Kotlin and Java.

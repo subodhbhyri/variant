@@ -126,6 +126,8 @@ def looks_like_continuation(p):
 # ---- header fields ---------------------------------------------------------
 DATE = re.compile(r"(?i)\(?\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*\d{4}\s*[-–—]\s*"
                   r"(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*\d{4}|present|current|now)\)?\s*$")
+SP = "[ \u00a0\u2007\u202f]"
+SEP_RE = re.compile(SP + r"\|" + SP)   # " | " where either space may be a non-breaking space (Word inserts these)
 URLISH = re.compile(r"(?i)^(https?://|www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?$")
 
 def parse_header(p):
@@ -160,7 +162,7 @@ def parse_header(p):
     # strip link placeholders and separators around them
     core = re.sub(r"\s*[|·]?\s*\x00LINK\x00", "", body).strip()
     core = core.replace("[", "").replace("]", "").strip() if links else core
-    pieces = [s.strip() for s in core.split(" | ")]
+    pieces = [s.strip(" \u00a0\u2007\u202f") for s in SEP_RE.split(core)]
     title = pieces[0].strip(" |")
     detail = " | ".join(pieces[1:]).strip(" |") or None
     if not title: return None, "no_title"
@@ -207,11 +209,12 @@ def header_template(p):
             buf = []; return
         # before the tab: title, then " | "-separated detail(s); trailing punctuation is literal
         pos = 0
-        pieces = s.split(" | ")
+        pieces = SEP_RE.split(s)
+        seps = SEP_RE.findall(s)                      # keep each separator's exact characters (NBSP stays NBSP)
         for k, piece in enumerate(pieces):
             if k > 0:
-                out.append(("SEP", (" | ", buf[pos][2]))); pos += 3
-            core = piece.strip(" [(")
+                out.append(("SEP", (seps[k - 1], buf[pos][2]))); pos += 3
+            core = piece.strip(" \u00a0[(")
             lead = piece[: piece.index(core)] if core else piece
             trail = piece[len(lead) + len(core):]
             if lead: out.append(("LIT", (lead, buf[pos][2]))); pos += len(lead)

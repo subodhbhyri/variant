@@ -118,6 +118,16 @@ original formatting (reference: `header_template`):
 Note ` — `, ` – ` and `: ` are **not** separators; "Sage.AI — Natural Language
 to SQL" is one TITLE.
 
+**A separator is `|` with one space-like character on each side**: a space,
+a non-breaking space (U+00A0), a figure space (U+2007) or a narrow
+non-breaking space (U+202F). Word inserts non-breaking spaces invisibly. In a
+real resume, `"System |\u00a0Java 17, …"` made the whole stack part of the
+TITLE; every swap into that position then dropped the stack, shortened the
+header by a line, and failed verification (12.65pt, on all 20 postings). A
+`SEP` token keeps its **exact** original characters when re-emitted. (Java's
+`\s` doesn't match U+00A0 without `UNICODE_CHARACTER_CLASS`; list the
+characters explicitly.)
+
 **Rendering** a template with new fields `{title, detail, links[{label,url}], date}`
 (reference: `render_header`):
 

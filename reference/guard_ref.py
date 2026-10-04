@@ -27,13 +27,16 @@ def numbers(text):
         out.add(v * MULTIPLIER.get(m.group(2) or "", 1))
     return out
 
-def _alias_re(alias):
-    flags = 0 if len(alias) <= 2 else re.I          # short aliases (Go, JS, TS, S3) are case-sensitive
+def _alias_re(alias, case_sensitive=False):
+    # short aliases (Go, JS, TS, S3) and listed English-word aliases (React, Swift, Spring) match exact case
+    flags = 0 if (case_sensitive or len(alias) <= 2) else re.I
     return re.compile(r"(?<![\w+#.])" + re.escape(alias) + r"(?![\w+#])", flags)
 
 def load_skills(path):
-    d = json.load(open(path)); d.pop("_note", None)
-    return {canon: [_alias_re(a) for a in aliases] for canon, aliases in d.items()}
+    d = json.load(open(path))
+    cs = set(d.get("_case_sensitive", []))
+    return {canon: [_alias_re(a, a in cs) for a in aliases]
+            for canon, aliases in d.items() if not canon.startswith("_")}
 
 def techs(text, skills):
     found = set()
