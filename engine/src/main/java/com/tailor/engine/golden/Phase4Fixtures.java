@@ -73,19 +73,16 @@ public final class Phase4Fixtures {
     public record ExpectedSection(
             List<Integer> slotLineCounts,
             Integer rounds,
+            Integer calls,
             @JsonProperty("final") Map<String, ExpectedCandidate> finalResults,
-            Map<String, ExpectedFeedback> round1Feedback,
             Double costUsd,
             String mode,
+            String status,
             String note) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ExpectedCandidate(
             String status, Map<String, String> variants, Integer acceptedInRound, String reason, Integer attempts) {
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ExpectedFeedback(String reason, Integer targetLines, Integer measuredLines) {
     }
 }

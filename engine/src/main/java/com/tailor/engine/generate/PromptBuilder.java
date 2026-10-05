@@ -160,28 +160,4 @@ public final class PromptBuilder {
         return sb.toString();
     }
 
-    /**
-     * PHASE4_SPEC.md section 4 (step 4.5's own retry rounds use this): a retry message that
-     * lists only the failing candidates. {@code targetLength} is null for a guard failure
-     * (no specific length involved).
-     */
-    public record RetryItem(String candidateId, Integer targetLength, String feedback) {
-    }
-
-    public static String retryMessage(List<RetryItem> items) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<retry>\n");
-        for (RetryItem item : items) {
-            sb.append("Candidate ").append(item.candidateId());
-            if (item.targetLength() != null) {
-                sb.append(", length ").append(item.targetLength());
-            }
-            sb.append(": ").append(item.feedback()).append('\n');
-        }
-        sb.append("</retry>\n");
-        sb.append("Resubmit only these candidates, with the same ids. Keep exactly the same facts:\n");
-        sb.append("remove words, never add or replace them. If a version can't be fixed that way,\n");
-        sb.append("leave that length out.");
-        return sb.toString();
-    }
 }

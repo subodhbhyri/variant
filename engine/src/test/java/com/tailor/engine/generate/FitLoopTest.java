@@ -86,6 +86,7 @@ class FitLoopTest {
         assertEquals("GENERATED", result.status(), "status");
         assertEquals(expectedJob0.slotLineCounts(), result.slotLineCounts(), "slot line counts");
         assertEquals(expectedJob0.rounds(), result.rounds(), "rounds");
+        assertEquals(expectedJob0.calls(), result.callUsages().size(), "calls (revision 7: one model call)");
 
         for (Map.Entry<String, Phase4Fixtures.ExpectedCandidate> e : expectedJob0.finalResults().entrySet()) {
             String id = e.getKey();
@@ -99,15 +100,10 @@ class FitLoopTest {
         }
         assertEquals(expectedJob0.finalResults().keySet(), result.finalResults().keySet(), "candidate ids");
 
-        for (Map.Entry<String, Phase4Fixtures.ExpectedFeedback> e : expectedJob0.round1Feedback().entrySet()) {
-            String id = e.getKey();
-            Phase4Fixtures.ExpectedFeedback exp = e.getValue();
-            FitLoop.RoundOneFeedback got = result.round1Feedback().get(id);
-            assertEquals(exp.reason(), got.reason(), id + " round1 reason");
-            assertEquals(exp.targetLines(), got.targetLines(), id + " round1 target_lines");
-            assertEquals(exp.measuredLines(), got.measuredLines(), id + " round1 measured_lines");
+        for (FitLoop.Attempt a : result.attempts()) {
+            assertTrue(a.text() != null && !a.text().isBlank() && !a.text().contains("<UNKNOWN>"),
+                    "attempt " + a.candidateId() + " must log its real text");
         }
-        assertEquals(expectedJob0.round1Feedback().keySet(), result.round1Feedback().keySet(), "round1 feedback ids");
     }
 
     /**

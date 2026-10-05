@@ -27,8 +27,21 @@ public final class Alternatives {
 
     public static List<AssembledResume> top3(Shapes shapes, List<BulletCandidate> jobCands,
             List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder) {
+        return top3(shapes, jobCands, library, jd, skills, embedder, new PipelineTiming());
+    }
+
+    /** As {@link #top3(Shapes, List, List, JobDescription, SkillsDictionary, Embedder)}, timing
+     * resume #1's assembly and the alternatives' scoring separately. Neither renders. */
+    public static List<AssembledResume> top3(Shapes shapes, List<BulletCandidate> jobCands,
+            List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder,
+            PipelineTiming timing) {
         Set<String> noPenalty = Set.of();
+        long rendersBefore = timing.renderMark();
+        long startedAt = System.nanoTime();
         AssembledResume first = Assembler.assemble(shapes, jobCands, library, jd, skills, embedder, noPenalty);
+        timing.record("resume #1 assembly (no render)", startedAt, rendersBefore);
+        rendersBefore = timing.renderMark();
+        startedAt = System.nanoTime();
         Map<String, String> groups = Assembler.achievementGroups(jobCands);
 
         Set<String> usedGroups = new LinkedHashSet<>();
@@ -121,6 +134,7 @@ public final class Alternatives {
             Option o = options.get(i);
             out.add(new AssembledResume(o.resume().job(), o.resume().projects(), o.label(), o.total()));
         }
+        timing.record("alternatives #2/#3 scoring (no render; never rendered by match)", startedAt, rendersBefore);
         return out;
     }
 

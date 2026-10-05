@@ -61,7 +61,9 @@ class ConsistencyTest {
     @Test
     void inconsistentLongerVersionIsDroppedKeepingTheShorter() throws Exception {
         JobZeroFixture f = JobZeroFixture.load();
-        String shorterText = "Built a feature-flag service used by six teams, enabling same-day rollbacks without redeploys.";
+        // Within its 1-line budget (revision 7 drops an over-budget variant before consistency runs),
+        // and not grounded in the longer sentence: that pair is what must be inconsistent.
+        String shorterText = "Built a feature-flag service for six teams, enabling same-day rollbacks.";
         String longerText = "Led the migration of twelve services from EC2 to Kubernetes, reducing monthly infrastructure spend by 22%.";
 
         RecordedModelClient client = new RecordedModelClient(List.of(new ModelResponse(

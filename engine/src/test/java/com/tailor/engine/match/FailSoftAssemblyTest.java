@@ -56,7 +56,7 @@ class FailSoftAssemblyTest {
                     }
                     return null;
                 },
-                degraded);
+                degraded, new PipelineTiming());
 
         assertNotNull(projects, "P0 must still get a full assignment");
         assertTrue(projects.stream().noneMatch(a -> "P1".equals(a.position())),

@@ -112,19 +112,25 @@ public final class MatchBatchCommand implements Callable<Integer> {
                         // PHASE5_SPEC.md section 5: a dropped resume still gets a summary.md row,
                         // with its reason -- never silently skipped like a parse failure above.
                         System.err.println(jdFile.getFileName() + ": " + result.renderFailureReason());
-                        rows.add(MatchBatchSummary.failedRow(baseName, result.jd(), result.renderFailureReason()));
+                        MAPPER.writerWithDefaultPrettyPrinter().writeValue(
+                                jdOutDir.resolve("timing.json").toFile(), result.timing().report(baseName));
+                        rows.add(MatchBatchSummary.failedRow(
+                                baseName, result.jd(), result.renderFailureReason(), result.timing().totalMs()));
                         processedJds.add(result.jd());
                         processedNames.add(baseName);
                         continue;
                     }
 
-                    Path resume1Pdf = renderer.render(result.resume1Docx(), workDir);
+                    Path resume1Pdf = result.timing().time("pdf",
+                            () -> ctx.renderer().render(result.resume1Docx(), workDir));
                     Files.copy(resume1Pdf, jdOutDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
                     MatchCommand.MatchOutput matchOutput =
                             new MatchCommand.MatchOutput(result.jd(), result.resumes(), result.missing());
                     MAPPER.writerWithDefaultPrettyPrinter()
                             .writeValue(jdOutDir.resolve("match.json").toFile(), matchOutput);
+                    MAPPER.writerWithDefaultPrettyPrinter().writeValue(
+                            jdOutDir.resolve("timing.json").toFile(), result.timing().report(baseName));
 
                     rows.add(MatchBatchSummary.rowFor(baseName, result, processedJds, processedNames, embedder));
                     processedJds.add(result.jd());

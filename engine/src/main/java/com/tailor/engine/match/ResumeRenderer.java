@@ -98,12 +98,12 @@ public final class ResumeRenderer {
     public static FailSoftResult renderFailSoft(Path normalizedDocx, OnboardReport report, Shapes shapes,
             List<String> job, List<LibraryProject> library, JobDescription jd, SkillsDictionary skills,
             Embedder embedder, Map<String, BulletCandidate> jobCandidatesById, Renderer renderer, FontMap fontMap,
-            Path workDir, Path outputDocx) throws Exception {
+            Path workDir, Path outputDocx, PipelineTiming timing) throws Exception {
         AssembledResume jobOnly = new AssembledResume(job, List.of(), null, null);
         Path jobStageOut = workDir.resolve("job-slots-" + System.nanoTime() + ".docx");
-        RenderResult jobStage =
-                substituteJobSlots(normalizedDocx, report, jobOnly, jobCandidatesById, renderer, fontMap, workDir,
-                        jobStageOut);
+        RenderResult jobStage = timing.time("job slots",
+                () -> substituteJobSlots(normalizedDocx, report, jobOnly, jobCandidatesById, renderer, fontMap,
+                        workDir, jobStageOut));
         if (!jobStage.ok()) {
             return new FailSoftResult(jobStage, null);
         }
@@ -122,10 +122,13 @@ public final class ResumeRenderer {
             try {
                 DocxPackage basePkg = DocxPackage.open(current[0]);
                 Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
-                BlockSwapper.Result result =
-                        BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut);
+                String stageName = "swap " + assignment.position() + "=" + assignment.project();
+                BlockSwapper.Result result = timing.time(stageName,
+                        () -> BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut));
                 if (result.outcome() != SwapOutcome.OK) {
-                    return result.outcome() + (result.detail() == null ? "" : " (" + result.detail() + ")");
+                    String reason = result.outcome() + (result.detail() == null ? "" : " (" + result.detail() + ")");
+                    timing.note(stageName + " FAILED: " + reason);
+                    return reason;
                 }
                 current[0] = stepOut;
                 return null;
@@ -138,7 +141,7 @@ public final class ResumeRenderer {
         List<AssembledResume.ProjectAssignment> projects;
         try {
             projects = resolveAssignment(shapes, library, jd, skills, embedder, () -> current[0] = jobStageOut,
-                    attemptSwap, degraded);
+                    attemptSwap, degraded, timing);
         } catch (CompletionException e) {
             throw (Exception) e.getCause();
         }
@@ -148,8 +151,9 @@ public final class ResumeRenderer {
         }
 
         AssembledResume forVerify = new AssembledResume(job, projects, null, null);
-        RenderResult finalCheck = FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
-                jobCandidatesById, library, renderer, fontMap, workDir);
+        RenderResult finalCheck = timing.time("final verification",
+                () -> FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
+                        jobCandidatesById, library, renderer, fontMap, workDir));
         if (!finalCheck.ok()) {
             return new FailSoftResult(finalCheck, forVerify);
         }
@@ -172,17 +176,22 @@ public final class ResumeRenderer {
     static List<AssembledResume.ProjectAssignment> resolveAssignment(Shapes shapes, List<LibraryProject> library,
             JobDescription jd, SkillsDictionary skills, Embedder embedder, Runnable onPassStart,
             Function<AssembledResume.ProjectAssignment, String> attemptSwap,
-            List<AssembledResume.Degraded> degradedOut) {
+            List<AssembledResume.Degraded> degradedOut, PipelineTiming timing) throws Exception {
         Set<String> infeasible = new LinkedHashSet<>();
         Map<String, String> degradedReason = new LinkedHashMap<>();
         Map<String, String> degradedProject = new LinkedHashMap<>();
+        int pass = 0;
 
         while (true) {
+            pass++;
             List<Shapes.PositionShape> active =
                     shapes.positions().stream().filter(p -> !degradedReason.containsKey(p.id())).toList();
-            List<AssembledResume.ProjectAssignment> projects = Assembler.attachStacks(
-                    Assembler.assignProjects(active, library, jd, skills, embedder, Set.of(), null, infeasible),
-                    library, jd, skills);
+            final List<Shapes.PositionShape> activeFinal = active;
+            List<AssembledResume.ProjectAssignment> projects = timing.time("assign pass " + pass,
+                    () -> Assembler.attachStacks(
+                            Assembler.assignProjects(activeFinal, library, jd, skills, embedder, Set.of(), null,
+                                    infeasible),
+                            library, jd, skills));
             if (projects.size() != active.size()) {
                 return null;
             }

@@ -122,7 +122,9 @@ public final class TruthfulnessGuard {
             reasons.add("UNSUPPORTED_NUMBER:" + formatToken(n));
         }
 
-        Set<String> sourceTechs = techs(source, skills);
+        // PHASE4_SPEC.md section 5 (revision 7): implications apply to the sources only -- a source
+        // naming GitHub Actions supports "CI/CD" -- never to the variant itself.
+        Set<String> sourceTechs = techsImplied(source, skills);
         Set<String> missingTechs = new TreeSet<>(techs(v, skills));
         missingTechs.removeAll(sourceTechs);
         for (String t : missingTechs) {

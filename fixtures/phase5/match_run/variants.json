@@ -1,0 +1,46 @@
+{
+ "_note": "fixtures/phase5/job_variants.json re-keyed as generate output (job-0, status OK) for the match CLI; fixture only.",
+ "jobs": {
+  "job-0": {
+   "n1": {
+    "status": "OK",
+    "variants": {
+     "1": "Designed an event-driven order pipeline on Kafka and Postgres that cut checkout latency by 38%."
+    },
+    "accepted_in_round": 1,
+    "reason": null,
+    "attempts": null
+   },
+   "n2": {
+    "status": "OK",
+    "variants": {
+     "1": "Led the migration of twelve services to Kubernetes, reducing infrastructure spend by 22%."
+    },
+    "accepted_in_round": 1,
+    "reason": null,
+    "attempts": null
+   },
+   "n3": {
+    "status": "OK",
+    "variants": {
+     "1": "Cut checkout latency by 38% with a Kafka and Postgres order pipeline."
+    },
+    "accepted_in_round": 1,
+    "reason": null,
+    "attempts": null
+   },
+   "n4": {
+    "status": "OK",
+    "variants": {
+     "1": "Moved twelve services onto Kubernetes, cutting infrastructure spend by 22%."
+    },
+    "accepted_in_round": 1,
+    "reason": null,
+    "attempts": null
+   }
+  }
+ },
+ "projects": {
+  "projects": []
+ }
+}

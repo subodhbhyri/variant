@@ -19,7 +19,7 @@ public final class MatchBatchSummary {
     }
 
     public record Row(String jdName, String title, String topSkills, String projects, String alternatives,
-            String missingSkills, String cache) {
+            String missingSkills, String cache, String time) {
     }
 
     /** Compares {@code jd} against every earlier posting in the batch, in order; the first HIT
@@ -40,14 +40,15 @@ public final class MatchBatchSummary {
         return new Row(jdName, result.jd().title(), topSkills(result.jd(), 5),
                 projectsSummary(result.resumes().get(0)), alternativesSummary(result.resumes()),
                 result.missing().isEmpty() ? "(none)" : String.join(", ", result.missing()),
-                cacheAgainstPrevious(result.jd(), previousJds, previousNames, embedder));
+                cacheAgainstPrevious(result.jd(), previousJds, previousNames, embedder), formatTime(result.timing().totalMs()));
     }
 
     /** PHASE5_SPEC.md section 5: resume #1 dropped outright (no feasible project assignment, or
      * the final whole-document verify failed after fail-soft gave up) — still one row, never a
      * silently-skipped posting. */
-    public static Row failedRow(String jdName, JobDescription jd, String reason) {
-        return new Row(jdName, jd.title(), topSkills(jd, 5), "FAILED: " + reason, "(none)", "(none)", "(none)");
+    public static Row failedRow(String jdName, JobDescription jd, String reason, long totalMs) {
+        return new Row(jdName, jd.title(), topSkills(jd, 5), "FAILED: " + reason, "(none)", "(none)", "(none)",
+                formatTime(totalMs));
     }
 
     public static String topSkills(JobDescription jd, int n) {
@@ -86,8 +87,8 @@ public final class MatchBatchSummary {
     public static String toMarkdown(List<Row> rows) {
         StringBuilder md = new StringBuilder();
         md.append("# Match batch summary\n\n");
-        md.append("| JD | Title | Top 5 skills | Resume #1 projects | Alternatives | Missing skills | Cache |\n");
-        md.append("|---|---|---|---|---|---|---|\n");
+        md.append("| JD | Title | Top 5 skills | Resume #1 projects | Alternatives | Missing skills | Cache | Time |\n");
+        md.append("|---|---|---|---|---|---|---|---|\n");
         for (Row r : rows) {
             md.append("| ").append(r.jdName())
                     .append(" | ").append(escape(r.title()))
@@ -95,9 +96,15 @@ public final class MatchBatchSummary {
                     .append(" | ").append(r.projects())
                     .append(" | ").append(r.alternatives())
                     .append(" | ").append(r.missingSkills())
-                    .append(" | ").append(r.cache()).append(" |\n");
+                    .append(" | ").append(r.cache())
+                    .append(" | ").append(r.time()).append(" |\n");
         }
         return md.toString();
+    }
+
+    /** Wall time for the posting's whole run, shown to one decimal place of a second. */
+    public static String formatTime(long totalMs) {
+        return String.format(java.util.Locale.ROOT, "%.1f s", totalMs / 1000.0);
     }
 
     private static String escape(String s) {

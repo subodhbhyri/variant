@@ -40,7 +40,7 @@ public final class MatchRunner {
 
     public record Context(Path onboardedDocx, OnboardReport report, Shapes shapes,
             List<BulletCandidate> jobCandidates, Map<String, BulletCandidate> jobCandidatesById,
-            List<LibraryProject> library, SkillsDictionary skills, Embedder embedder, Renderer renderer,
+            List<LibraryProject> library, SkillsDictionary skills, Embedder embedder, CountingRenderer renderer,
             FontMap fontMap) {
     }
 
@@ -51,7 +51,7 @@ public final class MatchRunner {
      * the final whole-document verify failed) and {@code resumes.get(0)} is the original,
      * unrendered best-first candidate — never silently replaced, per the spec. */
     public record Result(JobDescription jd, List<AssembledResume> resumes, List<String> missing, Path resume1Docx,
-            String renderFailureReason) {
+            String renderFailureReason, PipelineTiming timing) {
     }
 
     public static Context buildContext(Path onboardedDocx, Path variantsJsonPath, Path libraryJsonPath,
@@ -78,24 +78,27 @@ public final class MatchRunner {
         LibraryProject.Library library = MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
 
         return new Context(onboardedDocx, report, shapes, jobCandidates, jobCandidatesById, library.projects(),
-                skills, embedder, renderer, fontMap);
+                skills, embedder, new CountingRenderer(renderer), fontMap);
     }
 
     public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut) throws Exception {
-        JobDescription jd = JdParser.parse(jdText, ctx.skills());
-        List<AssembledResume> resumes =
-                Alternatives.top3(ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), ctx.embedder());
+        PipelineTiming timing = new PipelineTiming(ctx.renderer());
+        JobDescription jd = timing.time("parse", () -> JdParser.parse(jdText, ctx.skills()));
+        List<AssembledResume> resumes = Alternatives.top3(
+                ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), ctx.embedder(), timing);
 
-        String wholeResume = MissingSkills.wholeResumeText(ctx.onboardedDocx());
-        List<String> materialTexts = MissingSkills.materialTexts(wholeResume, ctx.jobCandidates(), ctx.library());
-        List<String> missing = MissingSkills.compute(jd, materialTexts, ctx.skills());
+        List<String> missing = timing.time("missing skills", () -> {
+            String wholeResume = MissingSkills.wholeResumeText(ctx.onboardedDocx());
+            List<String> materialTexts = MissingSkills.materialTexts(wholeResume, ctx.jobCandidates(), ctx.library());
+            return MissingSkills.compute(jd, materialTexts, ctx.skills());
+        });
 
         AssembledResume first = resumes.get(0);
         ResumeRenderer.FailSoftResult rendered = ResumeRenderer.renderFailSoft(ctx.onboardedDocx(), ctx.report(),
                 ctx.shapes(), first.job(), ctx.library(), jd, ctx.skills(), ctx.embedder(), ctx.jobCandidatesById(),
-                ctx.renderer(), ctx.fontMap(), workDir, resume1DocxOut);
+                ctx.renderer(), ctx.fontMap(), workDir, resume1DocxOut, timing);
         if (!rendered.render().ok()) {
-            return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail());
+            return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail(), timing);
         }
 
         double total = Assembler.totalScore(
@@ -106,7 +109,7 @@ public final class MatchRunner {
         List<AssembledResume> finalResumes = new ArrayList<>(resumes);
         finalResumes.set(0, settled);
 
-        return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null);
+        return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null, timing);
     }
 
     private static List<BulletCandidate> keptCandidates(Map<String, FitLoop.CandidateOutcome> outcomes) {

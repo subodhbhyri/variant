@@ -104,17 +104,23 @@ public final class MatchCommand implements Callable<Integer> {
 
                 Files.createDirectories(outDir);
                 Path resume1Docx = outDir.resolve("resume-1.docx");
+                String jdName = stripExt(jdTextPath.getFileName().toString());
                 MatchRunner.Result result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
                 if (result.renderFailureReason() != null) {
+                    MAPPER.writerWithDefaultPrettyPrinter().writeValue(
+                            outDir.resolve("timing.json").toFile(), result.timing().report(jdName));
                     System.err.println("match failed: " + result.renderFailureReason());
                     return 1;
                 }
 
-                Path resume1Pdf = renderer.render(result.resume1Docx(), workDir);
+                Path resume1Pdf = result.timing().time("pdf",
+                        () -> ctx.renderer().render(result.resume1Docx(), workDir));
                 Files.copy(resume1Pdf, outDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
                 MatchOutput output = new MatchOutput(result.jd(), result.resumes(), result.missing());
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
+                MAPPER.writerWithDefaultPrettyPrinter().writeValue(
+                        outDir.resolve("timing.json").toFile(), result.timing().report(jdName));
 
                 System.out.println("match ok -> " + outDir);
                 return 0;
@@ -127,5 +133,10 @@ public final class MatchCommand implements Callable<Integer> {
             System.err.println("match failed: " + e);
             return 1;
         }
+    }
+
+    private static String stripExt(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot < 0 ? name : name.substring(0, dot);
     }
 }

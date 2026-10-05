@@ -106,9 +106,10 @@ class MatchBatchSummaryTest {
     @Test
     void toMarkdownHasHeaderAndOneRowPerEntry() {
         MatchBatchSummary.Row row = new MatchBatchSummary.Row(
-                "platform", "Senior Backend Engineer, Build Platform", "Go(1.0)", "P0:forge", "(none)", "(none)", "MISS");
+                "platform", "Senior Backend Engineer, Build Platform", "Go(1.0)", "P0:forge", "(none)", "(none)", "MISS",
+                "1.5 s");
         String md = MatchBatchSummary.toMarkdown(List.of(row));
         assertTrue(md.startsWith("# Match batch summary"));
-        assertTrue(md.contains("| platform | Senior Backend Engineer, Build Platform | Go(1.0) | P0:forge | (none) | (none) | MISS |"));
+        assertTrue(md.contains("| platform | Senior Backend Engineer, Build Platform | Go(1.0) | P0:forge | (none) | (none) | MISS | 1.5 s |"));
     }
 }
