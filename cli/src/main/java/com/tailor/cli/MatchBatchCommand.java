@@ -121,8 +121,10 @@ public final class MatchBatchCommand implements Callable<Integer> {
                         continue;
                     }
 
-                    Path resume1Pdf = result.timing().time("pdf",
-                            () -> ctx.renderer().render(result.resume1Docx(), workDir));
+                    // The verified render of resume #1 is the delivered PDF; it is only rendered here when
+                    // the assembly path didn't keep its own (the per-position fallback).
+                    Path resume1Pdf = result.resume1Pdf() != null ? result.resume1Pdf()
+                            : result.timing().time("pdf", () -> ctx.renderer().render(result.resume1Docx(), workDir));
                     Files.copy(resume1Pdf, jdOutDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
                     MatchCommand.MatchOutput matchOutput =

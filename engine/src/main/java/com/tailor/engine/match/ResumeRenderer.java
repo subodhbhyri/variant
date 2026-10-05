@@ -1,5 +1,6 @@
 package com.tailor.engine.match;
 
+import com.tailor.engine.blocks.BatchAssembler;
 import com.tailor.engine.blocks.BlockSwapper;
 import com.tailor.engine.blocks.LibraryProject;
 import com.tailor.engine.blocks.Position;
@@ -16,6 +17,7 @@ import com.tailor.engine.generate.SectionPositions;
 import com.tailor.engine.generate.SkillsDictionary;
 import com.tailor.engine.measure.AnchorMeasurer;
 import com.tailor.engine.measure.PdfLines;
+import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.numbering.NumberingResolver;
 import com.tailor.engine.onboard.OnboardReport;
 import com.tailor.engine.render.Renderer;
@@ -44,6 +46,11 @@ import org.w3c.dom.Element;
 /**
  * PHASE5_SPEC.md section 5 (step 5.6): renders an {@link AssembledResume} onto a normalized
  * document in three verified stages, producing one final assembled document.
+ *
+ * <p>First, when the batched path is supplied ({@link BatchInputs}), the whole resume is assembled in
+ * one pass by {@link BatchAssembler}, checked once against the stored baseline, and delivered only
+ * if that check passes (PHASE5_SPEC.md section 5.1). Otherwise, or when that check fails, the
+ * stages below run from the start.
  *
  * <p>Stage 1 substitutes the job's own bullet slots (Phase 1 substitution + padding) and verifies
  * that in one {@link Verifier#verify} pass covering the whole document (every bullet slot,
@@ -77,8 +84,12 @@ public final class ResumeRenderer {
     /** {@code resume} is the resume actually rendered — its {@code projects()} reflect every
      * re-solve, and its {@code degraded()} lists any position given up on — or null when {@code
      * render} failed outright (no feasible assignment at all, or the final whole-document verify
-     * failed: PHASE5_SPEC.md section 5's "a resume is dropped" case, never retried). */
-    public record FailSoftResult(RenderResult render, AssembledResume resume) {
+     * failed: PHASE5_SPEC.md section 5's "a resume is dropped" case, never retried). {@code pdf} is
+     * the delivered document's own render when the check that verified it produced one, else null. */
+    public record FailSoftResult(RenderResult render, AssembledResume resume, Path pdf) {
+        public FailSoftResult(RenderResult render, AssembledResume resume) {
+            this(render, resume, null);
+        }
     }
 
     private ResumeRenderer() {
@@ -99,6 +110,52 @@ public final class ResumeRenderer {
             List<String> job, List<LibraryProject> library, JobDescription jd, SkillsDictionary skills,
             Embedder embedder, Map<String, BulletCandidate> jobCandidatesById, Renderer renderer, FontMap fontMap,
             Path workDir, Path outputDocx, PipelineTiming timing) throws Exception {
+        return renderFailSoft(normalizedDocx, report, shapes, job, library, jd, skills, embedder, jobCandidatesById,
+                renderer, fontMap, workDir, outputDocx, timing, null);
+    }
+
+    /**
+     * What the batched path (PHASE5_SPEC.md section 5.1) needs beyond the fail-soft path's own
+     * inputs: the onboarding's stored baseline and its PDF (for date-tab edges), and the check that
+     * verifies the finished document against that baseline.
+     */
+    public record BatchInputs(StoredBaseline baseline, Path baselinePdf, BatchAssembler.Check check) {
+    }
+
+    /**
+     * As {@link #renderFailSoft(Path, OnboardReport, Shapes, List, List, JobDescription, SkillsDictionary,
+     * Embedder, Map, Renderer, FontMap, Path, Path, PipelineTiming)}, and when {@code batch} is
+     * non-null, first tries the batched assembly (PHASE5_SPEC.md section 5.1): every position placed
+     * in one pass and checked once against the stored baseline. Its output is delivered only when that
+     * check passes; otherwise the per-position fail-soft path below runs unchanged from the start.
+     */
+    public static FailSoftResult renderFailSoft(Path normalizedDocx, OnboardReport report, Shapes shapes,
+            List<String> job, List<LibraryProject> library, JobDescription jd, SkillsDictionary skills,
+            Embedder embedder, Map<String, BulletCandidate> jobCandidatesById, Renderer renderer, FontMap fontMap,
+            Path workDir, Path outputDocx, PipelineTiming timing, BatchInputs batch) throws Exception {
+        Map<String, LibraryProject> byId = new LinkedHashMap<>();
+        for (LibraryProject p : library) {
+            byId.put(p.id(), p);
+        }
+        List<Shapes.PositionShape> allPositions = shapes.positions();
+
+        if (batch != null) {
+            List<AssembledResume.ProjectAssignment> firstPass = Assembler.attachStacks(
+                    Assembler.assignProjects(allPositions, library, jd, skills, embedder, Set.of(), null, Set.of()),
+                    library, jd, skills);
+            List<BatchAssembler.Plan> plans = firstPass.size() == allPositions.size() ? plansOf(firstPass, byId) : null;
+            if (plans != null) {
+                BatchAssembler.Result batched = BatchAssembler.assemble(normalizedDocx, batch.baseline(),
+                        batch.baselinePdf(), report, job, jobCandidatesById, plans, renderer, batch.check(), workDir,
+                        outputDocx, timing);
+                if (batched.ok()) {
+                    return new FailSoftResult(RenderResult.ok(outputDocx),
+                            new AssembledResume(job, firstPass, null, null, List.of()), batched.pdf());
+                }
+                timing.note("batched assembly not used: " + batched.detail() + " -- per-position fail-soft");
+            }
+        }
+
         AssembledResume jobOnly = new AssembledResume(job, List.of(), null, null);
         Path jobStageOut = workDir.resolve("job-slots-" + System.nanoTime() + ".docx");
         RenderResult jobStage = timing.time("job slots",
@@ -106,54 +163,6 @@ public final class ResumeRenderer {
                         workDir, jobStageOut));
         if (!jobStage.ok()) {
             return new FailSoftResult(jobStage, null);
-        }
-
-        Map<String, LibraryProject> byId = new LinkedHashMap<>();
-        for (LibraryProject p : library) {
-            byId.put(p.id(), p);
-        }
-
-        // PHASE5_SPEC.md section 5.1 (step B2): try every swap unverified, then verify the whole
-        // document once. Output is identical to the sequential path whenever this succeeds, and any
-        // failure falls through to that sequential path unchanged.
-        List<Shapes.PositionShape> allPositions = shapes.positions();
-        List<AssembledResume.ProjectAssignment> firstPass = Assembler.attachStacks(
-                Assembler.assignProjects(allPositions, library, jd, skills, embedder, Set.of(), null, Set.of()),
-                library, jd, skills);
-        if (firstPass.size() == allPositions.size()) {
-            Path combined = jobStageOut;
-            boolean allSwapped = true;
-            for (AssembledResume.ProjectAssignment assignment : firstPass) {
-                LibraryProject project = byId.get(assignment.project());
-                Integer positionIndex = parsePositionIndex(assignment.position());
-                LibraryProject selected = new LibraryProject(project.id(), project.title(), project.detail(),
-                        project.links(), project.date(), selectedBullets(project, assignment), project.homeSection());
-                DocxPackage basePkg = DocxPackage.open(combined);
-                Path stepOut = workDir.resolve("unverified-" + assignment.position() + "-" + System.nanoTime() + ".docx");
-                BlockSwapper.Result result = timing.time("unverified swap " + assignment.position() + "="
-                        + assignment.project(), () -> BlockSwapper.swapUnverified(
-                        basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut));
-                if (result.outcome() != SwapOutcome.OK) {
-                    timing.note("unverified swap " + assignment.position() + " FAILED: " + result.outcome());
-                    allSwapped = false;
-                    break;
-                }
-                combined = stepOut;
-            }
-            if (allSwapped) {
-                Path finalCombined = combined;
-                AssembledResume forCombined = new AssembledResume(job, firstPass, null, null);
-                RenderResult combinedCheck = timing.time("combined verification",
-                        () -> FinalVerifier.verify(normalizedDocx, finalCombined, report, forCombined,
-                                jobCandidatesById, library, renderer, fontMap, workDir));
-                if (combinedCheck.ok()) {
-                    Files.copy(finalCombined, outputDocx, StandardCopyOption.REPLACE_EXISTING);
-                    return new FailSoftResult(RenderResult.ok(outputDocx),
-                            new AssembledResume(job, firstPass, null, null, List.of()));
-                }
-                timing.note("combined verification FAILED: " + combinedCheck.detail()
-                        + " -- falling back to per-swap verification");
-            }
         }
 
         Path[] current = {jobStageOut};
@@ -442,6 +451,22 @@ public final class ResumeRenderer {
             }
         }
         return "verify failed";
+    }
+
+    private static List<BatchAssembler.Plan> plansOf(List<AssembledResume.ProjectAssignment> assignments,
+            Map<String, LibraryProject> byId) {
+        List<BatchAssembler.Plan> plans = new ArrayList<>(assignments.size());
+        for (AssembledResume.ProjectAssignment assignment : assignments) {
+            Integer positionIndex = parsePositionIndex(assignment.position());
+            LibraryProject project = byId.get(assignment.project());
+            if (positionIndex == null || project == null) {
+                return null;
+            }
+            plans.add(new BatchAssembler.Plan(positionIndex, new LibraryProject(project.id(), project.title(),
+                    project.detail(), project.links(), project.date(), selectedBullets(project, assignment),
+                    project.homeSection())));
+        }
+        return plans;
     }
 
     private static List<Map<String, String>> selectedBullets(LibraryProject project,

@@ -1,5 +1,6 @@
 package com.tailor.engine.match;
 
+import com.tailor.engine.blocks.BatchAssembler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -9,7 +10,7 @@ import java.util.concurrent.Callable;
  * here changes what is computed). Stages are recorded in the order they finish. A {@code null}
  * counter (tests that don't render) reports zero renders everywhere.
  */
-public final class PipelineTiming {
+public final class PipelineTiming implements BatchAssembler.Timing {
 
     public record Stage(String name, long wallMs, long renders) {
     }

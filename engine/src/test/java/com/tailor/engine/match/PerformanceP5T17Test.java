@@ -81,11 +81,16 @@ class PerformanceP5T17Test {
                 String docXml = documentXml(resumeDocx);
                 String goldenXml = documentXml(golden.resolve(name).resolve("resume-1.docx"));
                 if (!docXml.equals(goldenXml)) {
-                    identity.append(name).append(": resume #1 document.xml differs from baseline\n");
+                    identity.append(name).append(": resume #1 document.xml differs from baseline\n")
+                            .append(firstDifference(docXml, goldenXml));
                 }
 
                 long resumeOneRenders = result.timing().totalRenders();
                 System.out.println("P5-T17 " + name + " renders=" + resumeOneRenders + " ms=" + result.timing().totalMs());
+                for (PipelineTiming.Stage stage : result.timing().stages()) {
+                    System.out.println("P5-T17   " + name + " stage '" + stage.name() + "' ms=" + stage.wallMs()
+                            + " renders=" + stage.renders());
+                }
                 if (resumeOneRenders > MAX_RESUME_ONE_RENDERS) {
                     renders.append(name).append(": ").append(resumeOneRenders).append(" renders > ")
                             .append(MAX_RESUME_ONE_RENDERS).append('\n');
@@ -103,6 +108,17 @@ class PerformanceP5T17Test {
             assertTrue(renders.isEmpty(), "renders target not met:\n" + renders);
             assertTrue(time.isEmpty(), "time target not met:\n" + time);
         }
+    }
+
+    /** Diagnostic only, for the failure message: where two document.xml strings first part. */
+    private static String firstDifference(String got, String want) {
+        int i = 0;
+        while (i < got.length() && i < want.length() && got.charAt(i) == want.charAt(i)) {
+            i++;
+        }
+        return "  first difference at character " + i + " of " + got.length() + " (golden " + want.length() + ")\n"
+                + "  got:    ..." + got.substring(Math.max(0, i - 300), Math.min(got.length(), i + 300)) + "...\n"
+                + "  golden: ..." + want.substring(Math.max(0, i - 300), Math.min(want.length(), i + 300)) + "...\n";
     }
 
     private static String documentXml(Path docx) throws Exception {

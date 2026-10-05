@@ -15,6 +15,7 @@ import com.tailor.engine.layout.PageRule;
 import com.tailor.engine.layout.TooManyPagesException;
 import com.tailor.engine.layout.UnknownFonts;
 import com.tailor.engine.measure.PdfLines;
+import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.numbering.NumberingResolver;
 import com.tailor.engine.render.RenderException;
 import com.tailor.engine.render.Renderer;
@@ -146,6 +147,9 @@ public final class OnboardPipeline {
         }
         if (outcome.previewPdf() != null) {
             Files.copy(outcome.previewPdf(), outDir.resolve("preview.pdf"), StandardCopyOption.REPLACE_EXISTING);
+            // PHASE5_SPEC.md section 5.1 (B1): the normalized document's own line positions, stored
+            // with the other onboarding outputs so resume assembly never renders the baseline again.
+            StoredBaseline.measure(outDir.resolve("preview.pdf")).writeTo(outDir.resolve("baseline.json"));
         }
         outcome.report().writeTo(outDir.resolve("onboard.json"));
         return outcome.report();

@@ -5,6 +5,7 @@ import com.tailor.engine.fonts.FontMap;
 import com.tailor.engine.measure.AnchorMeasurer;
 import com.tailor.engine.measure.PdfLines;
 import com.tailor.engine.measure.PdfPageCounter;
+import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.render.Renderer;
 import com.tailor.engine.slots.DocxBulletDetection;
 import com.tailor.engine.slots.Slot;
@@ -48,6 +49,10 @@ public final class Verifier {
 
     private static final double LAYOUT_TOLERANCE_PT = 0.5;
 
+    /** A whole-document check's report, and the assembled document's own render (the PDF it checked). */
+    public record Checked(VerifyReport report, Path assembledPdf) {
+    }
+
     private Verifier() {
     }
 
@@ -68,8 +73,9 @@ public final class Verifier {
             Path workDir) throws Exception {
 
         List<String> sourceTexts = DocxBulletDetection.detect(originalSource).stream().map(Slot::text).toList();
-        return verifyCore(originalSource, assembledOutput, renderer, fontMap, sourceTexts, targetLineCounts,
-                assembledSlotTexts, edits, workDir);
+        Path pdf0 = renderer.render(originalSource, workDir);
+        return verifyCore(PdfLines.extract(pdf0), PdfPageCounter.count(pdf0), assembledOutput, renderer, fontMap,
+                sourceTexts, targetLineCounts, assembledSlotTexts, edits, workDir).report();
     }
 
     /**
@@ -101,6 +107,58 @@ public final class Verifier {
             List<Region> regions,
             Path workDir) throws Exception {
 
+        Path pdf0 = renderer.render(originalSource, workDir);
+        return verifyRegionsAgainst(PdfLines.extract(pdf0), PdfPageCounter.count(pdf0), assembledOutput, renderer,
+                fontMap, regions, workDir).report();
+    }
+
+    /**
+     * As {@link #verifyRegions}, measured against a stored baseline (PHASE5_SPEC.md section 5.1,
+     * step B1) instead of rendering the original: the only render is the assembled output's own,
+     * and that render is returned so the delivered PDF is the one that was checked.
+     */
+    public static Checked verifyRegionsAgainstBaseline(
+            StoredBaseline baseline,
+            Path assembledOutput,
+            Renderer renderer,
+            FontMap fontMap,
+            List<Region> regions,
+            Path workDir) throws Exception {
+        return verifyRegionsAgainst(baseline.lines(), baseline.pages(), assembledOutput, renderer, fontMap, regions,
+                workDir);
+    }
+
+    /** The gate's failure detail as one line, for a caller reporting why a whole-document check failed. */
+    public static String describe(VerifyReport r) {
+        if (!r.pagesMatch()) {
+            return "pages " + r.pagesBefore() + " -> " + r.pagesAfter();
+        }
+        if (r.layoutProblem() != null) {
+            return r.layoutProblem();
+        }
+        if (!r.layoutOk()) {
+            return "layout shift " + r.layoutShiftPt() + "pt";
+        }
+        if (!r.fontViolations().isEmpty()) {
+            return "font violations: " + r.fontViolations();
+        }
+        for (var e : r.lineChecks().entrySet()) {
+            if (!e.getValue().ok()) {
+                return "region " + e.getKey() + " line count " + e.getValue().measured() + " != " + e.getValue().target();
+            }
+        }
+        return "verify failed";
+    }
+
+    private static Checked verifyRegionsAgainst(
+            List<PdfLines.Line> lines0,
+            int pagesBefore,
+            Path assembledOutput,
+            Renderer renderer,
+            FontMap fontMap,
+            List<Region> regions,
+            Path workDir) throws Exception {
+
         List<String> beforeTexts = new ArrayList<>();
         List<String> afterTexts = new ArrayList<>();
         Map<Integer, Integer> targetLineCounts = new LinkedHashMap<>();
@@ -116,12 +174,13 @@ public final class Verifier {
                 targetLineCounts.put(i, r.targetLines());
             }
         }
-        return verifyCore(originalSource, assembledOutput, renderer, fontMap, beforeTexts, targetLineCounts,
+        return verifyCore(lines0, pagesBefore, assembledOutput, renderer, fontMap, beforeTexts, targetLineCounts,
                 afterTexts, edits, workDir);
     }
 
-    private static VerifyReport verifyCore(
-            Path originalSource,
+    private static Checked verifyCore(
+            List<PdfLines.Line> lines0,
+            int pagesBefore,
             Path assembledOutput,
             Renderer renderer,
             FontMap fontMap,
@@ -130,10 +189,6 @@ public final class Verifier {
             List<String> assembledSlotTexts,
             Map<Integer, SlotEdit> edits,
             Path workDir) throws Exception {
-
-        Path pdf0 = renderer.render(originalSource, workDir);
-        int pagesBefore = PdfPageCounter.count(pdf0);
-        List<PdfLines.Line> lines0 = PdfLines.extract(pdf0);
 
         Path pdf1 = renderer.render(assembledOutput, workDir);
         int pagesAfter = PdfPageCounter.count(pdf1);
@@ -168,8 +223,8 @@ public final class Verifier {
         boolean linesOk = lineChecks.values().stream().allMatch(LineCheck::ok);
         boolean ok = pagesMatch && layoutOk && linesOk && violations.isEmpty();
 
-        return new VerifyReport(pagesMatch, pagesBefore, pagesAfter, lineChecks,
-                layout.shift(), layoutOk, layout.problem(), violations, ok);
+        return new Checked(new VerifyReport(pagesMatch, pagesBefore, pagesAfter, lineChecks,
+                layout.shift(), layoutOk, layout.problem(), violations, ok), pdf1);
     }
 
     private record LayoutResult(double shift, String problem) {
