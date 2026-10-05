@@ -197,6 +197,48 @@ output.
 
 ---
 
+## 5.1 Performance (revision 5)
+
+Measured: a real private run took about **6 minutes per posting**; the fixture
+takes ~31 s with 32 renders (~27 s rendering, ~4 s scoring **with the fake
+embedder**). Alternatives are never rendered (correct).
+
+**Step A: scoring cache (do first, then measure).** Assembly scores every
+project-to-position assignment and every bullet ordering; with MiniLM, each
+`score()` call that embeds afresh costs milliseconds, multiplied by hundreds
+of thousands of calls. Within one posting:
+- embed the requirement text **once**;
+- cache `score(text)` per distinct text (about 60 texts per resume);
+- cache `place_project` / `project_score` per (project, position);
+- run assembly **once** and reuse its results for the alternatives and the
+  fail-soft re-solve; a re-solve only re-runs assignment with the infeasible
+  pairs removed, from the cached scores.
+
+Results must be **byte-identical** to before (determinism, D7): caching changes
+speed, never answers. Measure `match` on the fixture with `--embedder minilm`
+before and after, and report the scoring time.
+
+**Step B: fewer renders.**
+1. **Baseline once:** render the onboarded document at onboarding and store
+   its line positions (with the onboarding outputs); verification compares
+   against the stored baseline instead of re-rendering it.
+2. **One verification:** apply all job-slot substitutions and all position
+   swaps to one document, verify once. If it fails, find the failing position
+   by bisection (verify half of the swaps at a time), mark that pair
+   infeasible, and continue with the fail-soft rules (section 5).
+3. **No re-validation of verified variants:** a job variant was rendered in its
+   own slot at generation; a library variant was rendered in a slot of the
+   same width. Skip re-validation when the target slot has the same text width
+   (section width minus the paragraph's indents) and the same run formatting
+   class as where the variant was validated; otherwise validate as now.
+4. **Stack fit in parallel:** run the stack binary search for all positions in
+   the same render per round (the Phase 1 batch principle).
+
+Target: resume #1 in **at most about 8 renders and under 10 s** on a real
+resume (fixture and private run), with byte-identical output to the
+unoptimised path on the fixture postings. `timing.json` keeps reporting each
+stage.
+
 ## 6. Cache (step 5.7)
 
 Reference: `cache_decision`. Fingerprint = the parsed weighted skill set +
@@ -308,6 +350,7 @@ fake` is for fixtures and tests.
 | P5-T14 | Fail-soft assembly | A fixture position whose swap always fails verification (e.g. a header made unparseable on purpose) yields a delivered resume #1 with that position unswapped and listed under `degraded`, after at most 3 re-solves; `summary.md` has a row per posting including the degraded note |
 | P5-T15 | Separator spaces | A header `Title \| stack \| link` written with non-breaking spaces around either `\|` parses to `TITLE SEP DETAIL SEP LINK`, and re-emitting it keeps the original characters |
 | P5-T16 | Implied skills | With dictionary v2.1, a material text naming only PostgreSQL and GitHub Actions makes SQL, CI/CD, GitHub and Git present; a job description naming PostgreSQL does not acquire SQL; missing skills consider the whole onboarded resume |
+| P5-T17 | Performance | On the 3 fixture postings with `--embedder minilm`: identical `match.json` and PDFs to the unoptimised path; resume #1 in ≤ 8 renders and ≤ 10 s each; scoring time reported before and after Step A |
 | P5-T13 | Real-world patterns | Every case in `fixtures/phase5/jd_patterns/expected.json` (10 synthetic postings, one per pattern found in 20 real ones) parses to exactly its title and weighted skills, with dictionary v2 |
 | P5-T1 | Parsing | Each fixture JD's title and weighted skills equal `expected_selection.json`; the platform rewording parses identically to the original |
 | P5-T2 | Scoring | `scores_job` for every JD equal the expected values exactly (FakeEmbedder) |
