@@ -40,4 +40,31 @@ class PipelineTimingTest {
         assertEquals(0, timing.stages().get(1).renders());
         assertEquals(2, timing.totalRenders());
     }
+
+    /** A second posting in the same process must report only its own renders, not the batch's. */
+    @Test
+    void totalRendersCountsOnlyTheRunThatCreatedTheTiming() throws Exception {
+        CountingRenderer counter = new CountingRenderer(new Renderer() {
+            @Override
+            public Path render(Path docxPath, Path outDir) {
+                return outDir.resolve("out.pdf");
+            }
+
+            @Override
+            public String version() {
+                return "fake";
+            }
+        });
+        Path doc = Path.of("x.docx");
+        counter.render(doc, doc);
+        counter.render(doc, doc);
+
+        PipelineTiming timing = new PipelineTiming(counter);
+        timing.time("one render", () -> {
+            counter.render(doc, doc);
+            return null;
+        });
+
+        assertEquals(1, timing.totalRenders());
+    }
 }

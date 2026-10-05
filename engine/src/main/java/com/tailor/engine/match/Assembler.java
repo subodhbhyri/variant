@@ -120,6 +120,18 @@ public final class Assembler {
 
     static PlaceResult placeProject(LibraryProject project, List<Integer> shape, JobDescription jd,
             SkillsDictionary skills, Embedder embedder) {
+        if (embedder instanceof CachingEmbedder session) {
+            return session.memo(new PlaceKey(project.id(), List.copyOf(shape), jd),
+                    () -> placeProjectUncached(project, shape, jd, skills, embedder));
+        }
+        return placeProjectUncached(project, shape, jd, skills, embedder);
+    }
+
+    private record PlaceKey(String project, List<Integer> shape, JobDescription jd) {
+    }
+
+    private static PlaceResult placeProjectUncached(LibraryProject project, List<Integer> shape, JobDescription jd,
+            SkillsDictionary skills, Embedder embedder) {
         List<Map<String, String>> bullets = project.bullets();
         int n = bullets.size();
         int r = shape.size();
@@ -162,6 +174,20 @@ public final class Assembler {
 
     static ProjectScoreResult projectScore(LibraryProject project, Shapes.PositionShape position, JobDescription jd,
             SkillsDictionary skills, Embedder embedder) {
+        if (embedder instanceof CachingEmbedder session) {
+            return session.memo(new ScoreKey(project.id(), project.homeSection(), project.detail(), position.id(),
+                    position.shape(), position.showsDetail(), position.section(), jd),
+                    () -> projectScoreUncached(project, position, jd, skills, embedder));
+        }
+        return projectScoreUncached(project, position, jd, skills, embedder);
+    }
+
+    private record ScoreKey(String project, String projectHome, String detail, String position,
+            List<Integer> shape, boolean showsDetail, String positionSection, JobDescription jd) {
+    }
+
+    private static ProjectScoreResult projectScoreUncached(LibraryProject project, Shapes.PositionShape position,
+            JobDescription jd, SkillsDictionary skills, Embedder embedder) {
         // A project never places outside its own home section (PHASE3_SPEC.md section 2: a resume
         // can have more than one "projects"-role section) — null/null (older shapes.json or
         // library.json fixtures with no section info at all) is always eligible, unconstrained.

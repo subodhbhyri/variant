@@ -1,0 +1,77 @@
+{
+  "jd" : {
+    "title" : "Data Engineer",
+    "skills" : {
+      "AWS" : 0.5,
+      "Airflow" : 1.0,
+      "ClickHouse" : 0.5,
+      "Kafka" : 1.0,
+      "Python" : 1.0,
+      "Spark" : 1.0,
+      "Terraform" : 0.5
+    },
+    "requirement_text" : "Python and Kafka for streaming ingestion. Batch processing with Spark and orchestration with Airflow. ClickHouse, Terraform, AWS."
+  },
+  "resumes" : [ {
+    "job" : [ "n1", "n4" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "relay",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.288,
+      "stack" : [ "Python", "Kafka", "ClickHouse", "Terraform", "AWS", "FastAPI", "Grafana" ]
+    }, {
+      "position" : "P1",
+      "project" : "forge",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.105,
+      "stack" : [ "Terraform", "AWS", "Go", "Rust", "Bazel", "Kubernetes", "Argo Workflows", "Redis", "PostgreSQL", "gRPC", "Prometheus", "Grafana" ]
+    }, {
+      "position" : "P2",
+      "project" : "quill",
+      "bullets" : [ 0, 1 ],
+      "score" : 0.0736,
+      "stack" : [ "TypeScript", "Next.js", "Postgres", "Redis" ]
+    }, {
+      "position" : "P3",
+      "project" : "sprout",
+      "bullets" : [ 0, 2, 1 ],
+      "score" : 0.0334,
+      "stack" : [ ]
+    } ],
+    "label" : "best match",
+    "total" : 0.8134,
+    "degraded" : [ ]
+  }, {
+    "job" : [ "n1", "n4" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "relay",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.288,
+      "stack" : null
+    }, {
+      "position" : "P1",
+      "project" : "forge",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.105,
+      "stack" : null
+    }, {
+      "position" : "P2",
+      "project" : "harbor",
+      "bullets" : [ 0, 1 ],
+      "score" : 0.049,
+      "stack" : null
+    }, {
+      "position" : "P3",
+      "project" : "quill",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.0588,
+      "stack" : null
+    } ],
+    "label" : "includes harbor instead of sprout",
+    "total" : 0.8142,
+    "degraded" : [ ]
+  } ],
+  "missing" : [ "Airflow" ]
+}

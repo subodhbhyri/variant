@@ -289,16 +289,18 @@ public final class TruthfulnessGuard {
      * fine, since the caller only ever takes a set difference against the sources' own techs.
      * PHASE5_SPEC.md section 1.1: also the skill matcher for job-description parsing and scoring. */
     public static Set<String> techs(String text, SkillsDictionary skills) {
-        Set<String> found = new TreeSet<>();
-        for (Map.Entry<String, List<Pattern>> e : skills.patternsByCanonical().entrySet()) {
-            for (Pattern p : e.getValue()) {
-                if (p.matcher(text).find()) {
-                    found.add(e.getKey());
-                    break;
+        return skills.techsByText().computeIfAbsent(text, t -> {
+            Set<String> found = new TreeSet<>();
+            for (Map.Entry<String, List<Pattern>> e : skills.patternsByCanonical().entrySet()) {
+                for (Pattern p : e.getValue()) {
+                    if (p.matcher(t).find()) {
+                        found.add(e.getKey());
+                        break;
+                    }
                 }
             }
-        }
-        return found;
+            return Collections.unmodifiableSet(found);
+        });
     }
 
     /** PHASE5_SPEC.md section 8.1 (revision 4, reference {@code techs_implied}): every skill
@@ -306,17 +308,20 @@ public final class TruthfulnessGuard {
      * v2.1's {@code _implies} — PostgreSQL implies SQL, GitHub Actions implies CI/CD/GitHub/Git).
      * Used for the user's own material and for a bullet's keyword coverage when scoring it
      * against a job description, never for the job description's own skill set (a posting
-     * asking for PostgreSQL does not ask for every SQL database). */
+     * asking for PostgreSQL does not ask for every SQL database). Memoized per text: both
+     * functions are pure in (text, dictionary). */
     public static Set<String> techsImplied(String text, SkillsDictionary skills) {
-        Set<String> out = new TreeSet<>();
-        Deque<String> todo = new ArrayDeque<>(techs(text, skills));
-        while (!todo.isEmpty()) {
-            String t = todo.pop();
-            if (!out.add(t)) {
-                continue;
+        return skills.techsImpliedByText().computeIfAbsent(text, t -> {
+            Set<String> out = new TreeSet<>();
+            Deque<String> todo = new ArrayDeque<>(techs(t, skills));
+            while (!todo.isEmpty()) {
+                String next = todo.pop();
+                if (!out.add(next)) {
+                    continue;
+                }
+                todo.addAll(skills.implies().getOrDefault(next, List.of()));
             }
-            todo.addAll(skills.implies().getOrDefault(t, List.of()));
-        }
-        return out;
+            return Collections.unmodifiableSet(out);
+        });
     }
 }

@@ -1,0 +1,78 @@
+{
+  "jd" : {
+    "title" : "Senior Backend Engineer, Build Platform",
+    "skills" : {
+      "Bazel" : 0.5,
+      "CI/CD" : 0.5,
+      "Go" : 1.0,
+      "Kubernetes" : 1.0,
+      "PostgreSQL" : 1.0,
+      "Prometheus" : 0.5,
+      "Terraform" : 0.5,
+      "gRPC" : 1.0
+    },
+    "requirement_text" : "Design services that schedule and cache builds for 300 engineers. Run our Kubernetes clusters and keep CI fast and reliable. 5+ years building backend services in Go. Production experience with Kubernetes and gRPC. Strong PostgreSQL skills. Bazel or other remote build systems. Terraform and Prometheus."
+  },
+  "resumes" : [ {
+    "job" : [ "n4", "n1" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "forge",
+      "bullets" : [ 0, 2, 1 ],
+      "score" : 0.4294,
+      "stack" : [ "Go", "Kubernetes", "PostgreSQL", "gRPC", "Bazel", "Prometheus", "Terraform", "Rust", "Argo Workflows", "Redis", "Grafana", "AWS" ]
+    }, {
+      "position" : "P1",
+      "project" : "quill",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.1295,
+      "stack" : [ "Postgres", "TypeScript", "Next.js", "Redis" ]
+    }, {
+      "position" : "P2",
+      "project" : "harbor",
+      "bullets" : [ 0, 1 ],
+      "score" : 0.1052,
+      "stack" : [ "Rust", "Tokio", "SQLite" ]
+    }, {
+      "position" : "P3",
+      "project" : "relay",
+      "bullets" : [ 0, 2, 1 ],
+      "score" : 0.071,
+      "stack" : [ "Terraform", "Python", "FastAPI", "Kafka", "ClickHouse", "Grafana", "AWS" ]
+    } ],
+    "label" : "best match",
+    "total" : 1.2044,
+    "degraded" : [ ]
+  }, {
+    "job" : [ "n4", "n1" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "forge",
+      "bullets" : [ 0, 2, 1 ],
+      "score" : 0.4294,
+      "stack" : null
+    }, {
+      "position" : "P1",
+      "project" : "quill",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.1295,
+      "stack" : null
+    }, {
+      "position" : "P2",
+      "project" : "harbor",
+      "bullets" : [ 0, 1 ],
+      "score" : 0.1052,
+      "stack" : null
+    }, {
+      "position" : "P3",
+      "project" : "sprout",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.0612,
+      "stack" : null
+    } ],
+    "label" : "includes sprout instead of relay",
+    "total" : 1.1946,
+    "degraded" : [ ]
+  } ],
+  "missing" : [ ]
+}

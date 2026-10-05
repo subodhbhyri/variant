@@ -1,0 +1,76 @@
+{
+  "jd" : {
+    "title" : "Full-Stack Engineer",
+    "skills" : {
+      "GraphQL" : 0.5,
+      "Next.js" : 1.0,
+      "PostgreSQL" : 1.0,
+      "React" : 1.0,
+      "Redis" : 0.5,
+      "TypeScript" : 1.0
+    },
+    "requirement_text" : "Strong TypeScript and React. Experience shipping Next.js apps backed by Postgres. Redis caching and GraphQL APIs."
+  },
+  "resumes" : [ {
+    "job" : [ "n1", "n2" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "quill",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.3589,
+      "stack" : [ "TypeScript", "Next.js", "Postgres", "Redis" ]
+    }, {
+      "position" : "P1",
+      "project" : "forge",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.1688,
+      "stack" : [ "PostgreSQL", "Redis", "Go", "Rust", "Bazel", "Kubernetes", "Argo Workflows", "gRPC", "Prometheus", "Grafana", "Terraform", "AWS" ]
+    }, {
+      "position" : "P2",
+      "project" : "relay",
+      "bullets" : [ 2, 1 ],
+      "score" : 0.0767,
+      "stack" : [ "Python", "FastAPI", "Kafka", "ClickHouse", "Grafana", "Terraform", "AWS" ]
+    }, {
+      "position" : "P3",
+      "project" : "sprout",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.0397,
+      "stack" : [ ]
+    } ],
+    "label" : "best match",
+    "total" : 0.9304,
+    "degraded" : [ ]
+  }, {
+    "job" : [ "n1", "n2" ],
+    "projects" : [ {
+      "position" : "P0",
+      "project" : "quill",
+      "bullets" : [ 0, 1, 2 ],
+      "score" : 0.3589,
+      "stack" : null
+    }, {
+      "position" : "P1",
+      "project" : "forge",
+      "bullets" : [ 1, 0 ],
+      "score" : 0.1688,
+      "stack" : null
+    }, {
+      "position" : "P2",
+      "project" : "harbor",
+      "bullets" : [ 0, 1 ],
+      "score" : 0.0482,
+      "stack" : null
+    }, {
+      "position" : "P3",
+      "project" : "relay",
+      "bullets" : [ 1, 0, 2 ],
+      "score" : 0.0668,
+      "stack" : null
+    } ],
+    "label" : "includes harbor instead of sprout",
+    "total" : 0.929,
+    "degraded" : [ ]
+  } ],
+  "missing" : [ ]
+}

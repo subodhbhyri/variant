@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -32,6 +33,8 @@ public final class SkillsDictionary {
     private final Map<String, List<Pattern>> patternsByCanonical;
     private final String version;
     private final Map<String, List<String>> implies;
+    private final Map<String, Set<String>> techsByText = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> techsImpliedByText = new ConcurrentHashMap<>();
 
     private SkillsDictionary(Map<String, List<Pattern>> patternsByCanonical, String version,
             Map<String, List<String>> implies) {
@@ -128,6 +131,14 @@ public final class SkillsDictionary {
      * unambiguously implies broader ones (PostgreSQL implies SQL) -> canonical term -> the terms
      * it implies directly (applied transitively by {@link
      * TruthfulnessGuard#techsImplied}). Empty (never null) for a dictionary with no such key. */
+    Map<String, Set<String>> techsByText() {
+        return techsByText;
+    }
+
+    Map<String, Set<String>> techsImpliedByText() {
+        return techsImpliedByText;
+    }
+
     public Map<String, List<String>> implies() {
         return implies;
     }

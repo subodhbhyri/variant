@@ -83,9 +83,10 @@ public final class MatchRunner {
 
     public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut) throws Exception {
         PipelineTiming timing = new PipelineTiming(ctx.renderer());
+        Embedder scoring = new CachingEmbedder(ctx.embedder());
         JobDescription jd = timing.time("parse", () -> JdParser.parse(jdText, ctx.skills()));
         List<AssembledResume> resumes = Alternatives.top3(
-                ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), ctx.embedder(), timing);
+                ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), scoring, timing);
 
         List<String> missing = timing.time("missing skills", () -> {
             String wholeResume = MissingSkills.wholeResumeText(ctx.onboardedDocx());
@@ -95,7 +96,7 @@ public final class MatchRunner {
 
         AssembledResume first = resumes.get(0);
         ResumeRenderer.FailSoftResult rendered = ResumeRenderer.renderFailSoft(ctx.onboardedDocx(), ctx.report(),
-                ctx.shapes(), first.job(), ctx.library(), jd, ctx.skills(), ctx.embedder(), ctx.jobCandidatesById(),
+                ctx.shapes(), first.job(), ctx.library(), jd, ctx.skills(), scoring, ctx.jobCandidatesById(),
                 ctx.renderer(), ctx.fontMap(), workDir, resume1DocxOut, timing);
         if (!rendered.render().ok()) {
             return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail(), timing);
@@ -103,7 +104,7 @@ public final class MatchRunner {
 
         double total = Assembler.totalScore(
                 new AssembledResume(first.job(), rendered.resume().projects(), null, null), ctx.shapes(),
-                ctx.jobCandidates(), jd, ctx.skills(), ctx.embedder());
+                ctx.jobCandidates(), jd, ctx.skills(), scoring);
         AssembledResume settled = new AssembledResume(
                 first.job(), rendered.resume().projects(), first.label(), total, rendered.resume().degraded());
         List<AssembledResume> finalResumes = new ArrayList<>(resumes);

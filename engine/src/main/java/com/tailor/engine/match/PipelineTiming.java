@@ -18,11 +18,13 @@ public final class PipelineTiming {
     }
 
     private final CountingRenderer counter;
+    private final long rendersAtStart;
     private final long startNanos = System.nanoTime();
     private final List<Stage> stages = new ArrayList<>();
 
     public PipelineTiming(CountingRenderer counter) {
         this.counter = counter;
+        this.rendersAtStart = counter == null ? 0 : counter.count();
     }
 
     public PipelineTiming() {
@@ -62,7 +64,7 @@ public final class PipelineTiming {
     }
 
     public long totalRenders() {
-        return renders();
+        return renders() - rendersAtStart;
     }
 
     public Report report(String jd) {
