@@ -78,7 +78,9 @@ public final class MatchRunner {
         LibraryProject.Library library = MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
 
         return new Context(onboardedDocx, report, shapes, jobCandidates, jobCandidatesById, library.projects(),
-                skills, embedder, new CountingRenderer(renderer), fontMap);
+                skills, embedder,
+                new CountingRenderer(new BaselineMemoRenderer(renderer, onboardedDocx.toAbsolutePath().normalize())),
+                fontMap);
     }
 
     public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut) throws Exception {

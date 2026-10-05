@@ -113,6 +113,49 @@ public final class ResumeRenderer {
             byId.put(p.id(), p);
         }
 
+        // PHASE5_SPEC.md section 5.1 (step B2): try every swap unverified, then verify the whole
+        // document once. Output is identical to the sequential path whenever this succeeds, and any
+        // failure falls through to that sequential path unchanged.
+        List<Shapes.PositionShape> allPositions = shapes.positions();
+        List<AssembledResume.ProjectAssignment> firstPass = Assembler.attachStacks(
+                Assembler.assignProjects(allPositions, library, jd, skills, embedder, Set.of(), null, Set.of()),
+                library, jd, skills);
+        if (firstPass.size() == allPositions.size()) {
+            Path combined = jobStageOut;
+            boolean allSwapped = true;
+            for (AssembledResume.ProjectAssignment assignment : firstPass) {
+                LibraryProject project = byId.get(assignment.project());
+                Integer positionIndex = parsePositionIndex(assignment.position());
+                LibraryProject selected = new LibraryProject(project.id(), project.title(), project.detail(),
+                        project.links(), project.date(), selectedBullets(project, assignment), project.homeSection());
+                DocxPackage basePkg = DocxPackage.open(combined);
+                Path stepOut = workDir.resolve("unverified-" + assignment.position() + "-" + System.nanoTime() + ".docx");
+                BlockSwapper.Result result = timing.time("unverified swap " + assignment.position() + "="
+                        + assignment.project(), () -> BlockSwapper.swapUnverified(
+                        basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut));
+                if (result.outcome() != SwapOutcome.OK) {
+                    timing.note("unverified swap " + assignment.position() + " FAILED: " + result.outcome());
+                    allSwapped = false;
+                    break;
+                }
+                combined = stepOut;
+            }
+            if (allSwapped) {
+                Path finalCombined = combined;
+                AssembledResume forCombined = new AssembledResume(job, firstPass, null, null);
+                RenderResult combinedCheck = timing.time("combined verification",
+                        () -> FinalVerifier.verify(normalizedDocx, finalCombined, report, forCombined,
+                                jobCandidatesById, library, renderer, fontMap, workDir));
+                if (combinedCheck.ok()) {
+                    Files.copy(finalCombined, outputDocx, StandardCopyOption.REPLACE_EXISTING);
+                    return new FailSoftResult(RenderResult.ok(outputDocx),
+                            new AssembledResume(job, firstPass, null, null, List.of()));
+                }
+                timing.note("combined verification FAILED: " + combinedCheck.detail()
+                        + " -- falling back to per-swap verification");
+            }
+        }
+
         Path[] current = {jobStageOut};
         Function<AssembledResume.ProjectAssignment, String> attemptSwap = assignment -> {
             LibraryProject project = byId.get(assignment.project());

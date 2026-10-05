@@ -73,6 +73,22 @@ public final class BlockSwapper {
 
     public static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
             Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx) throws Exception {
+        return swap(basePkg, positionIndex, project, renderer, fontMap, workDir, outputDocx, true);
+    }
+
+    /**
+     * As {@link #swap}, but without this swap's own verification. Used only by the combined
+     * resume #1 path (PHASE5_SPEC.md section 5.1, step B2), which verifies the whole assembled
+     * document once and falls back to per-swap verification if that fails. Every stack-fit and
+     * bullet check still runs; only the verification render pass is skipped.
+     */
+    public static Result swapUnverified(DocxPackage basePkg, int positionIndex, LibraryProject project,
+            Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx) throws Exception {
+        return swap(basePkg, positionIndex, project, renderer, fontMap, workDir, outputDocx, false);
+    }
+
+    private static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
+            Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx, boolean verify) throws Exception {
         Located base = locate(basePkg, positionIndex, renderer, workDir);
         Position position = base.position();
 
@@ -86,8 +102,8 @@ public final class BlockSwapper {
         }
 
         Result result = "inline".equals(position.kind())
-                ? swapInline(base, project, renderer, fontMap, workDir)
-                : swapParagraph(base, project, renderer, fontMap, workDir);
+                ? swapInline(base, project, renderer, fontMap, workDir, verify)
+                : swapParagraph(base, project, renderer, fontMap, workDir, verify);
 
         if (result.outcome() == SwapOutcome.OK) {
             base.pkg().save(outputDocx);
@@ -98,7 +114,7 @@ public final class BlockSwapper {
     // --- paragraph-kind positions -------------------------------------------------------------
 
     private static Result swapParagraph(Located base, LibraryProject project, Renderer renderer, FontMap fontMap,
-            Path workDir) throws Exception {
+            Path workDir, boolean verify) throws Exception {
         Position position = base.position();
         Document doc = base.doc();
         DocxPackage pkg = base.pkg();
@@ -206,11 +222,13 @@ public final class BlockSwapper {
         List<Verifier.Region> regions = buildRegions(doc, base.slots(), headerBodyIndex, headerRegion,
                 editBySlotIndex);
 
-        Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
-        VerifyReport report =
-                Verifier.verifyRegions(baselineDocx, assembledForVerify, renderer, fontMap, regions, workDir);
-        if (!report.ok()) {
-            return Result.verifyFailed(detailOf(report));
+        if (verify) {
+            Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
+            VerifyReport report =
+                    Verifier.verifyRegions(baselineDocx, assembledForVerify, renderer, fontMap, regions, workDir);
+            if (!report.ok()) {
+                return Result.verifyFailed(detailOf(report));
+            }
         }
 
         return new Result(SwapOutcome.OK, stackItemsKept, padBySlotIndex.size(), null);
@@ -287,7 +305,7 @@ public final class BlockSwapper {
     // --- inline-kind positions -----------------------------------------------------------------
 
     private static Result swapInline(Located base, LibraryProject project, Renderer renderer, FontMap fontMap,
-            Path workDir) throws Exception {
+            Path workDir, boolean verify) throws Exception {
         Position position = base.position();
         Document doc = base.doc();
         DocxPackage pkg = base.pkg();
@@ -351,11 +369,13 @@ public final class BlockSwapper {
         int inlineBodyIndex = bodyChildIndex(doc, paragraph);
         List<Verifier.Region> regions = buildRegions(doc, base.slots(), inlineBodyIndex, inlineRegion, Map.of());
 
-        Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
-        VerifyReport report =
-                Verifier.verifyRegions(base.baselineDocx(), assembledForVerify, renderer, fontMap, regions, workDir);
-        if (!report.ok()) {
-            return Result.verifyFailed(detailOf(report));
+        if (verify) {
+            Path assembledForVerify = saveTemp(pkg, workDir, "swap-verify");
+            VerifyReport report =
+                    Verifier.verifyRegions(base.baselineDocx(), assembledForVerify, renderer, fontMap, regions, workDir);
+            if (!report.ok()) {
+                return Result.verifyFailed(detailOf(report));
+            }
         }
 
         return new Result(SwapOutcome.OK, null, paddedBullets, null);
