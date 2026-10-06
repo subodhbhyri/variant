@@ -30,5 +30,15 @@ public record SectionContext(
         Map<Integer, Integer> budgetCharsByLineCount,
         Map<Integer, List<Integer>> slotIndicesByLineCount,
         Path baselineDocx,
-        Renderer renderer) {
+        Renderer renderer,
+        String bulletEnding) {
+
+    /** As before, with no bullet-ending convention: generated bullets keep the model's own ending. */
+    public SectionContext(String sectionId, String kind, String mode, List<PromptBuilder.FieldLine> fields,
+            List<String> currentBullets, String rawText, List<String> sourceTexts, List<Integer> lineCounts,
+            List<Integer> slotLineCounts, int candidateCount, Map<Integer, Integer> budgetCharsByLineCount,
+            Map<Integer, List<Integer>> slotIndicesByLineCount, Path baselineDocx, Renderer renderer) {
+        this(sectionId, kind, mode, fields, currentBullets, rawText, sourceTexts, lineCounts, slotLineCounts,
+                candidateCount, budgetCharsByLineCount, slotIndicesByLineCount, baselineDocx, renderer, null);
+    }
 }

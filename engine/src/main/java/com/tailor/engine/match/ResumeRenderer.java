@@ -86,11 +86,19 @@ public final class ResumeRenderer {
      * render} failed outright (no feasible assignment at all, or the final whole-document verify
      * failed: PHASE5_SPEC.md section 5's "a resume is dropped" case, never retried). {@code pdf} is
      * the delivered document's own render when the check that verified it produced one, else null. */
-    public record FailSoftResult(RenderResult render, AssembledResume resume, Path pdf) {
+    public record FailSoftResult(RenderResult render, AssembledResume resume, Path pdf,
+            List<BatchAssembler.Rejection> rejections) {
         public FailSoftResult(RenderResult render, AssembledResume resume) {
-            this(render, resume, null);
+            this(render, resume, null, List.of());
+        }
+
+        public FailSoftResult(RenderResult render, AssembledResume resume, Path pdf) {
+            this(render, resume, pdf, List.of());
         }
     }
+
+    /** Most re-solves the batched path makes for one resume before it hands over to the per-position path. */
+    private static final int MAX_BATCH_ATTEMPTS = 16;
 
     private ResumeRenderer() {
     }
@@ -139,20 +147,36 @@ public final class ResumeRenderer {
         }
         List<Shapes.PositionShape> allPositions = shapes.positions();
 
+        // Each placement the batch can't make (a header or bullet too long) is excluded and the assignment
+        // re-solved, the same best-first rule the fail-soft path uses; the batch is run again from the start.
+        List<BatchAssembler.Rejection> rejections = new ArrayList<>();
         if (batch != null) {
-            List<AssembledResume.ProjectAssignment> firstPass = Assembler.attachStacks(
-                    Assembler.assignProjects(allPositions, library, jd, skills, embedder, Set.of(), null, Set.of()),
-                    library, jd, skills);
-            List<BatchAssembler.Plan> plans = firstPass.size() == allPositions.size() ? plansOf(firstPass, byId) : null;
-            if (plans != null) {
+            Set<String> infeasible = new LinkedHashSet<>();
+            for (int attempt = 0; attempt < MAX_BATCH_ATTEMPTS; attempt++) {
+                List<AssembledResume.ProjectAssignment> firstPass = Assembler.attachStacks(
+                        Assembler.assignProjects(allPositions, library, jd, skills, embedder, Set.of(), null, infeasible),
+                        library, jd, skills);
+                List<BatchAssembler.Plan> plans =
+                        firstPass.size() == allPositions.size() ? plansOf(firstPass, byId) : null;
+                if (plans == null) {
+                    break;
+                }
                 BatchAssembler.Result batched = BatchAssembler.assemble(normalizedDocx, batch.baseline(),
                         batch.baselinePdf(), report, job, jobCandidatesById, plans, renderer, batch.check(), workDir,
                         outputDocx, timing);
                 if (batched.ok()) {
                     return new FailSoftResult(RenderResult.ok(outputDocx),
-                            new AssembledResume(job, firstPass, null, null, List.of()), batched.pdf());
+                            new AssembledResume(job, firstPass, null, null, List.of()), batched.pdf(), rejections);
                 }
-                timing.note("batched assembly not used: " + batched.detail() + " -- per-position fail-soft");
+                if (batched.rejection() == null) {
+                    timing.note("batched assembly not used: " + batched.detail() + " -- per-position fail-soft");
+                    break;
+                }
+                BatchAssembler.Rejection r = batched.rejection();
+                rejections.add(r);
+                infeasible.add(r.position() + "=" + r.project());
+                timing.note("batched placement rejected: " + r.position() + "=" + r.project() + " (" + r.reason()
+                        + ") -- re-solved without it");
             }
         }
 
@@ -162,7 +186,7 @@ public final class ResumeRenderer {
                 () -> substituteJobSlots(normalizedDocx, report, jobOnly, jobCandidatesById, renderer, fontMap,
                         workDir, jobStageOut));
         if (!jobStage.ok()) {
-            return new FailSoftResult(jobStage, null);
+            return new FailSoftResult(jobStage, null, null, rejections);
         }
 
         Path[] current = {jobStageOut};
@@ -199,7 +223,7 @@ public final class ResumeRenderer {
         }
         if (projects == null) {
             return new FailSoftResult(RenderResult.failed("no feasible project assignment for every position"),
-                    null);
+                    null, null, rejections);
         }
 
         AssembledResume forVerify = new AssembledResume(job, projects, null, null);
@@ -207,11 +231,11 @@ public final class ResumeRenderer {
                 () -> FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
                         jobCandidatesById, library, renderer, fontMap, workDir));
         if (!finalCheck.ok()) {
-            return new FailSoftResult(finalCheck, forVerify);
+            return new FailSoftResult(finalCheck, forVerify, null, rejections);
         }
         Files.copy(current[0], outputDocx, StandardCopyOption.REPLACE_EXISTING);
         AssembledResume finalResume = new AssembledResume(job, projects, null, null, degraded);
-        return new FailSoftResult(RenderResult.ok(outputDocx), finalResume);
+        return new FailSoftResult(RenderResult.ok(outputDocx), finalResume, null, rejections);
     }
 
     /**

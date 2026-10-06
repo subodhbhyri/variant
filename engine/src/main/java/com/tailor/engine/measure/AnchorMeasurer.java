@@ -86,7 +86,8 @@ public final class AnchorMeasurer {
     }
 
     private static String normalize(String s) {
-        String nfkc = Normalizer.normalize(s, Normalizer.Form.NFKC);
+        // Word's no-break hyphen (U+2011, or U+2010) is written as an ordinary hyphen in the text model.
+        String nfkc = Normalizer.normalize(s, Normalizer.Form.NFKC).replace('‐', '-').replace('‑', '-');
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < nfkc.length(); i++) {
             char c = nfkc.charAt(i);

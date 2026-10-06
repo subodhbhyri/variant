@@ -207,6 +207,41 @@ public final class Assembler {
         return new ProjectScoreResult(Round.to4(s), placed.bullets());
     }
 
+    /**
+     * Why {@code project} can't fill {@code position}, or null when it can. Same checks, in the same
+     * order, as {@link #projectScore}: the home section first, then the bullets at the position's line
+     * counts. Independent of the job description, so it's the same for every posting.
+     */
+    static String infeasibility(LibraryProject project, Shapes.PositionShape position, SkillsDictionary skills,
+            Embedder embedder) {
+        if (position.section() != null && project.homeSection() != null
+                && !position.section().equals(project.homeSection())) {
+            return "its home section \"" + project.homeSection() + "\" is not the position's section \""
+                    + position.section() + "\"";
+        }
+        JobDescription none = new JobDescription("", Map.of(), "");
+        if (placeProject(project, position.shape(), none, skills, embedder) != null) {
+            return null;
+        }
+        List<Map<String, String>> bullets = project.bullets();
+        List<Integer> shape = position.shape();
+        if (bullets.size() < shape.size()) {
+            return "has " + bullets.size() + " bullet(s), and the position needs " + shape.size();
+        }
+        List<String> missing = new ArrayList<>();
+        for (int length : new java.util.TreeSet<>(shape)) {
+            boolean any = bullets.stream().anyMatch(b -> b.get(String.valueOf(length)) != null);
+            if (!any) {
+                missing.add(length + " line(s)");
+            }
+        }
+        if (!missing.isEmpty()) {
+            return "no bullet has a variant at " + String.join(" or ", missing);
+        }
+        return "no " + shape.size() + " of its bullets have variants at the position's line counts " + shape
+                + " together";
+    }
+
     public static List<AssembledResume.ProjectAssignment> assignProjects(List<Shapes.PositionShape> positions,
             List<LibraryProject> library, JobDescription jd, SkillsDictionary skills, Embedder embedder,
             Set<String> penalty) {

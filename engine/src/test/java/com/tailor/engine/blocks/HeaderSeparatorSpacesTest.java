@@ -50,7 +50,8 @@ class HeaderSeparatorSpacesTest {
                 null);
         HeaderRenderer.render(p, template, newFields, url -> "rId1");
 
-        assertEquals("Title" + NBSP_SEP + "Stack Item" + MIXED_SEP + "GitHub", DomUtil.allText(p),
+        // PHASE3_SPEC.md section 4: a DETAIL item's own space is no-break, so "Stack Item" is one unit.
+        assertEquals("Title" + NBSP_SEP + "Stack Item" + MIXED_SEP + "GitHub", DomUtil.allText(p),
                 "re-emitting the same fields must reproduce the exact original separator characters");
     }
 

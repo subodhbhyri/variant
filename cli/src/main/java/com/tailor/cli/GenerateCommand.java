@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.tailor.engine.blocks.LibraryProject;
 import com.tailor.engine.blocks.Position;
 import com.tailor.engine.generate.AnthropicClient;
+import com.tailor.engine.generate.BulletEnding;
 import com.tailor.engine.generate.BudgetTracker;
 import com.tailor.engine.generate.FitLoop;
 import com.tailor.engine.generate.Intake;
@@ -92,6 +93,8 @@ public final class GenerateCommand implements Callable<Integer> {
             Map<String, Map<String, FitLoop.CandidateOutcome>> jobVariants = new LinkedHashMap<>();
             List<LibraryProject> libraryProjects = new ArrayList<>();
             Map<String, SectionReportEntry> reportSections = new LinkedHashMap<>();
+            // PHASE4_SPEC.md section 6.1: every generated bullet takes the resume's own ending convention.
+            String bulletEnding = BulletEnding.convention(report.slots().stream().map(OnboardReport.SlotReport::text).toList());
 
             for (int i = 0; i < positions.jobPositions().size(); i++) {
                 String sectionId = "job-" + i;
@@ -115,7 +118,7 @@ public final class GenerateCommand implements Callable<Integer> {
                         sectionId, "job", section.mode(), fieldLines(section.fields()), currentBullets,
                         section.rawText(), sourceTexts, target.lineCounts(), slotLineCounts,
                         target.candidateCount(), target.budgetCharsByLineCount(),
-                        positions.slotIndicesByLineCount(job, report), onboardedPath, renderer);
+                        positions.slotIndicesByLineCount(job, report), onboardedPath, renderer, bulletEnding);
 
                 ModelClient client = clientFor(sectionId, recorded);
                 FitLoop.FitLoopResult result = FitLoop.run(ctx, client, skills);
@@ -151,7 +154,7 @@ public final class GenerateCommand implements Callable<Integer> {
                         section.id(), "project", section.mode(), fieldLines(section.fields()), currentBullets,
                         section.rawText(), sourceTexts, projectTarget.lineCounts(), List.of(),
                         projectTarget.candidateCount(), projectTarget.budgetCharsByLineCount(), pooledSlots,
-                        onboardedPath, renderer);
+                        onboardedPath, renderer, bulletEnding);
 
                 ModelClient client = clientFor(section.id(), recorded);
                 FitLoop.FitLoopResult result = FitLoop.run(ctx, client, skills);
@@ -288,26 +291,10 @@ public final class GenerateCommand implements Callable<Integer> {
         }
     }
 
-    /** A brand-new added project (no existing position of its own) goes to the {@code "projects"}-
-     * role section whose heading contains "project" (case-insensitive, first in document order);
-     * if none does, the one with the most positions (first in document order on a tie); if the
-     * resume has no {@code "projects"}-role section at all, null. */
+    /** A brand-new added project (no existing position of its own) goes to a {@code "projects"}-role
+     * section that holds swappable positions: see {@link com.tailor.engine.blocks.HomeSections}. */
     private static String addedProjectHomeSection(SectionPositions positions) {
-        List<com.tailor.engine.blocks.ProjectSections.Entry> entries = positions.projectSectionEntries();
-        for (com.tailor.engine.blocks.ProjectSections.Entry e : entries) {
-            if (e.section().heading().toLowerCase(java.util.Locale.ROOT).contains("project")) {
-                return e.section().heading();
-            }
-        }
-        String best = null;
-        int bestCount = -1;
-        for (com.tailor.engine.blocks.ProjectSections.Entry e : entries) {
-            if (e.positions().size() > bestCount) {
-                bestCount = e.positions().size();
-                best = e.section().heading();
-            }
-        }
-        return best;
+        return com.tailor.engine.blocks.HomeSections.forAddedProject(positions.projectSectionEntries());
     }
 
     /** Every swappable project position's bullet slots, grouped by line count and pooled

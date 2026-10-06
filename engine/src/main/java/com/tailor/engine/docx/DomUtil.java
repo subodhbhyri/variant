@@ -91,13 +91,24 @@ public final class DomUtil {
         return attrs.get(localName);
     }
 
-    /** Concatenated text of all descendant w:t elements, in document order. */
+    /** Concatenated text of all descendant w:t elements in document order, with each w:noBreakHyphen
+     * read as the hyphen it stands for (PHASE3_SPEC.md section 4: header hyphens are no-break). */
     public static String allText(Element root) {
         StringBuilder sb = new StringBuilder();
-        for (Element t : descendants(root, "t")) {
-            sb.append(textContent(t));
-        }
+        appendText(root, sb);
         return sb.toString();
+    }
+
+    private static void appendText(Element el, StringBuilder sb) {
+        for (Element child : elementChildren(el)) {
+            if ("t".equals(child.getLocalName())) {
+                sb.append(textContent(child));
+            } else if ("noBreakHyphen".equals(child.getLocalName())) {
+                sb.append('-');
+            } else {
+                appendText(child, sb);
+            }
+        }
     }
 
     public static String textContent(Element el) {

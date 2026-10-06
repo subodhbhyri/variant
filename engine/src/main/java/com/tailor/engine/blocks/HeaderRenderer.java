@@ -20,6 +20,8 @@ public final class HeaderRenderer {
     /** Same token pattern as Phase 1's Substituter: one run per word, and per whitespace run
      * between words — measured to give 0.0pt drift where a single long run doesn't. */
     private static final Pattern WORD_TOKEN = Pattern.compile("\\S+|\\s+");
+    private static final Pattern SPACE_RUN = Pattern.compile("\\s+");
+    private static final String NO_BREAK_SPACE = " ";
     private static final String R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private static final String W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
@@ -54,7 +56,7 @@ public final class HeaderRenderer {
                 case TITLE -> appendWordRuns(headerParagraph, t.rPr(), fields.title());
                 case DETAIL -> {
                     if (hasDetail) {
-                        appendWordRuns(headerParagraph, t.rPr(), fields.detail());
+                        appendItemRuns(headerParagraph, t.rPr(), fields.detail());
                     }
                 }
                 case SEP -> {
@@ -120,10 +122,12 @@ public final class HeaderRenderer {
                 }
             }
             if (!ts.isEmpty()) {
-                ts.get(0).setTextContent(label);
-                for (int i = 1; i < ts.size(); i++) {
-                    textRuns.get(0).removeChild(ts.get(i));
+                // A link label is one item: no-break spaces, and w:noBreakHyphen for its hyphens.
+                Element first = textRuns.get(0);
+                for (Element c : ts) {
+                    first.removeChild(c);
                 }
+                appendTextWithNoBreakHyphens(copy, first, noBreakSpaces(label));
             }
             for (int i = 1; i < textRuns.size(); i++) {
                 Element extra = textRuns.get(i);
@@ -143,10 +147,78 @@ public final class HeaderRenderer {
         return run;
     }
 
+    /** Plain word runs: one run per word and per whitespace run (Substituter's token pattern). */
     private static void appendWordRuns(Element paragraph, Element rPr, String text) {
         Matcher m = WORD_TOKEN.matcher(text);
         while (m.find()) {
             paragraph.appendChild(makeRun(paragraph, rPr, m.group()));
+        }
+    }
+
+    /**
+     * A DETAIL list (or a link label, below) — written so it can't wrap inside an item
+     * (PHASE3_SPEC.md section 4): its own spaces are no-break (U+00A0), and so are its hyphens (w:noBreakHyphen).
+     * The only breakable spaces left are the ones after a ", " or beside a "|" separator.
+     */
+    private static void appendItemRuns(Element paragraph, Element rPr, String text) {
+        for (Element run : itemRuns(paragraph, rPr, text)) {
+            paragraph.appendChild(run);
+        }
+    }
+
+    /**
+     * The runs for one header item, unattached: the same runs {@link #render} writes for a DETAIL
+     * list or a link label.
+     */
+    private static List<Element> itemRuns(Element template, Element rPr, String text) {
+        List<Element> runs = new ArrayList<>();
+        Matcher m = WORD_TOKEN.matcher(noBreakSpaces(text));
+        while (m.find()) {
+            String token = m.group();
+            if (Character.isWhitespace(token.charAt(0))) {
+                runs.add(makeRun(template, rPr, token));
+            } else {
+                Element run = XmlBuild.createChild(template, "r");
+                if (rPr != null) {
+                    run.appendChild(rPr.cloneNode(true));
+                }
+                appendTextWithNoBreakHyphens(template, run, token);
+                runs.add(run);
+            }
+        }
+        return runs;
+    }
+
+    /** {@code text} with every space that isn't after a comma or beside a "|" made no-break. */
+    static String noBreakSpaces(String text) {
+        Matcher m = SPACE_RUN.matcher(text);
+        StringBuilder out = new StringBuilder();
+        int last = 0;
+        while (m.find()) {
+            out.append(text, last, m.start());
+            boolean afterComma = m.start() > 0 && text.charAt(m.start() - 1) == ',';
+            boolean besidePipe = (m.start() > 0 && text.charAt(m.start() - 1) == '|')
+                    || (m.end() < text.length() && text.charAt(m.end()) == '|');
+            out.append(afterComma || besidePipe ? m.group() : NO_BREAK_SPACE);
+            last = m.end();
+        }
+        out.append(text.substring(last));
+        return out.toString();
+    }
+
+    /** Adds {@code text} to {@code run} as w:t elements, each hyphen as a w:noBreakHyphen. */
+    private static void appendTextWithNoBreakHyphens(Element template, Element run, String text) {
+        String[] parts = text.split("-", -1);
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                run.appendChild(XmlBuild.createChild(template, "noBreakHyphen"));
+            }
+            if (!parts[i].isEmpty() || parts.length == 1) {
+                Element t = XmlBuild.createChild(template, "t");
+                XmlBuild.setXmlSpacePreserve(t);
+                t.setTextContent(parts[i]);
+                run.appendChild(t);
+            }
         }
     }
 

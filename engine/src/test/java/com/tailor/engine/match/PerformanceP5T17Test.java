@@ -39,7 +39,8 @@ class PerformanceP5T17Test {
     private static final List<String> POSTINGS = List.of("platform", "frontend", "data");
 
     /** Field-for-field the CLI's {@code MatchCommand.MatchOutput}, so the bytes match. */
-    record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing) {
+    record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing,
+            List<MatchBatchSummary.Infeasible> infeasible) {
     }
 
     @Test
@@ -73,7 +74,15 @@ class PerformanceP5T17Test {
                 assertTrue(result.renderFailureReason() == null, name + " failed: " + result.renderFailureReason());
 
                 byte[] matchJson = mapper.writerWithDefaultPrettyPrinter()
-                        .writeValueAsBytes(new MatchOutput(result.jd(), result.resumes(), result.missing()));
+                        .writeValueAsBytes(new MatchOutput(result.jd(), result.resumes(), result.missing(),
+                                MatchRunner.infeasibleFor(ctx, result)));
+                // Regenerating the baseline (a deliberate output change): P5T17_OUT receives this run's outputs.
+                String regen = System.getenv("P5T17_OUT");
+                if (regen != null) {
+                    Path dir = Files.createDirectories(Path.of(regen).resolve(name));
+                    Files.write(dir.resolve("match.json"), matchJson);
+                    Files.copy(resumeDocx, dir.resolve("resume-1.docx"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
                 byte[] goldenJson = Files.readAllBytes(golden.resolve(name).resolve("match.json"));
                 if (!java.util.Arrays.equals(matchJson, goldenJson)) {
                     identity.append(name).append(": match.json differs from baseline\n");

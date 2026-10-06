@@ -347,6 +347,22 @@ texts were render-verified on the normalized fixture.
 
 ---
 
+### 6.1 Bullet endings
+
+After the model returns, each variant's final period is made to match the
+resume's own convention. This is deterministic code with no model call. The
+convention is the majority of the resume's original bullets (every bullet slot
+of the onboarded document, locked ones included): a period when more than half
+of them end with one, no period otherwise. A tie means no period. With no
+original bullets there is no convention and nothing changes.
+
+Only the final character is changed. When the convention is no period, one
+final period is removed (an ellipsis is left alone). When it is a period, one
+is added after a letter, a digit, `)` or `%`. A text ending in `!`, `?`, `:`
+or other punctuation gets no period. The change happens before the render
+check, so each variant is validated in its final form; a variant that no
+longer fits its line count is dropped exactly as any other too-long variant.
+
 ## 7. Cost accounting (step 4.6)
 
 Record every call's `usage` (`input_tokens`, `output_tokens`,

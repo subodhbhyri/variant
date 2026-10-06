@@ -134,13 +134,63 @@ public final class MatchBatchSummary {
         return out;
     }
 
+    /** One project that can't fill one position, and why. */
+    public record Infeasible(String project, String position, String reason) {
+    }
+
+    /** Every project/position pair that can't be filled, with its reason (same checks as assignment). */
+    public static List<Infeasible> infeasibilities(List<LibraryProject> library,
+            List<Shapes.PositionShape> positions, SkillsDictionary skills, Embedder embedder) {
+        List<Infeasible> out = new ArrayList<>();
+        for (LibraryProject p : library) {
+            for (Shapes.PositionShape pos : positions) {
+                String reason = Assembler.infeasibility(p, pos, skills, embedder);
+                if (reason != null) {
+                    out.add(new Infeasible(p.id(), pos.id(), reason));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** A placement resume #1 of one posting had to re-solve around (a header or bullet that couldn't fit). */
+    public record Rejected(String posting, String position, String project, String reason) {
+    }
+
+    /** The re-solved placements across the batch, or nothing when no posting needed one. */
+    public static String rejectedMarkdown(List<Rejected> rejected) {
+        if (rejected.isEmpty()) {
+            return "";
+        }
+        StringBuilder md = new StringBuilder();
+        md.append("\n## Placements rejected during assembly (re-solved)\n\n");
+        md.append("| Posting | Project | Position | Reason |\n|---|---|---|---|\n");
+        for (Rejected r : rejected) {
+            md.append("| ").append(escape(r.posting())).append(" | ").append(escape(r.project())).append(" | ")
+                    .append(r.position()).append(" | ").append(escape(r.reason())).append(" |\n");
+        }
+        return md.toString();
+    }
+
     public static String feasibilityMarkdown(Map<String, List<String>> feasibility) {
+        return feasibilityMarkdown(feasibility, List.of());
+    }
+
+    public static String feasibilityMarkdown(Map<String, List<String>> feasibility, List<Infeasible> infeasible) {
         StringBuilder md = new StringBuilder();
         md.append("\n## Library project feasibility\n\n");
         md.append("| Project | Positions it can fill |\n|---|---|\n");
         for (Map.Entry<String, List<String>> e : feasibility.entrySet()) {
             md.append("| ").append(e.getKey()).append(" | ")
                     .append(e.getValue().isEmpty() ? "(none)" : String.join(", ", e.getValue())).append(" |\n");
+        }
+        if (!infeasible.isEmpty()) {
+            md.append("\n## Why a project can't fill a position\n\n");
+            md.append("| Project | Position | Reason |\n|---|---|---|\n");
+            for (Infeasible i : infeasible) {
+                md.append("| ").append(escape(i.project())).append(" | ").append(i.position())
+                        .append(" | ").append(escape(i.reason())).append(" |\n");
+            }
         }
         return md.toString();
     }

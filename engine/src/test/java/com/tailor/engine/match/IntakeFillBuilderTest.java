@@ -39,7 +39,8 @@ class IntakeFillBuilderTest {
 
         IntakeSection beacon = sectionById(result.intake(), "project-0");
         assertEquals("DETAILED", beacon.mode());
-        assertEquals("Beacon Analytics", beacon.fields().title(), "title is the part before the colon");
+        assertEquals("Beacon Analytics: real-time analytics platform for retail", beacon.fields().title(),
+                "the title is the dataset's full fields.title; only matching compares the part before the colon");
         assertEquals("Kotlin, Spark, Delta Lake, Airflow", beacon.fields().detail());
         assertEquals(1, beacon.fields().links().size());
         assertEquals("https://github.com/example/beacon", beacon.fields().links().get(0).url());
@@ -47,7 +48,7 @@ class IntakeFillBuilderTest {
 
         IntakeSection ledger = sectionById(result.intake(), "project-1");
         assertEquals("DETAILED", ledger.mode());
-        assertEquals("ledger sync", ledger.fields().title(),
+        assertEquals("ledger sync: payments reconciliation", ledger.fields().title(),
                 "match is case-insensitive, but the title set is the dataset's own casing");
         assertTrue(ledger.rawText().startsWith("Built a reconciliation service"));
 
@@ -76,7 +77,7 @@ class IntakeFillBuilderTest {
         IntakeSection added = sectionById(result.intake(), "project-new-1");
         assertEquals("project", added.kind());
         assertEquals("DETAILED", added.mode());
-        assertEquals("Unmatched Dataset", added.fields().title());
+        assertEquals("Unmatched Dataset: nothing uses this", added.fields().title());
         assertTrue(added.rawText().startsWith("orphan dataset text"));
 
         for (IntakeSection s : result.intake().sections()) {

@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,16 +55,19 @@ import org.w3c.dom.NodeList;
  *   <li>B1: every measurement comes from the stored baseline ({@link StoredBaseline}), not a render;
  *   <li>B3: a job bullet whose target slot has the same width and formatting as the slots its
  *       variant was validated in is not re-validated;
- *   <li>B4: stack-fit searches for all positions advance together, one probe document per round, and
- *       inline blocks are measured in the same first round;
- *   <li>the bullet validation for every project and unskipped job bullet runs as one batch, and the
+ *   <li>B4: the first round checks every header and inline block for fit, with each header's detail
+ *       as it stands (or without it, when a stack fit is still to be searched); the stack-fit
+ *       searches then advance together, one probe document per round;
+ *   <li>the bullets of every project and unskipped job slot are validated as one batch, and the
  *       finished document is checked once, against the stored baseline, with that check's own render
  *       delivered as the PDF.
  * </ul>
  *
- * <p>Returns {@code ok=false} with a reason whenever anything it can't do in one pass comes up
- * (a bullet too long, a header that doesn't fit, a failed whole-document check); the caller then
- * runs the per-position fail-soft path, so nothing unverified is ever delivered.
+ * <p>A project placement that can't be made (a header or inline block too long for its line, a
+ * project bullet too long) comes back as a {@link Rejection}: the caller re-solves the assignment
+ * without that pairing and batches again, as the fail-soft path does. Anything else the batch can't
+ * do in one pass returns {@code ok=false} without a rejection, and the caller runs the per-position
+ * path. Nothing unverified is ever delivered.
  */
 public final class BatchAssembler {
 
@@ -91,8 +93,13 @@ public final class BatchAssembler {
     public record Plan(int positionIndex, LibraryProject project) {
     }
 
-    /** When {@code ok}, {@code outputDocx} and {@code pdf} are set; otherwise {@code detail} says why. */
-    public record Result(boolean ok, String detail, Path outputDocx, Path pdf) {
+    /** A placement the batch can't make: the position id ("P0"), the project id, and why. */
+    public record Rejection(String position, String project, String reason) {
+    }
+
+    /** When {@code ok}, {@code outputDocx} and {@code pdf} are set; otherwise {@code detail} says why, and
+     * {@code rejection} is set when the cause is one project placement (see the class comment). */
+    public record Result(boolean ok, String detail, Path outputDocx, Path pdf, Rejection rejection) {
     }
 
     private record Opened(DocxPackage pkg, Document doc, List<Slot> slots) {
@@ -183,6 +190,7 @@ public final class BatchAssembler {
 
         // --- project positions: targets, variants, date-tab edges, inline rewrites -----------------
         List<Planned> planned = new ArrayList<>();
+        Map<Integer, Planned> ownerBySlot = new HashMap<>();
         for (Plan plan : plans) {
             int index = plan.positionIndex();
             if (index < 0 || index >= projectPositions.size()) {
@@ -200,8 +208,7 @@ public final class BatchAssembler {
                         + project.bullets().size());
             }
             if ("inline".equals(p.kind())) {
-                Planned inline = planInline(index, p, project, baseline,
-                        lineCounts);
+                Planned inline = planInline(index, p, project, baseline, lineCounts);
                 if (inline == null) {
                     return failed("P" + index + " inline block could not be planned");
                 }
@@ -243,11 +250,15 @@ public final class BatchAssembler {
                 }
                 chosen.put(slot, new BulletText(text, List.of()));
             }
-            planned.add(new Planned(index, project, false, originalHeader, span[1] - span[0] + 1, hasDetail, isTab,
-                    dateEdge, BlockSwapper.bodyChildIndex(pdoc, header), bulletSlots, null, null));
+            Planned header1 = new Planned(index, project, false, originalHeader, span[1] - span[0] + 1, hasDetail,
+                    isTab, dateEdge, BlockSwapper.bodyChildIndex(pdoc, header), bulletSlots, null, null);
+            planned.add(header1);
+            for (int slot : bulletSlots) {
+                ownerBySlot.put(slot, header1);
+            }
         }
 
-        // --- B3 + B1: validate bullets, skipping those already validated in an equivalent slot --------
+        // --- B3: which job bullets need a render of their own ---------------------------------------
         Set<Integer> editableJob = new HashSet<>();
         for (OnboardReport.SlotReport sr : report.slots()) {
             if (sr.editable() && jobSlotIndices.contains(sr.index())) {
@@ -274,28 +285,14 @@ public final class BatchAssembler {
         t.note("bullet validation: " + toValidate.size() + " to render (job " + jobRendered + ", project "
                 + (toValidate.size() - jobRendered) + "); " + jobSkipped
                 + " job bullet(s) skipped as validated in an equivalent slot");
-        List<BatchValidator.CandidateResult> results = t.time("bullet validation",
-                () -> BatchValidator.validate(normalizedDocx, renderer, lineCounts, Map.of(), toValidate, workDir));
-        for (BatchValidator.CandidateResult r : results) {
-            switch (r.outcome()) {
-                case FITS -> edits.put(r.slotIndex(), SlotEdit.SUBSTITUTED);
-                case FITS_WITH_PADDING -> {
-                    edits.put(r.slotIndex(), SlotEdit.PADDED);
-                    pads.put(r.slotIndex(), lineCounts.get(r.slotIndex()) - r.measuredLines());
-                }
-                default -> {
-                    return failed("slot " + r.slotIndex() + ": " + r.outcome());
-                }
-            }
-        }
 
-        // --- B4: stack fit for every position, and the inline blocks, in shared rounds ----------
+        // --- headers and inline blocks: each one's fit, in the first round ----------------------------
         Map<Integer, String> detailByIndex = new LinkedHashMap<>();
         Map<Integer, List<String>> itemsByIndex = new HashMap<>();
         Map<Integer, int[]> searchByIndex = new LinkedHashMap<>();    // index -> {lo, hi, best}
-        Set<Integer> noDetailPending = new LinkedHashSet<>();
         Set<String> otherTexts = new HashSet<>(allSlots.stream().map(Slot::text).toList());
         List<Planned> inlinePlans = new ArrayList<>();
+        List<HeaderProbe> round0 = new ArrayList<>();
         for (Planned pl : planned) {
             otherTexts.add(pl.originalText());
             if (pl.inline()) {
@@ -311,96 +308,106 @@ public final class BatchAssembler {
                 itemsByIndex.put(pl.index(), items);
                 searchByIndex.put(pl.index(), new int[] {1, items.size(), -1});
             }
+            // Round one probes each header at the least it can be: with no detail where a stack fit is to be
+            // searched (the search only ever shortens it), and as it stands otherwise.
+            round0.add(new HeaderProbe(pl, searchByIndex.containsKey(pl.index()) ? null : detailByIndex.get(pl.index())));
         }
-        ProbeResult inlineMeasure = null;
+        ProbeResult first = t.time("header and inline check",
+                () -> measureProbes(normalizedDocx, round0, inlinePlans, otherTexts, renderer, workDir));
+        if (first == null) {
+            return failed("probe texts are not uniquely anchored");
+        }
+        for (int i = 0; i < round0.size(); i++) {
+            Planned pl = round0.get(i).planned();
+            int lines = first.headerLines().get(i);
+            if (lines > pl.targetLines()) {
+                String reason = searchByIndex.containsKey(pl.index())
+                        ? "header can't fit its line even without its detail (needs " + lines + ", has "
+                                + pl.targetLines() + ")"
+                        : "header with its detail can't fit its line (needs " + lines + ", has " + pl.targetLines() + ")";
+                return rejected(pl, reason);
+            }
+        }
+        Map<Integer, SlotEdit> inlineEdits = new HashMap<>();
+        Map<Integer, Integer> inlinePads = new HashMap<>();
+        Map<Integer, String> inlineNewText = new HashMap<>();
+        for (int k = 0; k < inlinePlans.size(); k++) {
+            Planned pl = inlinePlans.get(k);
+            int lines = first.inlineLines().get(k);
+            if (lines == Integer.MAX_VALUE || lines > pl.targetLines()) {
+                return rejected(pl, "inline block can't fit its " + pl.targetLines() + " line(s)");
+            }
+            inlineNewText.put(pl.index(), first.inlineTexts().get(k));
+            inlineEdits.put(pl.index(), lines < pl.targetLines() ? SlotEdit.PADDED : SlotEdit.SUBSTITUTED);
+            if (lines < pl.targetLines()) {
+                inlinePads.put(pl.index(), pl.targetLines() - lines);
+            }
+        }
+
+        // --- B4: the stack-fit searches, advancing together ----------------------------------------
+        // Each round probes every open search's midpoint prefix in one document; the fit is monotone in the prefix.
         int round = 0;
-        while (true) {
+        while (!searchByIndex.isEmpty()) {
             List<HeaderProbe> probes = new ArrayList<>();
             List<Integer> mids = new ArrayList<>();
             for (Planned pl : planned) {
                 int[] s = searchByIndex.get(pl.index());
-                if (s == null || s[0] > s[1]) {
+                if (s == null) {
                     continue;
                 }
                 int mid = (s[0] + s[1]) / 2;
                 probes.add(new HeaderProbe(pl, String.join(", ", itemsByIndex.get(pl.index()).subList(0, mid))));
                 mids.add(mid);
             }
-            List<HeaderProbe> noDetailProbes = new ArrayList<>();
-            for (Planned pl : planned) {
-                if (noDetailPending.contains(pl.index())) {
-                    noDetailProbes.add(new HeaderProbe(pl, null));
-                }
-            }
-            probes.addAll(noDetailProbes);
-            boolean needInline = round == 0 && !inlinePlans.isEmpty();
-            if (probes.isEmpty() && !needInline) {
-                break;
-            }
             round++;
             final List<HeaderProbe> roundProbes = probes;
             ProbeResult measured = t.time("stack fit round " + round,
-                    () -> measureProbes(normalizedDocx, roundProbes, inlinePlans, otherTexts, renderer, workDir));
+                    () -> measureProbes(normalizedDocx, roundProbes, List.of(), otherTexts, renderer, workDir));
             if (measured == null) {
                 return failed("stack fit probes are not uniquely anchored");
             }
-            if (inlineMeasure == null) {
-                inlineMeasure = measured;
-            }
-            int headerCount = 0;
             for (int i = 0; i < probes.size(); i++) {
                 HeaderProbe probe = probes.get(i);
-                int lines = measured.headerLines().get(i);
-                int target = probe.planned().targetLines();
-                if (probe.detail() == null && noDetailPending.contains(probe.planned().index())) {
-                    if (lines > target) {
-                        return failed("P" + probe.planned().index() + " header is too long even without its detail");
-                    }
-                    detailByIndex.put(probe.planned().index(), null);
-                    noDetailPending.remove(probe.planned().index());
-                    continue;
-                }
                 int[] s = searchByIndex.get(probe.planned().index());
-                int mid = mids.get(headerCount++);
-                if (lines <= target) {
+                int mid = mids.get(i);
+                if (measured.headerLines().get(i) <= probe.planned().targetLines()) {
                     s[2] = mid;
                     s[0] = mid + 1;
                 } else {
                     s[1] = mid - 1;
                 }
             }
-            // A search that has run out of prefixes settles here: its best prefix, or else a no-detail probe.
+            // A search that has run out of prefixes settles here: its best prefix, or no detail (which round one
+            // already measured to fit).
             for (Planned pl : planned) {
                 int[] s = searchByIndex.get(pl.index());
                 if (s == null || s[0] <= s[1]) {
                     continue;
                 }
                 searchByIndex.remove(pl.index());
-                if (s[2] > 0) {
-                    detailByIndex.put(pl.index(), String.join(", ", itemsByIndex.get(pl.index()).subList(0, s[2])));
-                } else {
-                    noDetailPending.add(pl.index());
-                }
+                detailByIndex.put(pl.index(),
+                        s[2] > 0 ? String.join(", ", itemsByIndex.get(pl.index()).subList(0, s[2])) : null);
             }
-        }
-        if (inlineMeasure == null && !inlinePlans.isEmpty()) {
-            return failed("inline blocks could not be measured");
         }
 
-        // --- inline blocks: fit or pad, from the same round's measurement -------------------------
-        Map<Integer, Integer> inlinePads = new HashMap<>();
-        Map<Integer, SlotEdit> inlineEdits = new HashMap<>();
-        Map<Integer, String> inlineNewText = new HashMap<>();
-        for (int k = 0; k < inlinePlans.size(); k++) {
-            Planned pl = inlinePlans.get(k);
-            int lines = inlineMeasure.inlineLines().get(k);
-            if (lines == Integer.MAX_VALUE || lines > pl.targetLines()) {
-                return failed("P" + pl.index() + " inline block: BULLET_TOO_LONG");
-            }
-            inlineNewText.put(pl.index(), inlineMeasure.inlineTexts().get(k));
-            inlineEdits.put(pl.index(), lines < pl.targetLines() ? SlotEdit.PADDED : SlotEdit.SUBSTITUTED);
-            if (lines < pl.targetLines()) {
-                inlinePads.put(pl.index(), pl.targetLines() - lines);
+        // --- bullets: one batch for every project bullet and unskipped job bullet ---------------------
+        List<BatchValidator.CandidateResult> results = t.time("bullet validation",
+                () -> BatchValidator.validate(normalizedDocx, renderer, lineCounts, Map.of(), toValidate, workDir));
+        for (BatchValidator.CandidateResult r : results) {
+            switch (r.outcome()) {
+                case FITS -> edits.put(r.slotIndex(), SlotEdit.SUBSTITUTED);
+                case FITS_WITH_PADDING -> {
+                    edits.put(r.slotIndex(), SlotEdit.PADDED);
+                    pads.put(r.slotIndex(), lineCounts.get(r.slotIndex()) - r.measuredLines());
+                }
+                default -> {
+                    Planned owner = ownerBySlot.get(r.slotIndex());
+                    if (owner == null) {
+                        return failed("job slot " + r.slotIndex() + ": " + r.outcome());
+                    }
+                    return rejected(owner, "bullet " + (owner.bulletSlots().indexOf(r.slotIndex()) + 1) + " is "
+                            + r.outcome() + " at " + lineCounts.get(r.slotIndex()) + " line(s)");
+                }
             }
         }
 
@@ -477,12 +484,12 @@ public final class BatchAssembler {
             return failed("final whole-document check: " + verified.detail());
         }
         Files.copy(assembled, outputDocx, StandardCopyOption.REPLACE_EXISTING);
-        return new Result(true, null, outputDocx, verified.pdf());
+        return new Result(true, null, outputDocx, verified.pdf(), null);
     }
 
     /** An inline block's plan: its rewritten bullets and header, and the line count it must keep. */
-    private static Planned planInline(int index, Position p, LibraryProject project,
-            StoredBaseline baseline, Map<Integer, Integer> lineCounts) {
+    private static Planned planInline(int index, Position p, LibraryProject project, StoredBaseline baseline,
+            Map<Integer, Integer> lineCounts) {
         Element paragraph = p.block().inlineHeaderParagraph;
         String originalText = DomUtil.allText(paragraph);
         int[] span = AnchorMeasurer.measureSpans(baseline.lines(), List.of(originalText)).get(0);
@@ -544,6 +551,9 @@ public final class BatchAssembler {
             if (otherTexts.contains(text)) {
                 return null;
             }
+        }
+        if (all.isEmpty()) {
+            return new ProbeResult(List.of(), List.of(), List.of());
         }
         o.pkg().writePart("word/document.xml", XmlSerialize.toBytes(o.doc()));
         Path probeDocx = BlockSwapper.saveTemp(o.pkg(), workDir, "batch-probe");
@@ -637,6 +647,12 @@ public final class BatchAssembler {
     }
 
     private static Result failed(String detail) {
-        return new Result(false, detail, null, null);
+        return new Result(false, detail, null, null, null);
+    }
+
+    /** A placement that can't be made: the batch stops here, naming the position and project. */
+    private static Result rejected(Planned pl, String reason) {
+        return new Result(false, "P" + pl.index() + " with " + pl.project().id() + ": " + reason, null, null,
+                new Rejection("P" + pl.index(), pl.project().id(), reason));
     }
 }

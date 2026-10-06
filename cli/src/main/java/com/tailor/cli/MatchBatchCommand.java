@@ -94,6 +94,7 @@ public final class MatchBatchCommand implements Callable<Integer> {
                 List<JobDescription> processedJds = new ArrayList<>();
                 List<String> processedNames = new ArrayList<>();
                 List<MatchBatchSummary.Row> rows = new ArrayList<>();
+                List<MatchBatchSummary.Rejected> rejected = new ArrayList<>();
 
                 for (Path jdFile : jdFiles) {
                     String jdText = Files.readString(jdFile);
@@ -128,20 +129,26 @@ public final class MatchBatchCommand implements Callable<Integer> {
                     Files.copy(resume1Pdf, jdOutDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
 
                     MatchCommand.MatchOutput matchOutput =
-                            new MatchCommand.MatchOutput(result.jd(), result.resumes(), result.missing());
+                            new MatchCommand.MatchOutput(result.jd(), result.resumes(), result.missing(),
+                                    MatchRunner.infeasibleFor(ctx, result));
                     MAPPER.writerWithDefaultPrettyPrinter()
                             .writeValue(jdOutDir.resolve("match.json").toFile(), matchOutput);
                     MAPPER.writerWithDefaultPrettyPrinter().writeValue(
                             jdOutDir.resolve("timing.json").toFile(), result.timing().report(baseName));
 
                     rows.add(MatchBatchSummary.rowFor(baseName, result, processedJds, processedNames, embedder));
+                    for (MatchBatchSummary.Infeasible i : result.rejections()) {
+                        rejected.add(new MatchBatchSummary.Rejected(baseName, i.position(), i.project(), i.reason()));
+                    }
                     processedJds.add(result.jd());
                     processedNames.add(baseName);
                 }
 
                 String feasibility = MatchBatchSummary.feasibilityMarkdown(
-                        MatchBatchSummary.feasibility(ctx.library(), ctx.shapes().positions(), skills, embedder));
-                Files.writeString(outDir.resolve("summary.md"), MatchBatchSummary.toMarkdown(rows) + feasibility);
+                        MatchBatchSummary.feasibility(ctx.library(), ctx.shapes().positions(), skills, embedder),
+                        ctx.infeasible());
+                Files.writeString(outDir.resolve("summary.md"),
+                        MatchBatchSummary.toMarkdown(rows) + feasibility + MatchBatchSummary.rejectedMarkdown(rejected));
                 System.out.println("match-batch ok -> " + outDir);
                 return 0;
             } finally {

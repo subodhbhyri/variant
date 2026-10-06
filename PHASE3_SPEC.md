@@ -180,6 +180,22 @@ never converted.
 
 ---
 
+### 4.2 Header line breaks
+
+A rewritten header may wrap only between its items or at a separator. Its
+items are each item of the DETAIL list and each LINK label. Inside an item
+every space is written as U+00A0 and every hyphen as `<w:noBreakHyphen/>`, so
+an item never wraps inside itself, a URL included. The only breakable spaces
+left are the one after a ", " in the DETAIL list and the spaces beside a "|"
+separator. The title, the date and the template's own literal text are written
+as before. Stack fit still measures each header with the same renderer, so the
+rule changes which texts fit, not how fit is checked. An item too long for its
+line makes the header not fit, which is the position's `HEADER_TOO_LONG`
+reason.
+
+Test: `HeaderLineBreakTest` (corpus) checks every swapped header of the fixture
+postings on the rendered PDF: each line break falls after ", " or beside "|".
+
 ## 5. Tech-stack fit (step 3.3)
 
 Only when the position's header has a `DETAIL` token and the project's detail

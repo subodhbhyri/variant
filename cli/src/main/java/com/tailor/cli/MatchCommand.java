@@ -10,6 +10,7 @@ import com.tailor.engine.match.Embedder;
 import com.tailor.engine.match.FakeEmbedder;
 import com.tailor.engine.match.JdParser;
 import com.tailor.engine.match.JobDescription;
+import com.tailor.engine.match.MatchBatchSummary;
 import com.tailor.engine.match.MatchRunner;
 import com.tailor.engine.match.MiniLmEmbedder;
 import com.tailor.engine.match.UnknownTerms;
@@ -63,7 +64,8 @@ public final class MatchCommand implements Callable<Integer> {
     @Option(names = "--embedder", description = "fake (fixtures/tests) or minilm (production)", defaultValue = "fake")
     private String embedderName;
 
-    record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing) {
+    record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing,
+            List<MatchBatchSummary.Infeasible> infeasible) {
     }
 
     /** Wall time between successive marks, for the latency line. */
@@ -147,7 +149,7 @@ public final class MatchCommand implements Callable<Integer> {
                 laps.lap("write PDF");
                 long toPdfMs = jvmStartMs + laps.total;
 
-                MatchOutput output = new MatchOutput(result.jd(), result.resumes(), result.missing());
+                MatchOutput output = new MatchOutput(result.jd(), result.resumes(), result.missing(), MatchRunner.infeasibleFor(ctx, result));
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(
                         outDir.resolve("timing.json").toFile(), result.timing().report(jdName));

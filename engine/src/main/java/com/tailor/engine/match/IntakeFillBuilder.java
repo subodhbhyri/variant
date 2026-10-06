@@ -89,7 +89,7 @@ public final class IntakeFillBuilder {
             ProjectDataset d = entries.get(matchIndex).getValue();
             String date = s.fields() == null ? null : s.fields().date();
             IntakeFields fields = new IntakeFields(
-                    beforeColon(d.fields().title()), d.fields().detail(), d.fields().links(), date);
+                    d.fields().title(), d.fields().detail(), d.fields().links(), date);
             outSections.add(new IntakeSection(s.id(), s.kind(), "DETAILED", fields, d.rawText()));
         }
 
@@ -113,7 +113,7 @@ public final class IntakeFillBuilder {
                 Map.Entry<String, ProjectDataset> entry = entries.get(i);
                 ProjectDataset d = entry.getValue();
                 IntakeFields fields =
-                        new IntakeFields(beforeColon(d.fields().title()), d.fields().detail(), d.fields().links(), null);
+                        new IntakeFields(d.fields().title(), d.fields().detail(), d.fields().links(), null);
                 outSections.add(
                         new IntakeSection("project-new-" + addedSoFar, "project", "DETAILED", fields, d.rawText()));
                 turnedIntoProjects.add(entry.getKey());

@@ -14,10 +14,9 @@ import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.onboard.OnboardReport;
 import com.tailor.engine.render.Renderer;
 import com.tailor.engine.verify.Verifier;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,7 +50,8 @@ public final class MatchRunner {
     public record Context(Path onboardedDocx, OnboardReport report, Shapes shapes,
             List<BulletCandidate> jobCandidates, Map<String, BulletCandidate> jobCandidatesById,
             List<LibraryProject> library, SkillsDictionary skills, Embedder embedder, CountingRenderer counter,
-            Renderer renderer, FontMap fontMap, StoredBaseline baseline, Path baselinePdf) {
+            Renderer renderer, FontMap fontMap, StoredBaseline baseline, Path baselinePdf,
+            List<MatchBatchSummary.Infeasible> infeasible) {
     }
 
     /** {@code resume1Docx}/{@code renderFailureReason} are mutually exclusive: a null reason
@@ -62,7 +62,8 @@ public final class MatchRunner {
      * unrendered best-first candidate — never silently replaced, per the spec. {@code resume1Pdf}
      * is the PDF of exactly {@code resume1Docx}, when the check that verified it rendered it. */
     public record Result(JobDescription jd, List<AssembledResume> resumes, List<String> missing, Path resume1Docx,
-            String renderFailureReason, PipelineTiming timing, Path resume1Pdf) {
+            String renderFailureReason, PipelineTiming timing, Path resume1Pdf,
+            List<MatchBatchSummary.Infeasible> rejections) {
     }
 
     /**
@@ -100,8 +101,10 @@ public final class MatchRunner {
 
         LibraryProject.Library library = MAPPER.readValue(libraryJsonPath.toFile(), LibraryProject.Library.class);
 
+        List<MatchBatchSummary.Infeasible> infeasible = MatchBatchSummary.infeasibilities(
+                library.projects(), shapes.positions(), skills, embedder);
         return new Context(onboardedDocx, report, shapes, jobCandidates, jobCandidatesById, library.projects(),
-                skills, embedder, counter, memo, fontMap, baseline, baselinePdf);
+                skills, embedder, counter, memo, fontMap, baseline, baselinePdf, infeasible);
     }
 
     public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut) throws Exception {
@@ -141,7 +144,8 @@ public final class MatchRunner {
                 ctx.shapes(), first.job(), ctx.library(), jd, ctx.skills(), scoring, ctx.jobCandidatesById(),
                 ctx.renderer(), ctx.fontMap(), workDir, resume1DocxOut, timing, batch);
         if (!rendered.render().ok()) {
-            return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail(), timing, null);
+            return new Result(jd, resumes, missing, null, "resume #1 " + rendered.render().detail(), timing, null,
+                    rejections(rendered));
         }
 
         double total = Assembler.totalScore(
@@ -152,7 +156,8 @@ public final class MatchRunner {
         List<AssembledResume> finalResumes = new ArrayList<>(resumes);
         finalResumes.set(0, settled);
 
-        return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null, timing, rendered.pdf());
+        return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null, timing, rendered.pdf(),
+                rejections(rendered));
     }
 
     /** onboard.json as stored at onboarding: accepted, with a renderer version and a calibrated line count
@@ -168,6 +173,22 @@ public final class MatchRunner {
             throw OnboardReport.reonboard(onboardJson, "from an older format or incomplete");
         }
         return report;
+    }
+
+    /** Every project that can't fill a position for this posting: the batch-wide reasons, then the re-solves. */
+    public static List<MatchBatchSummary.Infeasible> infeasibleFor(Context ctx, Result result) {
+        List<MatchBatchSummary.Infeasible> out = new ArrayList<>(ctx.infeasible());
+        out.addAll(result.rejections());
+        return out;
+    }
+
+    /** The placements resume #1's batch had to re-solve around, in the output's own terms. */
+    private static List<MatchBatchSummary.Infeasible> rejections(ResumeRenderer.FailSoftResult rendered) {
+        List<MatchBatchSummary.Infeasible> out = new ArrayList<>();
+        for (BatchAssembler.Rejection r : rendered.rejections()) {
+            out.add(new MatchBatchSummary.Infeasible(r.project(), r.position(), r.reason()));
+        }
+        return out;
     }
 
     private static List<BulletCandidate> keptCandidates(Map<String, FitLoop.CandidateOutcome> outcomes) {

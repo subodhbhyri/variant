@@ -73,5 +73,14 @@
     "total" : 0.8142,
     "degraded" : [ ]
   } ],
-  "missing" : [ "Airflow" ]
+  "missing" : [ "Airflow" ],
+  "infeasible" : [ {
+    "project" : "harbor",
+    "position" : "P0",
+    "reason" : "has 2 bullet(s), and the position needs 3"
+  }, {
+    "project" : "harbor",
+    "position" : "P3",
+    "reason" : "has 2 bullet(s), and the position needs 3"
+  } ]
 }

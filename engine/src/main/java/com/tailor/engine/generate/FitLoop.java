@@ -139,8 +139,9 @@ public final class FitLoop {
                 if (ownMaxLength != null && length > ownMaxLength) {
                     continue;
                 }
-                state.variants.put(length, e.getValue());
-                submitted.computeIfAbsent(bc.id(), k -> new LinkedHashMap<>()).put(length, e.getValue());
+                String variant = BulletEnding.apply(e.getValue(), ctx.bulletEnding());
+                state.variants.put(length, variant);
+                submitted.computeIfAbsent(bc.id(), k -> new LinkedHashMap<>()).put(length, variant);
             }
         }
 
