@@ -127,6 +127,13 @@ public final class BatchAssembler {
     private record IndexedRegion(int bodyIndex, Verifier.Region region) {
     }
 
+    /** A probe the anchor can't tell apart from another paragraph; the batch refuses and says which text. */
+    static final class AmbiguousProbe extends RuntimeException {
+        AmbiguousProbe(String message) {
+            super(message);
+        }
+    }
+
     private static final Timing NO_TIMING = new Timing() {
         @Override
         public <T> T time(String name, Callable<T> work) throws Exception {
@@ -291,11 +298,10 @@ public final class BatchAssembler {
         Map<Integer, String> detailByIndex = new LinkedHashMap<>();
         Map<Integer, List<String>> itemsByIndex = new HashMap<>();
         Map<Integer, int[]> searchByIndex = new LinkedHashMap<>();    // index -> {lo, hi, best}
-        Set<String> otherTexts = new HashSet<>(allSlots.stream().map(Slot::text).toList());
+        List<Planned> headerPlans = planned.stream().filter(p -> !p.inline()).toList();
         List<Planned> inlinePlans = new ArrayList<>();
         List<HeaderProbe> round0 = new ArrayList<>();
         for (Planned pl : planned) {
-            otherTexts.add(pl.originalText());
             if (pl.inline()) {
                 inlinePlans.add(pl);
                 continue;
@@ -322,10 +328,12 @@ public final class BatchAssembler {
                 renderable.put(e.getKey(), c);
             }
         }
-        ProbeResult first = t.time("header, inline and bullet check",
-                () -> measureProbes(normalizedDocx, round0, inlinePlans, renderable, otherTexts, renderer, workDir));
-        if (first == null) {
-            return failed("probe texts are not uniquely anchored");
+        ProbeResult first;
+        try {
+            first = t.time("header, inline and bullet check",
+                    () -> measureProbes(normalizedDocx, round0, inlinePlans, headerPlans, renderable, renderer, workDir));
+        } catch (AmbiguousProbe e) {
+            return failed("stack fit probes are not uniquely anchored: " + e.getMessage());
         }
         for (int i = 0; i < round0.size(); i++) {
             Planned pl = round0.get(i).planned();
@@ -403,10 +411,12 @@ public final class BatchAssembler {
             }
             round++;
             final List<HeaderProbe> roundProbes = probes;
-            ProbeResult measured = t.time("stack fit round " + round,
-                    () -> measureProbes(normalizedDocx, roundProbes, List.of(), Map.of(), otherTexts, renderer, workDir));
-            if (measured == null) {
-                return failed("stack fit probes are not uniquely anchored");
+            ProbeResult measured;
+            try {
+                measured = t.time("stack fit round " + round,
+                        () -> measureProbes(normalizedDocx, roundProbes, List.of(), headerPlans, Map.of(), renderer, workDir));
+            } catch (AmbiguousProbe e) {
+                return failed("stack fit probes are not uniquely anchored: " + e.getMessage());
             }
             for (int i = 0; i < probes.size(); i++) {
                 HeaderProbe probe = probes.get(i);
@@ -536,15 +546,21 @@ public final class BatchAssembler {
     }
 
     /**
-     * Renders every probe into one document and measures it: each header probe's own line count, and
-     * each inline block's rewritten text and line count. Returns null when two probed texts, or a
-     * probed text and another paragraph's text, are equal, since the anchor can't tell them apart.
+    /**
+     * Renders every probe into one document and measures it: each header probe's own line count, and each inline
+     * block's rewritten text and line count. The paragraphs are anchored the way the Verifier anchors its regions:
+     * every paragraph the batch knows the text of (probed headers, every other position's own header, inline blocks,
+     * bullet slots) is listed in document order and anchored in that order, so each one is found after the one before
+     * it. A probe is never found by searching for its text alone, so a text that equals another paragraph's (its own
+     * original included) is no ambiguity. The refusal is kept for a probe that can't be anchored in that order at all.
      */
     private static ProbeResult measureProbes(Path normalizedDocx, List<HeaderProbe> probes, List<Planned> inlinePlans,
-            Map<Integer, BulletText> bullets, Set<String> otherTexts, Renderer renderer, Path workDir) throws Exception {
+            List<Planned> headerPlans, Map<Integer, BulletText> bullets, Renderer renderer, Path workDir) throws Exception {
         Opened o = open(normalizedDocx);
-        List<String> headerTexts = new ArrayList<>();
-        for (HeaderProbe probe : probes) {
+        List<Anchor> anchors = new ArrayList<>();
+        Map<Planned, String> probedText = new HashMap<>();
+        for (int i = 0; i < probes.size(); i++) {
+            HeaderProbe probe = probes.get(i);
             Planned pl = probe.planned();
             Element header = BlockSwapper.resolveBodyChild(o.doc(), pl.bodyIndex());
             List<HeaderToken> template = HeaderTemplate.build(header);
@@ -554,60 +570,80 @@ public final class BatchAssembler {
             if (pl.isTab() && pl.dateEdge() != null) {
                 DateTabConverter.rightAlignDateTab(o.doc(), header, pl.dateEdge());
             }
-            headerTexts.add(DomUtil.allText(header));
+            probedText.put(pl, DomUtil.allText(header));
+            anchors.add(new Anchor(pl.bodyIndex(), DomUtil.allText(header), Anchor.HEADER_PROBE, i));
         }
-        List<String> inlineTexts = new ArrayList<>();
-        for (Planned pl : inlinePlans) {
+        for (Planned pl : headerPlans) {
+            if (!probedText.containsKey(pl)) {
+                anchors.add(new Anchor(pl.bodyIndex(), pl.originalText(), Anchor.UNMEASURED, -1));
+            }
+        }
+        for (int i = 0; i < inlinePlans.size(); i++) {
+            Planned pl = inlinePlans.get(i);
             Element paragraph = BlockSwapper.resolveBodyChild(o.doc(), pl.bodyIndex());
             InlineRenderer.render(paragraph, InlineTemplate.build(paragraph), pl.inlineHeader(),
                     pl.inlineRewrites(), url -> "rIdProbe");
-            inlineTexts.add(DomUtil.allText(paragraph));
+            anchors.add(new Anchor(pl.bodyIndex(), DomUtil.allText(paragraph), Anchor.INLINE_PROBE, i));
         }
-        List<String> all = new ArrayList<>(headerTexts);
-        all.addAll(inlineTexts);
-        if (new HashSet<>(all).size() != all.size()) {
-            return null;
-        }
-        for (String text : all) {
-            if (otherTexts.contains(text)) {
-                return null;
-            }
-        }
-        // The bullet candidates are substituted into their own slots, and every slot's text is measured in
-        // document order, as BatchValidator measures them (the slots were detected before any header changed).
-        List<String> slotTexts = new ArrayList<>();
+        // Every bullet slot, its candidate substituted where there is one; the slots were detected before any edit.
         for (Slot s : o.slots()) {
             BulletText c = bullets.get(s.index());
+            String text = s.text();
             if (c != null && s.supported()) {
                 Substituter.substitute(s.element(), c);
-                slotTexts.add(c.text());
-            } else {
-                slotTexts.add(s.text());
+                text = c.text();
             }
+            anchors.add(new Anchor(BlockSwapper.bodyChildIndex(o.doc(), s.element()), text, Anchor.SLOT, s.index()));
         }
-        if (all.isEmpty() && bullets.isEmpty()) {
+        if (probes.isEmpty() && inlinePlans.isEmpty() && bullets.isEmpty()) {
             return new ProbeResult(List.of(), List.of(), List.of(), Map.of());
         }
+        anchors.sort(Comparator.comparingInt(Anchor::bodyIndex));
+
         o.pkg().writePart("word/document.xml", XmlSerialize.toBytes(o.doc()));
         Path probeDocx = BlockSwapper.saveTemp(o.pkg(), workDir, "batch-probe");
         List<PdfLines.Line> lines = PdfLines.extract(renderer.render(probeDocx, workDir));
-        List<Integer> headerLines = new ArrayList<>();
-        for (String text : headerTexts) {
-            headerLines.add(linesOf(lines, text));
+        List<String> texts = anchors.stream().map(Anchor::text).toList();
+        Map<Integer, int[]> spans = AnchorMeasurer.measureSpans(lines, texts);
+
+        List<Integer> headerLines = new ArrayList<>(java.util.Collections.nCopies(probes.size(), Integer.MAX_VALUE));
+        List<String> inlineTexts = new ArrayList<>(java.util.Collections.nCopies(inlinePlans.size(), null));
+        List<Integer> inlineLines = new ArrayList<>(java.util.Collections.nCopies(inlinePlans.size(), Integer.MAX_VALUE));
+        Map<Integer, Integer> bulletLines = new HashMap<>();
+        for (int a = 0; a < anchors.size(); a++) {
+            Anchor anchor = anchors.get(a);
+            int[] span = spans.get(a);
+            int count = span == null ? Integer.MAX_VALUE : span[1] - span[0] + 1;
+            switch (anchor.kind()) {
+                case Anchor.HEADER_PROBE -> headerLines.set(anchor.ref(), count);
+                case Anchor.INLINE_PROBE -> {
+                    inlineTexts.set(anchor.ref(), anchor.text());
+                    inlineLines.set(anchor.ref(), count);
+                }
+                case Anchor.SLOT -> {
+                    if (span != null) {
+                        bulletLines.put(anchor.ref(), count);
+                    }
+                }
+                default -> {
+                }
+            }
         }
-        List<Integer> inlineLines = new ArrayList<>();
-        for (String text : inlineTexts) {
-            inlineLines.add(linesOf(lines, text));
+        for (int i = 0; i < probes.size(); i++) {
+            if (headerLines.get(i) == Integer.MAX_VALUE) {
+                throw new AmbiguousProbe("\"" + probedText.get(probes.get(i).planned())
+                        + "\" can't be anchored in document order");
+            }
         }
-        Map<Integer, Integer> bulletLines = bullets.isEmpty()
-                ? Map.of() : new HashMap<>(AnchorMeasurer.measure(lines, slotTexts));
         return new ProbeResult(headerLines, inlineTexts, inlineLines, bulletLines);
     }
 
-    /** A text's line count on a render, {@link Integer#MAX_VALUE} when it can't be anchored (as BlockSwapper). */
-    private static int linesOf(List<PdfLines.Line> lines, String text) {
-        int[] span = AnchorMeasurer.measureSpans(lines, List.of(text)).get(0);
-        return span == null ? Integer.MAX_VALUE : span[1] - span[0] + 1;
+    /** One paragraph in document order: its text on the probe document and what it is (a probe, or context only). */
+    private record Anchor(int bodyIndex, String text, int kind, int ref) {
+        static final int UNMEASURED = 0;
+        static final int HEADER_PROBE = 1;
+        static final int INLINE_PROBE = 2;
+        static final int SLOT = 3;
     }
 
     /**
