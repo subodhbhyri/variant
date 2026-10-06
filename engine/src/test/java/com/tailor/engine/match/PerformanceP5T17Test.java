@@ -61,7 +61,7 @@ class PerformanceP5T17Test {
             MatchRunner.Context ctx = MatchRunner.buildContext(outDir.resolve("normalized.docx"),
                     fixtures.resolve("match_run").resolve("variants.json"),
                     CorpusPaths.phase3FixturesDir().resolve("library.json"),
-                    SkillsDictionary.loadDefault(), embedder, renderer, fontMap, workDir);
+                    SkillsDictionary.loadDefault(), embedder, renderer, fontMap);
 
             StringBuilder identity = new StringBuilder();
             StringBuilder renders = new StringBuilder();

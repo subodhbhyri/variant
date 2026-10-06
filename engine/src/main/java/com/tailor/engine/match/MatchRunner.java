@@ -10,13 +10,14 @@ import com.tailor.engine.generate.FitLoop;
 import com.tailor.engine.generate.ModelResponse;
 import com.tailor.engine.generate.ModelResponse.BulletCandidate;
 import com.tailor.engine.generate.SkillsDictionary;
-import com.tailor.engine.generate.SlotReports;
 import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.onboard.OnboardReport;
 import com.tailor.engine.render.Renderer;
 import com.tailor.engine.verify.Verifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,23 +65,25 @@ public final class MatchRunner {
             String renderFailureReason, PipelineTiming timing, Path resume1Pdf) {
     }
 
+    /**
+     * Reads one posting's context from the onboarding outputs written beside {@code onboardedDocx}:
+     * {@code onboard.json} (slot reports with their calibrated line counts and hints), {@code
+     * baseline.json} (the baseline's line positions) and {@code preview.pdf} (its render, for the
+     * date-tab edges). Nothing is calibrated or rendered here; a missing or out-of-date output
+     * fails with a request to onboard again.
+     */
     public static Context buildContext(Path onboardedDocx, Path variantsJsonPath, Path libraryJsonPath,
-            SkillsDictionary skills, Embedder embedder, Renderer renderer, FontMap fontMap, Path workDir)
-            throws Exception {
+            SkillsDictionary skills, Embedder embedder, Renderer renderer, FontMap fontMap) throws Exception {
         Path normalized = onboardedDocx.toAbsolutePath().normalize();
-        Path storedPdf = onboardedDocx.resolveSibling("preview.pdf");
-        Path storedJson = onboardedDocx.resolveSibling("baseline.json");
-        boolean stored = Files.isRegularFile(storedPdf) && Files.isRegularFile(storedJson);
-        Path baselinePdf = stored ? storedPdf : renderer.render(normalized, workDir);
-        StoredBaseline baseline = stored ? StoredBaseline.readFrom(storedJson) : StoredBaseline.measure(baselinePdf);
+        OnboardReport report = storedReport(onboardedDocx.resolveSibling("onboard.json"));
+        Path baselinePdf = onboardedDocx.resolveSibling("preview.pdf");
+        if (!Files.isRegularFile(baselinePdf)) {
+            throw OnboardReport.reonboard(baselinePdf, "missing");
+        }
+        StoredBaseline baseline = StoredBaseline.readFrom(onboardedDocx.resolveSibling("baseline.json"));
 
         CountingRenderer counter = new CountingRenderer(renderer);
         Renderer memo = new BaselineMemoRenderer(counter, normalized, baselinePdf);
-
-        List<OnboardReport.SlotReport> slotReports = SlotReports.build(onboardedDocx, memo, workDir);
-        int editableCount = (int) slotReports.stream().filter(OnboardReport.SlotReport::editable).count();
-        OnboardReport report = OnboardReport.accepted(
-                0, 0.0, 0, 0, 0, List.of(), editableCount, slotReports, renderer.version());
 
         Shapes shapes = Shapes.measure(onboardedDocx, report);
 
@@ -150,6 +153,21 @@ public final class MatchRunner {
         finalResumes.set(0, settled);
 
         return new Result(jd, finalResumes, missing, rendered.render().outputDocx(), null, timing, rendered.pdf());
+    }
+
+    /** onboard.json as stored at onboarding: accepted, with a renderer version and a calibrated line count
+     * for every editable slot. Anything else is from an older format or incomplete. */
+    static OnboardReport storedReport(Path onboardJson) throws IOException {
+        if (!Files.isRegularFile(onboardJson)) {
+            throw OnboardReport.reonboard(onboardJson, "missing");
+        }
+        OnboardReport report = OnboardReport.readFrom(onboardJson);
+        boolean current = report.accepted() && report.rendererVersion() != null && report.slots() != null
+                && report.slots().stream().allMatch(s -> !s.editable() || s.lines() != null);
+        if (!current) {
+            throw OnboardReport.reonboard(onboardJson, "from an older format or incomplete");
+        }
+        return report;
     }
 
     private static List<BulletCandidate> keptCandidates(Map<String, FitLoop.CandidateOutcome> outcomes) {

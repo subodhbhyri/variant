@@ -88,7 +88,7 @@ public final class MatchBatchCommand implements Callable<Integer> {
 
             try {
                 MatchRunner.Context ctx = MatchRunner.buildContext(
-                        onboardedPath, variantsJsonPath, libraryJsonPath, skills, embedder, renderer, fontMap, workDir);
+                        onboardedPath, variantsJsonPath, libraryJsonPath, skills, embedder, renderer, fontMap);
                 Files.createDirectories(outDir);
 
                 List<JobDescription> processedJds = new ArrayList<>();

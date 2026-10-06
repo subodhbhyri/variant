@@ -16,6 +16,7 @@ import com.tailor.engine.match.UnknownTerms;
 import com.tailor.engine.render.LibreOfficeRenderer;
 import com.tailor.engine.render.Renderer;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -34,6 +35,9 @@ import picocli.CommandLine.Parameters;
  * {@code VARIANT_MODEL_DIR} (section 7). The cache decision (section 6) needs a store of
  * previously-parsed JD fingerprints per (user, library version) that nothing in the spec's CLI
  * surface names yet, so it's left out of {@code match.json} here rather than guessed at.
+ *
+ * <p>Every run prints one {@code latency} line to stderr: the time from JVM start to {@code main},
+ * then each phase up to the written PDF, in milliseconds.
  */
 @Command(name = "match", description = "Matches a job description to stored material and assembles resumes (spec section 9).")
 public final class MatchCommand implements Callable<Integer> {
@@ -62,8 +66,25 @@ public final class MatchCommand implements Callable<Integer> {
     record MatchOutput(JobDescription jd, List<AssembledResume> resumes, List<String> missing) {
     }
 
+    /** Wall time between successive marks, for the latency line. */
+    private static final class Laps {
+        private final StringBuilder text = new StringBuilder();
+        private long last = System.nanoTime();
+        private long total;
+
+        void lap(String name) {
+            long now = System.nanoTime();
+            long ms = (now - last) / 1_000_000;
+            total += ms;
+            text.append(name).append('=').append(ms).append(" ms, ");
+            last = now;
+        }
+    }
+
     @Override
     public Integer call() {
+        Laps laps = new Laps();
+        long jvmStartMs = ManagementFactory.getRuntimeMXBean().getUptime();
         try {
             String jdText = Files.readString(jdTextPath);
             JdParser.ValidationResult validation = JdParser.validate(jdText);
@@ -74,8 +95,8 @@ public final class MatchCommand implements Callable<Integer> {
 
             Renderer renderer = new LibreOfficeRenderer();
             FontMap fontMap = FontMap.loadDefault();
-            Path workDir = Files.createTempDirectory("match-cli");
             SkillsDictionary skills = SkillsDictionary.loadDefault();
+            laps.lap("fonts and skills");
 
             // Best-effort: queueing unknown terms for later operator review (section 7.1) must
             // never break the match itself — e.g. the read-only runtime sandbox has nowhere
@@ -85,6 +106,7 @@ public final class MatchCommand implements Callable<Integer> {
             } catch (IOException e) {
                 System.err.println("warning: could not update the alias queue: " + e);
             }
+            laps.lap("alias queue");
 
             MiniLmEmbedder miniLm = null;
             Embedder embedder;
@@ -97,15 +119,19 @@ public final class MatchCommand implements Callable<Integer> {
                 System.err.println("match failed: --embedder must be fake or minilm (got " + embedderName + ")");
                 return 1;
             }
+            laps.lap("embedder load");
 
             try {
                 MatchRunner.Context ctx = MatchRunner.buildContext(
-                        onboardedPath, variantsJsonPath, libraryJsonPath, skills, embedder, renderer, fontMap, workDir);
+                        onboardedPath, variantsJsonPath, libraryJsonPath, skills, embedder, renderer, fontMap);
+                laps.lap("onboarding outputs and inputs");
 
                 Files.createDirectories(outDir);
                 Path resume1Docx = outDir.resolve("resume-1.docx");
                 String jdName = stripExt(jdTextPath.getFileName().toString());
+                Path workDir = Files.createTempDirectory("match-cli");
                 MatchRunner.Result result = MatchRunner.runOne(ctx, jdText, workDir, resume1Docx);
+                laps.lap("match and assembly");
                 if (result.renderFailureReason() != null) {
                     MAPPER.writerWithDefaultPrettyPrinter().writeValue(
                             outDir.resolve("timing.json").toFile(), result.timing().report(jdName));
@@ -118,13 +144,18 @@ public final class MatchCommand implements Callable<Integer> {
                 Path resume1Pdf = result.resume1Pdf() != null ? result.resume1Pdf()
                         : result.timing().time("pdf", () -> ctx.renderer().render(result.resume1Docx(), workDir));
                 Files.copy(resume1Pdf, outDir.resolve("resume-1.pdf"), StandardCopyOption.REPLACE_EXISTING);
+                laps.lap("write PDF");
+                long toPdfMs = jvmStartMs + laps.total;
 
                 MatchOutput output = new MatchOutput(result.jd(), result.resumes(), result.missing());
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(outDir.resolve("match.json").toFile(), output);
                 MAPPER.writerWithDefaultPrettyPrinter().writeValue(
                         outDir.resolve("timing.json").toFile(), result.timing().report(jdName));
+                laps.lap("write JSON");
 
                 System.out.println("match ok -> " + outDir);
+                System.err.println("latency: jvm start to main=" + jvmStartMs + " ms, " + laps.text
+                        + "total to PDF=" + toPdfMs + " ms, total run=" + (jvmStartMs + laps.total) + " ms");
                 return 0;
             } finally {
                 if (miniLm != null) {

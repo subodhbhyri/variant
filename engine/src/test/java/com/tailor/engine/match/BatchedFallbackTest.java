@@ -44,7 +44,7 @@ class BatchedFallbackTest {
         Path workDir = Files.createTempDirectory("fallback-work");
         MatchRunner.Context ctx = MatchRunner.buildContext(onboardDir.resolve("normalized.docx"),
                 fixtures.resolve("variants.json"), CorpusPaths.phase3FixturesDir().resolve("library.json"),
-                SkillsDictionary.loadDefault(), new FakeEmbedder(), renderer, fontMap, workDir);
+                SkillsDictionary.loadDefault(), new FakeEmbedder(), renderer, fontMap);
 
         String jdText = Files.readString(CorpusPaths.phase5FixturesDir().resolve("jds").resolve("platform.txt"));
         Path resumeDocx = Files.createTempDirectory("fallback-out").resolve("resume-1.docx");

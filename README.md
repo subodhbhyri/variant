@@ -64,3 +64,12 @@ it cannot chown its own output directory. Whatever prepares that mount
 (the deploying orchestration, a provisioning script, …) needs to either
 create it with permissive permissions or `chown -R 10001:10001` it first;
 otherwise every onboarding run fails writing `normalized.docx`.
+
+## Backlog
+
+- **Record each variant's validated slot in generate output.** `tailor generate`
+  validates every variant in a job slot, but the output records only the text and
+  line count. The match step's B3 skip (PHASE5_SPEC.md section 5.1) therefore infers
+  the validating slot from the document: it skips a variant only when every job slot
+  with the same line count has the same paragraph and page setup. Recording the slot's
+  width and formatting class at generation would make that rule exact instead.

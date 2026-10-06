@@ -38,6 +38,19 @@ public record OnboardReport(
                 trailingEmptyRemoved, fonts, editableCount, slots, rendererVersion);
     }
 
+    public static OnboardReport readFrom(Path jsonPath) throws IOException {
+        return new ObjectMapper().readValue(jsonPath.toFile(), OnboardReport.class);
+    }
+
+    /**
+     * The error for a stored onboarding output that match needs but that is absent or from an older
+     * format. Match reads these outputs instead of recalibrating, so the fix is to onboard again.
+     */
+    public static IllegalStateException reonboard(Path output, String problem) {
+        return new IllegalStateException(output + " is " + problem + "; re-onboard this resume (tailor onboard) so"
+                + " match can use its stored outputs");
+    }
+
     public void writeTo(Path jsonPath) throws IOException {
         new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(jsonPath.toFile(), this);
     }
