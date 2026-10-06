@@ -363,6 +363,28 @@ or other punctuation gets no period. The change happens before the render
 check, so each variant is validated in its final form; a variant that no
 longer fits its line count is dropped exactly as any other too-long variant.
 
+### 6.2 Coverage top-up
+
+After the fit loop, each DETAILED project is checked against every swappable
+position in its home section. A project covers a position when some distinct set
+of its kept bullets has a variant at each of the position's line counts, in
+order. A project that covers none of them gets one fresh call, for candidates at
+the missing line counts (the line counts of those positions that no kept bullet
+has a variant at; when none is missing, every line count those positions need).
+The fresh call uses the same system prompt. Its user message is the usual one
+for those lengths, followed by the kept texts to avoid repeating. A failed text
+is never sent back to the model or delivered. New candidates go through the
+guard, the ending normalization (6.1) and the render check like any other, and
+the section's coverage is then checked again. EXISTING_ONLY sections never get
+a top-up call. If coverage is still missing afterwards, the generation report
+records it for that section (`coverage.covered: false`, with the missing line
+counts), so the UI can tell the user.
+
+Test: `CoverageTopUpTest` (corpus) replays a recorded fit-loop response that
+covers only 1-line lengths, then a recorded top-up response with a 2-line bullet,
+and checks the one extra call, the avoid-list in its prompt, and the normalized
+result.
+
 ## 7. Cost accounting (step 4.6)
 
 Record every call's `usage` (`input_tokens`, `output_tokens`,

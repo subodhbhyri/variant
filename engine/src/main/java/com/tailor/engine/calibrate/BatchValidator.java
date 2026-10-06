@@ -152,6 +152,11 @@ public final class BatchValidator {
         return AnchorMeasurer.measure(lines, textsForAnchor);
     }
 
+    /** Whether a candidate has a token too long to break across lines, which {@link #validate} never renders. */
+    public static boolean unbreakable(String text) {
+        return longestToken(text) > MAX_TOKEN_LEN;
+    }
+
     /** Longest whitespace-delimited token; "/"- and "-"-joined strings are already one token this way. */
     private static int longestToken(String text) {
         int longest = 0;

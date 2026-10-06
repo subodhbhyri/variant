@@ -120,6 +120,81 @@ public final class FitLoop {
         return new FitLoopResult("GENERATED", ctx.slotLineCounts(), 1, finalResults, usages, attempts);
     }
 
+    /** What {@link #coverTopUp} returns: the section's result after the top-up, and its coverage before and after. */
+    public record TopUp(FitLoopResult result, Coverage.Result before, Coverage.Result after) {
+    }
+
+    /**
+     * PHASE4_SPEC.md section 6.2 (coverage top-up), for a DETAILED project only: when the kept bullets can fill
+     * none of the project's home-section positions ({@code homeShapes}, one line-count list per position), one fresh
+     * call asks for candidates at the missing line counts. The prompt lists the kept texts to avoid repeating; a failed
+     * text is never sent back. New candidates go through the same guard, ending normalization and render check as the
+     * first call. An already covered section is returned unchanged, with no call.
+     */
+    public static TopUp coverTopUp(SectionContext ctx, ModelClient client, SkillsDictionary skills, FitLoopResult base,
+            List<List<Integer>> homeShapes) throws Exception {
+        List<Map<String, String>> kept = new ArrayList<>();
+        List<String> keptTexts = new ArrayList<>();
+        for (CandidateOutcome o : base.finalResults().values()) {
+            if ("OK".equals(o.status())) {
+                kept.add(o.variants());
+                keptTexts.addAll(o.variants().values());
+            }
+        }
+        Coverage.Result before = Coverage.check(kept, homeShapes);
+        if (before.covered() || !"GENERATED".equals(base.status())) {
+            return new TopUp(base, before, before);
+        }
+        List<Integer> lengths = before.missingLengths().isEmpty()
+                ? homeShapes.stream().flatMap(List::stream).distinct().sorted().toList()
+                : before.missingLengths();
+        String user = PromptBuilder.userMessage(ctx.kind(), ctx.mode(), ctx.fields(), ctx.currentBullets(),
+                ctx.rawText(), PromptBuilder.lengthSpecs(lengths, ctx.budgetCharsByLineCount()), ctx.candidateCount(),
+                ctx.slotLineCounts()) + avoidSection(keptTexts);
+        ModelResponse response = client.call(PromptBuilder.SYSTEM_PROMPT, user);
+
+        List<ModelResponse.BulletCandidate> renamed = new ArrayList<>();
+        for (ModelResponse.BulletCandidate bc : response.bullets()) {
+            renamed.add(new ModelResponse.BulletCandidate("top-" + bc.id(), bc.variants()));
+        }
+        Map<String, CandidateState> candidates = new LinkedHashMap<>();
+        List<Attempt> attempts = new ArrayList<>(base.attempts());
+        ingestAndCheck(ctx, skills, candidates, new ModelResponse(renamed, response.usage()),
+                new HashSet<>(lengths), attempts);
+
+        Map<String, CandidateOutcome> merged = new LinkedHashMap<>(base.finalResults());
+        for (Map.Entry<String, CandidateState> e : candidates.entrySet()) {
+            CandidateState state = e.getValue();
+            merged.put(e.getKey(), state.variants.isEmpty()
+                    ? CandidateOutcome.dropped(pickReason(state), 1)
+                    : CandidateOutcome.ok(state.variants, 2));
+        }
+        dropDuplicates(merged);
+
+        List<ModelResponse.Usage> usages = new ArrayList<>(base.callUsages());
+        usages.add(response.usage());
+        FitLoopResult result = new FitLoopResult("GENERATED", base.slotLineCounts(), base.rounds(), merged, usages,
+                attempts);
+        List<Map<String, String>> keptAfter = new ArrayList<>();
+        for (CandidateOutcome o : merged.values()) {
+            if ("OK".equals(o.status())) {
+                keptAfter.add(o.variants());
+            }
+        }
+        return new TopUp(result, before, Coverage.check(keptAfter, homeShapes));
+    }
+
+    private static String avoidSection(List<String> keptTexts) {
+        if (keptTexts.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder("\n\nDo not repeat any of these accepted bullets:");
+        for (String t : keptTexts) {
+            out.append("\n- ").append(t);
+        }
+        return out.toString();
+    }
+
     /** Ingests the response's variants for the lengths some position needs, then guards and
      * render-checks each one exactly once. */
     private static void ingestAndCheck(SectionContext ctx, SkillsDictionary skills,

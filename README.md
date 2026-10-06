@@ -73,3 +73,8 @@ otherwise every onboarding run fails writing `normalized.docx`.
   the validating slot from the document: it skips a variant only when every job slot
   with the same line count has the same paragraph and page setup. Recording the slot's
   width and formatting class at generation would make that rule exact instead.
+- **Persistent LibreOffice worker.** Every render starts a LibreOffice process.
+  The first render of a fresh JVM costs 11-14 s on the fixture postings
+  (P5-T17's first posting), most of it LibreOffice warm-up. A worker that stays
+  running between renders would remove that cost from every request and from
+  the per-render cost behind each stack-fit round.

@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -157,18 +158,26 @@ public final class GenerateCommand implements Callable<Integer> {
                         onboardedPath, renderer, bulletEnding);
 
                 ModelClient client = clientFor(section.id(), recorded);
-                FitLoop.FitLoopResult result = FitLoop.run(ctx, client, skills);
-                tracker.recordAll(result.callUsages());
-
                 IntakeFields fields = section.fields();
                 String homeSection = existingIndex != null && existingIndex < positions.projectPositionSections().size()
                         ? positions.projectPositionSections().get(existingIndex)
                         : addedProjectHomeSection;
+                FitLoop.FitLoopResult result = FitLoop.run(ctx, client, skills);
+                // PHASE4_SPEC.md section 6.2: a DETAILED project must be able to fill a position in its home section.
+                com.tailor.engine.generate.Coverage.Result coverage = null;
+                if ("DETAILED".equals(section.mode()) && homeSection != null && tracker.canGenerate()) {
+                    FitLoop.TopUp topUp = FitLoop.coverTopUp(ctx, client, skills, result,
+                            homeShapes(positions, report, homeSection));
+                    result = topUp.result();
+                    coverage = topUp.after();
+                }
+                tracker.recordAll(result.callUsages());
+
                 libraryProjects.add(new LibraryProject(
                         section.id(), fields == null ? null : fields.title(), fields == null ? null : fields.detail(),
                         toLibraryLinks(fields), fields == null ? null : fields.date(),
                         keptBulletsInOrder(result.finalResults()), homeSection));
-                reportSections.put(section.id(), SectionReportEntry.of(result, tracker.prices()));
+                reportSections.put(section.id(), SectionReportEntry.of(result, tracker.prices(), coverage));
             }
 
             Files.createDirectories(outDir);
@@ -204,6 +213,18 @@ public final class GenerateCommand implements Callable<Integer> {
             OnboardReport.SlotReport sr = bySlotIndex.get(idx);
             if (sr != null) {
                 out.add(sr.text());
+            }
+        }
+        return out;
+    }
+
+    /** The bullet line counts of each swappable project position in the home section, one list per position. */
+    private static List<List<Integer>> homeShapes(SectionPositions positions, OnboardReport report, String homeSection) {
+        List<List<Integer>> out = new ArrayList<>();
+        for (int i = 0; i < positions.projectPositions().size(); i++) {
+            Position p = positions.projectPositions().get(i);
+            if (p.swappable() && homeSection.equals(positions.projectPositionSections().get(i))) {
+                out.add(linesOf(positions.bulletSlotIndices(p), report).stream().filter(Objects::nonNull).toList());
             }
         }
         return out;
@@ -339,13 +360,26 @@ public final class GenerateCommand implements Callable<Integer> {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SectionReportEntry(
             String status, Integer rounds, Map<String, FitLoop.CandidateOutcome> candidates,
-            Integer calls, ModelResponse.Usage tokens, Double costUsd, List<FitLoop.Attempt> attempts) {
+            Integer calls, ModelResponse.Usage tokens, Double costUsd, List<FitLoop.Attempt> attempts,
+            Coverage coverage) {
+
+        /** PHASE4_SPEC.md section 6.2: whether the project can fill a home-section position, and what's missing. */
+        record Coverage(boolean covered, List<Integer> missingLines) {
+            static Coverage of(com.tailor.engine.generate.Coverage.Result r) {
+                return r == null ? null : new Coverage(r.covered(), r.missingLengths());
+            }
+        }
 
         static SectionReportEntry locked(String status) {
-            return new SectionReportEntry(status, null, null, null, null, null, List.of());
+            return new SectionReportEntry(status, null, null, null, null, null, List.of(), null);
         }
 
         static SectionReportEntry of(FitLoop.FitLoopResult result, PriceTable prices) {
+            return of(result, prices, null);
+        }
+
+        static SectionReportEntry of(FitLoop.FitLoopResult result, PriceTable prices,
+                com.tailor.engine.generate.Coverage.Result coverage) {
             int inputTokens = 0;
             int outputTokens = 0;
             int cacheCreation = 0;
@@ -360,7 +394,7 @@ public final class GenerateCommand implements Callable<Integer> {
             }
             ModelResponse.Usage totals = new ModelResponse.Usage(inputTokens, outputTokens, cacheCreation, cacheRead);
             return new SectionReportEntry(result.status(), result.rounds(), result.finalResults(),
-                    result.callUsages().size(), totals, cost, result.attempts());
+                    result.callUsages().size(), totals, cost, result.attempts(), Coverage.of(coverage));
         }
     }
 }

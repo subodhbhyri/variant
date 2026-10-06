@@ -120,7 +120,8 @@ public final class BatchAssembler {
     }
 
     /** One round's measurements: header lines per probe, and the inline blocks' rewritten texts and lines. */
-    private record ProbeResult(List<Integer> headerLines, List<String> inlineTexts, List<Integer> inlineLines) {
+    private record ProbeResult(List<Integer> headerLines, List<String> inlineTexts, List<Integer> inlineLines,
+                               Map<Integer, Integer> bulletLines) {
     }
 
     private record IndexedRegion(int bodyIndex, Verifier.Region region) {
@@ -312,8 +313,17 @@ public final class BatchAssembler {
             // searched (the search only ever shortens it), and as it stands otherwise.
             round0.add(new HeaderProbe(pl, searchByIndex.containsKey(pl.index()) ? null : detailByIndex.get(pl.index())));
         }
-        ProbeResult first = t.time("header and inline check",
-                () -> measureProbes(normalizedDocx, round0, inlinePlans, otherTexts, renderer, workDir));
+        // The bullets' candidates go into this first render too (one render fewer than a separate bullet pass).
+        // A candidate BatchValidator wouldn't render (an unbreakable token) is classified without one.
+        Map<Integer, BulletText> renderable = new LinkedHashMap<>();
+        for (Map.Entry<Integer, List<BulletText>> e : toValidate.entrySet()) {
+            BulletText c = e.getValue().get(0);
+            if (!BatchValidator.unbreakable(c.text())) {
+                renderable.put(e.getKey(), c);
+            }
+        }
+        ProbeResult first = t.time("header, inline and bullet check",
+                () -> measureProbes(normalizedDocx, round0, inlinePlans, renderable, otherTexts, renderer, workDir));
         if (first == null) {
             return failed("probe texts are not uniquely anchored");
         }
@@ -328,6 +338,38 @@ public final class BatchAssembler {
                 return rejected(pl, reason);
             }
         }
+        // --- bullets: classified as BatchValidator classifies them, from the first render ----------
+        t.note("bullet validation: " + toValidate.size() + " to render (job " + jobRendered + ", project "
+                + (toValidate.size() - jobRendered) + "), in the first render");
+        for (Map.Entry<Integer, List<BulletText>> e : toValidate.entrySet()) {
+            int slot = e.getKey();
+            String text = e.getValue().get(0).text();
+            Integer target = lineCounts.get(slot);
+            Integer measured = first.bulletLines().get(slot);
+            String outcome = null;
+            if (BatchValidator.unbreakable(text)) {
+                outcome = "UNBREAKABLE_TOKEN";
+            } else if (measured == null || target == null) {
+                outcome = "ANCHOR_FAILED";
+            } else if (measured > target) {
+                outcome = "TOO_LONG";
+            }
+            if (outcome != null) {
+                Planned owner = ownerBySlot.get(slot);
+                if (owner == null) {
+                    return failed("job slot " + slot + ": " + outcome);
+                }
+                return rejected(owner, "bullet " + (owner.bulletSlots().indexOf(slot) + 1) + " is " + outcome
+                        + " at " + target + " line(s)");
+            }
+            if (measured.equals(target)) {
+                edits.put(slot, SlotEdit.SUBSTITUTED);
+            } else {
+                edits.put(slot, SlotEdit.PADDED);
+                pads.put(slot, target - measured);
+            }
+        }
+
         Map<Integer, SlotEdit> inlineEdits = new HashMap<>();
         Map<Integer, Integer> inlinePads = new HashMap<>();
         Map<Integer, String> inlineNewText = new HashMap<>();
@@ -362,7 +404,7 @@ public final class BatchAssembler {
             round++;
             final List<HeaderProbe> roundProbes = probes;
             ProbeResult measured = t.time("stack fit round " + round,
-                    () -> measureProbes(normalizedDocx, roundProbes, List.of(), otherTexts, renderer, workDir));
+                    () -> measureProbes(normalizedDocx, roundProbes, List.of(), Map.of(), otherTexts, renderer, workDir));
             if (measured == null) {
                 return failed("stack fit probes are not uniquely anchored");
             }
@@ -387,27 +429,6 @@ public final class BatchAssembler {
                 searchByIndex.remove(pl.index());
                 detailByIndex.put(pl.index(),
                         s[2] > 0 ? String.join(", ", itemsByIndex.get(pl.index()).subList(0, s[2])) : null);
-            }
-        }
-
-        // --- bullets: one batch for every project bullet and unskipped job bullet ---------------------
-        List<BatchValidator.CandidateResult> results = t.time("bullet validation",
-                () -> BatchValidator.validate(normalizedDocx, renderer, lineCounts, Map.of(), toValidate, workDir));
-        for (BatchValidator.CandidateResult r : results) {
-            switch (r.outcome()) {
-                case FITS -> edits.put(r.slotIndex(), SlotEdit.SUBSTITUTED);
-                case FITS_WITH_PADDING -> {
-                    edits.put(r.slotIndex(), SlotEdit.PADDED);
-                    pads.put(r.slotIndex(), lineCounts.get(r.slotIndex()) - r.measuredLines());
-                }
-                default -> {
-                    Planned owner = ownerBySlot.get(r.slotIndex());
-                    if (owner == null) {
-                        return failed("job slot " + r.slotIndex() + ": " + r.outcome());
-                    }
-                    return rejected(owner, "bullet " + (owner.bulletSlots().indexOf(r.slotIndex()) + 1) + " is "
-                            + r.outcome() + " at " + lineCounts.get(r.slotIndex()) + " line(s)");
-                }
             }
         }
 
@@ -520,7 +541,7 @@ public final class BatchAssembler {
      * probed text and another paragraph's text, are equal, since the anchor can't tell them apart.
      */
     private static ProbeResult measureProbes(Path normalizedDocx, List<HeaderProbe> probes, List<Planned> inlinePlans,
-            Set<String> otherTexts, Renderer renderer, Path workDir) throws Exception {
+            Map<Integer, BulletText> bullets, Set<String> otherTexts, Renderer renderer, Path workDir) throws Exception {
         Opened o = open(normalizedDocx);
         List<String> headerTexts = new ArrayList<>();
         for (HeaderProbe probe : probes) {
@@ -552,8 +573,20 @@ public final class BatchAssembler {
                 return null;
             }
         }
-        if (all.isEmpty()) {
-            return new ProbeResult(List.of(), List.of(), List.of());
+        // The bullet candidates are substituted into their own slots, and every slot's text is measured in
+        // document order, as BatchValidator measures them (the slots were detected before any header changed).
+        List<String> slotTexts = new ArrayList<>();
+        for (Slot s : o.slots()) {
+            BulletText c = bullets.get(s.index());
+            if (c != null && s.supported()) {
+                Substituter.substitute(s.element(), c);
+                slotTexts.add(c.text());
+            } else {
+                slotTexts.add(s.text());
+            }
+        }
+        if (all.isEmpty() && bullets.isEmpty()) {
+            return new ProbeResult(List.of(), List.of(), List.of(), Map.of());
         }
         o.pkg().writePart("word/document.xml", XmlSerialize.toBytes(o.doc()));
         Path probeDocx = BlockSwapper.saveTemp(o.pkg(), workDir, "batch-probe");
@@ -566,7 +599,9 @@ public final class BatchAssembler {
         for (String text : inlineTexts) {
             inlineLines.add(linesOf(lines, text));
         }
-        return new ProbeResult(headerLines, inlineTexts, inlineLines);
+        Map<Integer, Integer> bulletLines = bullets.isEmpty()
+                ? Map.of() : new HashMap<>(AnchorMeasurer.measure(lines, slotTexts));
+        return new ProbeResult(headerLines, inlineTexts, inlineLines, bulletLines);
     }
 
     /** A text's line count on a render, {@link Integer#MAX_VALUE} when it can't be anchored (as BlockSwapper). */
