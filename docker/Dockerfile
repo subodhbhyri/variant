@@ -147,6 +147,28 @@ USER variant
 CMD ["java", "-jar", "/app/tailor.jar"]
 
 # =============================================================================
+# renderer: the Phase 6 renderer service (PHASE6_SPEC.md section 2.1). os + a JRE + the
+# renderer's jars, a non-root user, nothing else: no engine, no Gradle, no source. Run it
+# read-only with a tmpfs scratch directory and no network egress, e.g.
+#   docker run --read-only --tmpfs /scratch:rw,size=512m --user 10001 --cap-drop ALL #     --security-opt no-new-privileges --network <internal network> tailor-renderer
+# =============================================================================
+FROM dev AS renderer-build
+RUN gradle --no-daemon :renderer:installDist -x test
+
+FROM os AS renderer
+
+RUN apt-get update && apt-get install -y --no-install-recommends         openjdk-21-jre-headless     && rm -rf /var/lib/apt/lists/*     && useradd --create-home --shell /usr/sbin/nologin --uid 10001 renderer
+
+WORKDIR /app
+COPY --from=renderer-build /app/renderer/build/install/renderer/lib /app/lib
+# Everything the process writes goes under /scratch (a tmpfs): LibreOffice profiles, per-request
+# directories, Java temp files, and HOME for fontconfig/LibreOffice caches.
+ENV SCRATCH_DIR=/scratch HOME=/scratch/home
+USER renderer
+EXPOSE 8090
+CMD ["java", "-Djava.io.tmpdir=/scratch/tmp", "-cp", "/app/lib/*", "com.tailor.renderer.RendererMain"]
+
+# =============================================================================
 # An untargeted `docker build` (no --target) builds whichever stage is last in
 # this file, and every existing `docker build -t resume-tailor .` / `docker
 # run resume-tailor gradle ...` invocation (this repo's whole dev/test
