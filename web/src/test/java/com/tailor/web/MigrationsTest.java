@@ -220,8 +220,8 @@ class MigrationsTest {
     }
 
     private static void item(UUID library, UUID user) {
-        jdbc.update("INSERT INTO library_items (library_id, user_id, section_id, candidate_id, text)"
-                + " VALUES (?, ?, 'job-1', 'c1', 'did a thing')", library, user);
+        jdbc.update("INSERT INTO library_items (library_id, user_id, section_id, candidate_id, length, text)"
+                + " VALUES (?, ?, 'job-1', 'c1', 1, 'did a thing')", library, user);
     }
 
     private static UUID posting(UUID user) {

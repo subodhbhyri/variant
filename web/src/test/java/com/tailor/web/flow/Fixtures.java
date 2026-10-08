@@ -23,6 +23,10 @@ public final class Fixtures {
         return dir("TAILOR_PHASE2_FIXTURES_DIR", "/app/fixtures/phase2");
     }
 
+    public static Path phase4() {
+        return dir("TAILOR_PHASE4_FIXTURES_DIR", "/app/fixtures/phase4");
+    }
+
     public static Path phase5() {
         return dir("TAILOR_PHASE5_FIXTURES_DIR", "/app/fixtures/phase5");
     }

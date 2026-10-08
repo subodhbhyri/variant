@@ -36,6 +36,9 @@ dependencies {
         // Spring Boot logs with Logback; the renderer image logs with slf4j-simple. Two backends clash.
         exclude(group = "org.slf4j", module = "slf4j-simple")
     }
+    // P6-T5/T6 compare the web results with what the CLI produces from the same inputs.
+    testImplementation(project(":cli"))
+    testImplementation("info.picocli:picocli:4.7.6")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

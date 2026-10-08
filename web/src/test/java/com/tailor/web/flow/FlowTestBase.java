@@ -28,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * hand with {@link #runJobs()}: nothing polls in an api context.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
-@Import(FlowTestBase.LazyRendererConfig.class)
+@Import({FlowTestBase.LazyRendererConfig.class, RecordedModels.class})
 public abstract class FlowTestBase extends AbstractApiTest {
 
     protected static final int FLOW_PORT = freePort();

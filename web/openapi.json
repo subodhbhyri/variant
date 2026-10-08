@@ -193,6 +193,41 @@
         "tags" : [ "job-controller" ]
       }
     },
+    "/libraries/{id}/variants/{vid}/remove" : {
+      "post" : {
+        "operationId" : "removeVariant",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "vid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "LIBRARY_STALE"
+          }
+        },
+        "summary" : "Removes a generated variant the user doesn't stand behind. Writes a new library version; the version they were looking at stays unchanged. Only the newest version can be changed.",
+        "tags" : [ "generation-controller" ]
+      }
+    },
     "/me" : {
       "delete" : {
         "operationId" : "deleteMe",
@@ -352,6 +387,237 @@
         "tags" : [ "resume-controller" ]
       }
     },
+    "/resumes/{id}/generate" : {
+      "post" : {
+        "operationId" : "generate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GenerateRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenerateResponse"
+                }
+              }
+            },
+            "description" : "Queued; follow the job."
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RESUME_NOT_ACCEPTED, NO_INTAKE or NO_LIBRARY"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GENERATION_LIMIT"
+          }
+        },
+        "summary" : "Queues a generation run for the saved intake. Charges nothing in Phase 6; the cost is recorded. With 'sections', only those sections are regenerated and the rest carry over unchanged. Each run is a new library version. At most 5 runs per resume per day.",
+        "tags" : [ "generation-controller" ]
+      }
+    },
+    "/resumes/{id}/intake" : {
+      "get" : {
+        "operationId" : "getIntake",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RESUME_NOT_ACCEPTED"
+          }
+        },
+        "summary" : "The intake form: one section per job and per swappable project position, pre-filled from the resume and merged with the user's saved answers. Only saved sections are generated.",
+        "tags" : [ "intake-controller" ]
+      }
+    },
+    "/resumes/{id}/intake/projects" : {
+      "post" : {
+        "operationId" : "addIntakeProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "INVALID_LINK, NOTES_TOO_LONG or TOO_MANY_PROJECTS"
+          }
+        },
+        "summary" : "Adds a project (id project-new-N). At most 8: the ninth is TOO_MANY_PROJECTS.",
+        "tags" : [ "intake-controller" ]
+      }
+    },
+    "/resumes/{id}/intake/projects/{sid}" : {
+      "delete" : {
+        "operationId" : "removeIntakeProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "sid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "summary" : "Removes an added project. The resume's own positions can't be removed; skip them instead.",
+        "tags" : [ "intake-controller" ]
+      }
+    },
+    "/resumes/{id}/intake/sections/{sid}" : {
+      "put" : {
+        "operationId" : "saveIntakeSection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "sid",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "INVALID_LINK, NOTES_TOO_LONG or TOO_MANY_PROJECTS"
+          }
+        },
+        "summary" : "Saves one section: mode (DETAILED, EXISTING_ONLY, SKIPPED), header fields and notes. Refused with INVALID_LINK or NOTES_TOO_LONG (1,500 words); nothing is cut or truncated.",
+        "tags" : [ "intake-controller" ]
+      }
+    },
+    "/resumes/{id}/library" : {
+      "get" : {
+        "operationId" : "getLibrary",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also when nothing has been generated yet)"
+          }
+        },
+        "summary" : "The newest library version: variants per section, projects, coverage and what was dropped and why.",
+        "tags" : [ "generation-controller" ]
+      }
+    },
     "/resumes/{id}/preview" : {
       "get" : {
         "operationId" : "getResumePreview",
@@ -483,9 +749,87 @@
           }
         }
       },
+      "Fields" : {
+        "properties" : {
+          "date" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "detail" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "links" : {
+            "type" : [ "array" ],
+            "example" : null,
+            "items" : {
+              "$ref" : "#/components/schemas/Link",
+              "example" : null
+            }
+          },
+          "title" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "GenerateRequest" : {
+        "properties" : {
+          "sections" : {
+            "type" : [ "array" ],
+            "example" : null,
+            "items" : {
+              "type" : [ "string" ],
+              "example" : null
+            }
+          }
+        }
+      },
+      "GenerateResponse" : {
+        "properties" : {
+          "jobId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          },
+          "runId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          }
+        }
+      },
+      "Link" : {
+        "properties" : {
+          "label" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "url" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
       "RoleRequest" : {
         "properties" : {
           "role" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "SaveRequest" : {
+        "properties" : {
+          "fields" : {
+            "$ref" : "#/components/schemas/Fields",
+            "example" : null
+          },
+          "mode" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "notes" : {
             "type" : [ "string" ],
             "example" : null
           }

@@ -17,8 +17,8 @@ class AccountTest extends ApiTestBase {
         jdbc.update("INSERT INTO resumes (id, user_id, status, active) VALUES (?, ?, 'accepted', true)", resume, user);
         UUID library = UUID.randomUUID();
         jdbc.update("INSERT INTO libraries (id, resume_id, user_id, version) VALUES (?, ?, ?, 1)", library, resume, user);
-        jdbc.update("INSERT INTO library_items (library_id, user_id, section_id, candidate_id, text)"
-                + " VALUES (?, ?, 's', 'c', 'text')", library, user);
+        jdbc.update("INSERT INTO library_items (library_id, user_id, section_id, candidate_id, length, text)"
+                + " VALUES (?, ?, 's', 'c', 1, 'text')", library, user);
         UUID posting = UUID.randomUUID();
         jdbc.update("INSERT INTO postings (id, user_id, text, fingerprint) VALUES (?, ?, 'jd', 'fp')", posting, user);
         UUID match = UUID.randomUUID();
