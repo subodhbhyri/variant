@@ -1,0 +1,7 @@
+# Copy to prod.tfvars. Do not apply until the dev environment has passed scripts/smoke-test.ps1 and the cost
+# estimate in infra/README.md has been approved.
+domain_name      = "example.com"
+route53_zone_id  = "Z0000000000000000000"
+image_tag        = "1.0.0"
+google_client_id = "your-client-id.apps.googleusercontent.com"
+alarm_email      = "ops@example.com"

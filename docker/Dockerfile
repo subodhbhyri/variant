@@ -158,6 +158,9 @@ RUN gradle --no-daemon :renderer:installDist -x test
 FROM os AS renderer
 
 RUN apt-get update && apt-get install -y --no-install-recommends         openjdk-21-jre-headless     && rm -rf /var/lib/apt/lists/*     && useradd --create-home --shell /usr/sbin/nologin --uid 10001 renderer
+# /scratch exists in the image with open permissions so an empty volume mounted over it (ECS Fargate has no tmpfs)
+# is writable by the non-root user.
+RUN mkdir -p /scratch && chmod 1777 /scratch
 
 WORKDIR /app
 COPY --from=renderer-build /app/renderer/build/install/renderer/lib /app/lib

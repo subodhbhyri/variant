@@ -19,6 +19,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
@@ -160,23 +162,53 @@ public class S3FileStorage implements FileStorage {
         return new PresignedLink(presigned.url().toString(), Instant.now().plus(ttl));
     }
 
+    /**
+     * Removes the objects under {@code prefix} for good: every version and every delete marker, not just the newest
+     * (a bucket with versioning on would otherwise keep a deleted user's files as old versions). Works the same on
+     * a bucket without versioning, where each object has a single "null" version.
+     */
     @Override
     public int deletePrefix(String prefix) {
         int removed = 0;
-        String token = null;
+        String keyMarker = null;
+        String versionMarker = null;
         do {
-            ListObjectsV2Response page = client().listObjectsV2(ListObjectsV2Request.builder()
-                    .bucket(props.bucket()).prefix(prefix).continuationToken(token).build());
+            ListObjectVersionsResponse page = client().listObjectVersions(ListObjectVersionsRequest.builder()
+                    .bucket(props.bucket()).prefix(prefix).keyMarker(keyMarker).versionIdMarker(versionMarker).build());
             List<ObjectIdentifier> ids = new ArrayList<>();
-            page.contents().forEach(o -> ids.add(ObjectIdentifier.builder().key(o.key()).build()));
+            page.versions().forEach(v -> ids.add(ObjectIdentifier.builder().key(v.key()).versionId(v.versionId()).build()));
+            page.deleteMarkers().forEach(m -> ids.add(ObjectIdentifier.builder().key(m.key()).versionId(m.versionId()).build()));
             if (!ids.isEmpty()) {
                 client().deleteObjects(DeleteObjectsRequest.builder().bucket(props.bucket())
                         .delete(Delete.builder().objects(ids).quiet(true).build()).build());
                 removed += ids.size();
             }
-            token = Boolean.TRUE.equals(page.isTruncated()) ? page.nextContinuationToken() : null;
-        } while (token != null);
+            keyMarker = Boolean.TRUE.equals(page.isTruncated()) ? page.nextKeyMarker() : null;
+            versionMarker = Boolean.TRUE.equals(page.isTruncated()) ? page.nextVersionIdMarker() : null;
+        } while (keyMarker != null);
         return removed;
+    }
+
+    /** Number of versions (including delete markers) under {@code prefix}: what is really still stored. */
+    public int countVersions(String prefix) {
+        int count = 0;
+        String keyMarker = null;
+        String versionMarker = null;
+        do {
+            ListObjectVersionsResponse page = client().listObjectVersions(ListObjectVersionsRequest.builder()
+                    .bucket(props.bucket()).prefix(prefix).keyMarker(keyMarker).versionIdMarker(versionMarker).build());
+            count += page.versions().size() + page.deleteMarkers().size();
+            keyMarker = Boolean.TRUE.equals(page.isTruncated()) ? page.nextKeyMarker() : null;
+            versionMarker = Boolean.TRUE.equals(page.isTruncated()) ? page.nextVersionIdMarker() : null;
+        } while (keyMarker != null);
+        return count;
+    }
+
+    /** Turns versioning on for the bucket (tests; Terraform does this in AWS). */
+    public void enableVersioning() {
+        client().putBucketVersioning(software.amazon.awssdk.services.s3.model.PutBucketVersioningRequest.builder()
+                .bucket(props.bucket()).versioningConfiguration(software.amazon.awssdk.services.s3.model.VersioningConfiguration.builder()
+                        .status(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED).build()).build());
     }
 
     @Override

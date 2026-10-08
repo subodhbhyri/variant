@@ -60,6 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-
     && useradd --create-home --shell /usr/sbin/nologin --uid 10001 tailor
 WORKDIR /app
 COPY --from=build /app/web/build/libs/web.jar /app/web.jar
+COPY --chmod=0755 docker/web-entrypoint.sh /app/entrypoint.sh
 COPY --from=build /opt/native-libs /opt/native-libs
 COPY --from=models /models /opt/models
 ENV VARIANT_MODEL_DIR=/opt/models/all-MiniLM-L6-v2 \
@@ -67,5 +68,5 @@ ENV VARIANT_MODEL_DIR=/opt/models/all-MiniLM-L6-v2 \
     JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75 -Donnxruntime.native.path=/opt/native-libs/onnxruntime -DRUST_LIBRARY_PATH=/opt/native-libs/tokenizers/libtokenizers.so"
 USER tailor
 EXPOSE 8080
-# APP_ROLE=api (default) or worker; read by application.yml and WebApplication.
-CMD ["java", "-jar", "/app/web.jar"]
+# APP_ROLE=api (default) or worker; read by application.yml and WebApplication. APP_TLS=true serves HTTPS.
+ENTRYPOINT ["/app/entrypoint.sh"]

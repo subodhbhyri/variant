@@ -95,6 +95,27 @@ class StorageTest extends FlowTestBase {
     }
 
     @Test
+    void deletingAPrefixAlsoRemovesOldVersionsAndDeleteMarkers() {
+        // Spec section 10 keeps versioning on in AWS; section 9.4 still requires a deleted account's files to be gone.
+        var props = new com.tailor.web.storage.StorageProperties("tailor-versioned-" + UUID.randomUUID().toString().substring(0, 8),
+                System.getenv("TEST_S3_ENDPOINT"), null, "us-east-1", true, "", true, Duration.ofMinutes(5));
+        com.tailor.web.storage.S3FileStorage versioned = new com.tailor.web.storage.S3FileStorage(props);
+        versioned.countPrefix("x/"); // creates the bucket
+        versioned.enableVersioning();
+        UUID user = UUID.randomUUID();
+        String key = StorageKeys.preview(user, UUID.randomUUID());
+        versioned.put(key, bytes("v1"), "text/plain", true);
+        versioned.put(key, bytes("v2"), "text/plain", true);    // an older version now exists
+        versioned.put(StorageKeys.original(user, UUID.randomUUID()), bytes("o"), "text/plain", false);
+        assertThat(versioned.countVersions(StorageKeys.userPrefix(user))).isEqualTo(3);
+
+        assertThat(versioned.deletePrefix(StorageKeys.userPrefix(user))).isEqualTo(3);
+
+        assertThat(versioned.countVersions(StorageKeys.userPrefix(user))).as("no version and no delete marker is left").isZero();
+        assertThat(versioned.countPrefix(StorageKeys.userPrefix(user))).isZero();
+    }
+
+    @Test
     void deletingAPrefixRemovesOnlyThatPrefix() {
         UUID user = UUID.randomUUID();
         UUID other = UUID.randomUUID();

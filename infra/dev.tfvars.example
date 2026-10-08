@@ -1,0 +1,6 @@
+# Copy to dev.tfvars, fill in, then:  terraform workspace select -or-create dev ; terraform plan -var-file=dev.tfvars
+domain_name      = "example.com"
+route53_zone_id  = "Z0000000000000000000"
+image_tag        = "dev-1"
+google_client_id = ""
+alarm_email      = ""
