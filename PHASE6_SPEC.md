@@ -1,7 +1,20 @@
 # PHASE6_SPEC — Web app: API, jobs, storage, edits, AWS
 
-Revision 1. Owner decisions (2026-10-07): React + Vite frontend; sign-in with Google
-or an email link; edits apply to that resume only; v1 runs on AWS managed services.
+Revision 2 (2026-10-08). Owner decisions: React + Vite frontend; sign-in with Google
+or an email link; edits apply to that resume only.
+
+**What changed in revision 2:** the AWS design (about $200/month for dev, $580 for
+prod) is unaffordable before revenue. **v1 runs on one server for $0/month**
+(section 10A); the AWS design is kept, unapplied, as section 10B. Also:
+
+- file storage gains a **filesystem mode** (section 3.1); the unmaintained MinIO
+  image is development-only and optional;
+- sign-in links can no longer be consumed by email scanners (sections 4.1, 9.1);
+- email sign-in can be **switched off** (no domain yet: Google only, section 4.1);
+- edit revisions are verified against the **stored onboarding baseline** (section 6);
+- section role changes use the engine's existing override (section 4.2);
+- an **ARM gate** before any ARM server is trusted (section 10A.4);
+- new tests P6-T15 to P6-T19.
 
 Phase 6 turns the engine (Phases 1–5, all done) into a service a user reaches from a
 browser. This spec covers **6A, the backend**: API, data, background jobs, rendering,
@@ -17,7 +30,7 @@ The engine's behaviour does not change in this phase. Everything here wraps it.
 
 A new user, with the 6B frontend, goes from sign-in to upload, onboarding preview,
 intake, generation, pasting a posting, resume #1 with alternatives, an edit, and a
-PDF download, with nobody's help, on AWS. Section 12 lists the acceptance tests.
+PDF download, with nobody's help, on the single server (section 10A). Section 12 lists the acceptance tests.
 
 ---
 
@@ -34,6 +47,10 @@ ALB ──► api        (Spring Boot, `web` module)     ──► RDS PostgreSQ
            ▼
         renderer   (LibreOffice pool; NO network egress)
 ```
+
+The diagram shows the AWS form (10B). On the single server (10A), the ALB becomes
+Caddy, RDS becomes a Postgres container, and S3 becomes filesystem storage
+(section 3.1); everything else is the same code.
 
 - **One codebase, one language.** A new Gradle module `web` (Spring Boot) holds the
   API and the worker. Both run from one image; an environment variable picks the role.
@@ -90,9 +107,24 @@ and every query filters by it (section 9). Timestamps are UTC.
 | `usage_ledger` | id, user_id, kind, ref_id, idempotency_key (unique), cost_usd, created_at | Section 8. |
 | `alias_queue` | term, first_seen, count, status | Replaces the Phase 5 queue file; operator-only. |
 
-Files in S3 (private bucket, server-side encryption), keyed
-`users/{user_id}/resumes/{resume_id}/…` and `users/{user_id}/snapshots/{snapshot_id}/…`.
-The uploaded original is never modified or overwritten.
+Files are keyed `users/{user_id}/resumes/{resume_id}/…` and
+`users/{user_id}/snapshots/{snapshot_id}/…`. The uploaded original is never modified
+or overwritten.
+
+### 3.1 Storage modes
+
+One storage interface, two implementations, chosen by `APP_STORAGE_MODE`:
+
+| Mode | Where files live | How a user downloads |
+|---|---|---|
+| `filesystem` (**v1 default**) | A directory on a Docker volume (`APP_STORAGE_DIR`), owned by the app's non-root user, mode 700 | `GET /files/{opaque id}` on the api: ownership check, then the bytes are streamed. No public URLs exist. |
+| `s3` (section 10B) | A private S3 bucket, server-side encryption | A 5-minute presigned link, issued after the ownership check |
+
+- Both modes write atomically (write to a temporary name, then rename) and treat
+  originals as write-once.
+- Deleting a user (`DELETE /me`) removes their whole key prefix in either mode.
+- MinIO stays usable for testing the `s3` mode locally, but nothing in the default
+  path depends on it. If kept, pin a specific image version rather than `latest`.
 
 ---
 
@@ -114,8 +146,10 @@ copy; the frontend may replace it but must handle every `code`.
 | Method, path | Does |
 |---|---|
 | `GET /auth/google` → `GET /auth/google/callback` | OpenID Connect sign-in. Requires `email_verified`. |
-| `POST /auth/email` `{email}` | Sends a sign-in link. Always answers 202, whether or not the email exists, so it can't be used to probe accounts. |
-| `GET /auth/email/verify?token=…` | Single-use, 15-minute link; starts the session. |
+| `GET /config` | Public, no session: which sign-in methods are on (`{"signin": ["google"]}`), so the frontend shows only those. |
+| `POST /auth/email` `{email}` | Sends a sign-in link. Always answers 202, whether or not the email exists, so it can't be used to probe accounts. When email sign-in is off (`APP_MAIL_MODE=off`) it answers 404 `EMAIL_SIGNIN_DISABLED`. |
+| `GET /auth/email/verify?token=…` | **Does not consume the token.** Checks it is valid and shows a minimal server-rendered page: "Continue as {email}" with one button. Email security scanners open links before people do; a `GET` that signs in would burn every token. |
+| `POST /auth/email/verify` `{token}` | Consumes the single-use, 15-minute token and starts the session. Protected against CSRF like every other POST. |
 | `POST /auth/logout` | Ends the session. |
 | `GET /me` | The user, active resume id, and usage summary. |
 | `DELETE /me` | Deletes the account and all data (section 9.4). |
@@ -129,7 +163,7 @@ Rate limits: 5 email links per address per hour, 20 per IP per hour.
 | `POST /resumes` (multipart, ≤ 2 MB) | Runs the Phase 2 upload gate **synchronously** (no rendering; instant). A rejection returns 422 with the gate's code and nothing is stored. Otherwise stores the original and returns 202 `{resume_id, job_id}` for onboarding. |
 | `GET /resumes/{id}` | Status, onboarding report, section roles and positions (`blocks`), font substitutions. |
 | `GET /resumes/{id}/preview` | A short-lived link to the preview PDF. |
-| `PUT /resumes/{id}/sections/{key}/role` `{role}` | Confirms or changes a section's role. Changing a role re-runs the position analysis (no new onboarding). |
+| `PUT /resumes/{id}/sections/{key}/role` `{role}` | Confirms or changes a section's role (`projects`, `experience`, `other`). Changing a role uses the engine's existing role override (Phase 3, the CLI's `--section-role "HEADING=role"`) and re-runs the position analysis; no new onboarding. `ROLE_CHANGE_UNSUPPORTED` is only for a specific case the engine truly can't handle, named in the response. |
 | `POST /resumes/{id}/accept` | The user approves the normalized preview; the resume becomes active. |
 
 `NEEDS_USER` (the resume can't keep its page count with stand-in fonts) is reported
@@ -218,7 +252,11 @@ overwritten.
 - **An edit never modifies a snapshot.** Saving edits creates a **revision**: a new
   snapshot whose `parent_id` is the edited one, built by applying the edits to the
   parent's document (not by re-assembling from the library), then verified with the
-  Phase 5 combined verification against the stored baseline. The parent stays
+  Phase 5 combined verification against the **stored onboarding baseline**
+  (`baseline.json`), never against the parent or the chain's first snapshot. Checking
+  each revision against its parent would let drift add up, up to 0.5 pt per
+  revision; checking against the baseline keeps every revision within 0.5 pt of the
+  original. The parent stays
   byte-identical. Revisions chain; the latest revision is the one offered for
   download by default.
 - **Library changes never touch snapshots.** When the library gets a new version, the
@@ -255,7 +293,8 @@ overwritten.
 
 ## 7. Generation and the Anthropic API
 
-- Only the worker calls the API, with the key from AWS Secrets Manager.
+- Only the worker calls the API, with the key from the environment (`deploy/.env` on
+  the single server; Secrets Manager in 10B).
 - Phase 4 rules apply unchanged: strict tool use, no fit retries, the top-up call,
   the $0.50 per-onboarding cap (`COST_LIMIT`).
 - A user can run generation again (after changing notes); each run is a new library
@@ -291,14 +330,18 @@ tailoring free" = no prior `tailoring` row). Edits and cache hits write nothing.
   (double-submit token readable by the SPA).
 - Google: OpenID Connect with `state` and `nonce`; reject unverified emails.
 - Email links: single-use, 15-minute tokens (section 3). A link may be opened on a
-  different device from the one that requested it.
+  different device from the one that requested it. Opening the link only shows a
+  confirmation page; the sign-in happens on its POST (section 4.1). This stops
+  scanners consuming tokens, and the page names the account, so a link someone else
+  sent you can't silently sign you into their account.
 
 ### 9.2 Authorization
 
 - Every resource is looked up **by id and owner** in one query; another user's
   resource answers 404 (not 403), so ids can't be probed.
-- File links are S3 presigned GETs valid for 5 minutes, issued only after the
-  ownership check. The bucket blocks public access.
+- File downloads always pass the ownership check first: streamed by the api in
+  `filesystem` mode, or a 5-minute S3 presigned link in `s3` mode (bucket blocks
+  public access).
 - The operator alias review stays a CLI command against the database in v1; it is not
   in the public API.
 
@@ -322,7 +365,119 @@ tailoring free" = no prior `tailoring` row). Edits and cache hits write nothing.
 
 ---
 
-## 10. AWS deployment
+## 10A. Single-server deployment (v1)
+
+**Cost: $0/month.** One Linux server runs the existing docker-compose stack behind
+Caddy. Nothing in this section is specific to one cloud provider: it works on any
+Ubuntu 24.04 machine with 4 GB of RAM or more, ARM or x86.
+
+### 10A.1 Where
+
+| Choice | Machine | Cost |
+|---|---|---|
+| **Default** | Oracle Cloud Always Free, `VM.Standard.A1.Flex`: 2 OCPU, 12 GB RAM, ARM (aarch64), Ubuntu 24.04 | $0 |
+| Fallback, x86 | One small EC2 machine (4 GB) on the owner's AWS free-plan credit | $0 until the credit or the 6-month free plan ends |
+| Fallback, paid | Any 4 GB VPS | about $8/month |
+
+Oracle reclaims an Always Free machine only when CPU, network **and** memory all stay
+below 20% for 7 days. With Postgres, both JVMs, MiniLM and the LibreOffice pool
+resident, memory stays above that. Never add artificial load to avoid reclamation.
+
+### 10A.2 What runs
+
+`deploy/docker-compose.prod.yml` (the development `docker-compose.yml` stays as is):
+
+| Service | Public? | Notes |
+|---|---|---|
+| `caddy` | Ports **80 and 443 only** | Automatic HTTPS (Let's Encrypt). Serves the SPA's static build at `/` and proxies `/api/*` to `api`. |
+| `api` | No | `APP_STORAGE_MODE=filesystem`, `APP_MAIL_MODE=off`, `APP_ENV=prod` |
+| `worker` | No | Shares the internal network with `renderer` |
+| `renderer` | No | **Internal network only** (`internal: true`, no route out), as in development; read-only root, non-root, tmpfs, `cap_drop: ALL` |
+| `postgres` | No | **No published port.** Random password from `.env`. |
+
+- **Same origin.** The SPA and the API share one host name, so the session cookie is
+  first-party (`SameSite=Lax`) and no CORS is needed. `APP_PUBLIC_BASE_URL` is
+  `https://{host}/api`; every absolute URL the api generates (sign-in links, the
+  Google redirect `https://{host}/api/auth/google/callback`) is built from it. Choose
+  either Caddy stripping `/api` or a servlet context path, and test that redirects,
+  OpenAPI and cookies all agree.
+- Spring trusts `X-Forwarded-*` only from Caddy, so rate limits see the real client IP.
+- **Memory limits** (`mem_limit` plus explicit `-Xmx`), sized for 12 GB: api 1 GB,
+  worker 3 GB, renderer 3 GB with a pool of 2, Postgres 1 GB, Caddy 128 MB. A
+  `small` profile for 4 GB hosts: renderer pool 1, smaller heaps, plus a 2 GB swap
+  file. Renderer pool size comes from `RENDERER_POOL_SIZE`.
+- Restart policy `unless-stopped`; health checks on every service; Docker log
+  rotation (`max-size` 10 MB, 3 files), since logs carry no user text (9.3).
+
+### 10A.3 Host name and sign-in without a domain
+
+- **Host name:** a free DuckDNS subdomain (`{name}.duckdns.org`) pointing at the
+  server's public IP. Caddy gets its certificate with the HTTP challenge, so no DNS
+  credentials are needed. Google's redirect-URI rules (HTTPS, no raw IPs, a
+  public-suffix TLD) are met.
+- **Sign-in: Google only.** `APP_MAIL_MODE=off`; `GET /config` reports it.
+- **Later, with a real domain:** a new `APP_MAIL_MODE=smtp` (`SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_USER`, `SMTP_PASSWORD`, `APP_MAIL_FROM`), so any transactional email provider
+  works without code changes. `ses` remains for 10B. Not needed for v1.
+
+### 10A.4 The ARM gate (required before trusting an ARM server)
+
+Every golden file and corpus check was measured with LibreOffice 24.2 on x86. The
+product's promise is that nothing on the page moves, so ARM must be proven, not
+assumed:
+
+1. Build the images for `linux/arm64` (on the server itself, or multi-arch with
+   `docker buildx`). LibreOffice must be the same 24.2.x version; the renderer reports
+   it (`rendererVersion`).
+2. On the ARM server, inside the arm64 image: run `corpus-check` on all 9 corpus
+   resumes and P5-T17's identity check on the 3 fixture postings.
+3. **All must pass.** If any fails, report the differences and do not use ARM; use the
+   x86 fallback.
+4. The corpus resumes are real people's data: copy them up only for the check, then
+   delete them from the server (`shred` the files, then remove the directory).
+
+### 10A.5 Backups
+
+- `deploy/backup.sh`, nightly by cron: `pg_dump` plus a tar of the storage volume,
+  **encrypted with `age`** to a public key whose private key never touches the
+  server. Keeps the last 7 locally.
+- `deploy/pull-backup.ps1` (Windows) copies the latest backup to the owner's machine
+  over SSH. Run weekly at least.
+- `deploy/restore.sh` restores into an empty stack; P6-T17 proves the round trip.
+
+### 10A.6 Host security
+
+- Open ports: 22 (SSH), 80, 443. On Oracle, open them in **both** the VCN security
+  list and the host firewall (Oracle's Ubuntu images ship restrictive `iptables`
+  rules).
+- SSH: key only, password and root login disabled.
+- `unattended-upgrades` for security updates.
+- `deploy/.env`: mode 600, never committed (`deploy/.env.example` documents every
+  variable). Holds the Postgres password, Anthropic key, Google client secret and the
+  backup public key.
+- Docker publishes nothing except Caddy's 80 and 443.
+
+### 10A.7 Scripts
+
+| Script | Does |
+|---|---|
+| `deploy/install.sh` | Fresh Ubuntu 24.04: Docker, firewall rules, swap (small profile), unattended upgrades, a `variant` user, the backup cron. Safe to run twice. |
+| `deploy/deploy.sh` | Pulls the repo at a given commit, builds images on the host, runs migrations, restarts with zero manual steps; refuses to start if the ARM gate hasn't passed on this host. |
+| `deploy/backup.sh`, `deploy/restore.sh`, `deploy/pull-backup.ps1` | Section 10A.5. |
+| `deploy/README.md` | Step by step, for the owner, from creating the server to the first sign-in. |
+
+Capacity (estimate): with a renderer pool of 2, about two postings are matched at once
+at ~5 to 6 s each, enough for a small private beta. Measure it (P6-T13) rather than
+assume it.
+
+---
+
+## 10B. AWS deployment (deferred; do not apply)
+
+Kept for when revenue justifies it (about $200/month dev, $580/month prod, revision 1
+estimate). Before it is ever applied: add a VPC endpoint policy limiting the
+renderer's S3 access to our own buckets and the region's ECR layer bucket, and
+re-estimate cost. Everything below is unchanged from revision 1.
 
 | Piece | Service | Notes |
 |---|---|---|
@@ -366,7 +521,12 @@ green throughout (the engine must not change behaviour).
    library version.
 8. **6.8 Edits:** slot check, revisions, immutability.
 9. **6.9 Ledger, rate limits, log hygiene.**
-10. **6.10 Terraform for AWS**, deployed to `dev`; end-to-end smoke test.
+10. **6.10 Terraform for AWS** (written; not applied, section 10B).
+11. **6.11 Revision 2 changes:** email-link confirmation, `GET /config` and
+    `APP_MAIL_MODE=off`, role overrides, baseline-verified revisions, filesystem
+    storage.
+12. **6.12 Single-server deployment** (section 10A): `deploy/` compose, Caddy, scripts,
+    README. Then the owner creates the server, runs the ARM gate and deploys.
 
 ---
 
@@ -386,13 +546,18 @@ green throughout (the engine must not change behaviour).
 | P6-T10 | Log hygiene: a full fixture run's logs contain none of the fixture's resume, notes or posting text. |
 | P6-T11 | Jobs: lease expiry re-runs a job; per-user limits hold; `generate` is never retried automatically; idempotency keys return the same job. |
 | P6-T12 | `web/openapi.json` is generated from the code and matches the committed file (CI fails on drift). |
-| P6-T13 | Latency: on `dev`, cache-miss postings return resume #1 within the section 5 targets. |
-| P6-T14 | Deletion: `DELETE /me` removes every row and object for the user. |
+| P6-T13 | Latency: on the single server (10A), cache-miss postings return resume #1 within the section 5 targets. |
+| P6-T14 | Deletion: `DELETE /me` removes every row and file for the user, in both storage modes. |
+| P6-T15 | ARM gate: on the arm64 image, `corpus-check` passes on all 9 resumes and P5-T17 identity holds; `deploy.sh` refuses to start without that result. |
+| P6-T16 | Email links: a `GET` of the link (as a scanner would) leaves the token usable; the `POST` signs in once; a second `POST` fails; with `APP_MAIL_MODE=off`, `POST /auth/email` returns `EMAIL_SIGNIN_DISABLED` and `GET /config` omits email. |
+| P6-T17 | Backups: `backup.sh` then `restore.sh` into an empty stack reproduces users, libraries, snapshots and files; the archive can't be read without the private key. |
+| P6-T18 | Revisions: three successive edit revisions each stay within 0.5 pt of the onboarding baseline on every fixed line. |
+| P6-T19 | Single-server exposure: from outside the host only 80 and 443 answer (plus 22); Postgres and the api are unreachable directly; the renderer still cannot reach any outside host. |
 
 ---
 
 ## 13. Out of scope for 6A
 
-The frontend's design and code (6B), payments (Phase 8), the Chrome extension
+Applying the AWS design (10B), the frontend's design and code (6B), payments (Phase 8), the Chrome extension
 (Phase 7), multiple active resumes per user, editing headers or adding bullets, team
 or admin consoles.
