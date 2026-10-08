@@ -132,10 +132,10 @@ class RendererServerTest {
     }
 
     @Test
-    void healthIsOkWhenTheFixtureRendersInTime() throws Exception {
+    void healthIsOkWhenTheFixtureRendersInTimeOnEveryPooledProcess() throws Exception {
         HttpResponse<String> response = get("/health");
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(conversions).hasValue(1);
+        assertThat(conversions).as("one fixture render per pooled process (pool size 2 here)").hasValue(2);
     }
 
     @Test

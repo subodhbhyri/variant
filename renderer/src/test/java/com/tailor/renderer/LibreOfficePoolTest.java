@@ -146,11 +146,34 @@ class LibreOfficePoolTest {
 
     @Test
     void aTimeoutIsReportedAsRenderTimeout() throws Exception {
-        pool = new LibreOfficePool(config(1, 200, 1)); // 1 ms: nothing can finish in time
+        pool = new LibreOfficePool(config(1, 200, 1), false); // 1 ms: nothing can finish in time (and no startup self-test)
 
         assertThatThrownBy(() -> pool.toPdf(aResume()))
                 .isInstanceOfSatisfying(RenderFailure.class,
                         f -> assertThat(f.code()).isEqualTo(RenderFailure.Code.RENDER_TIMEOUT));
+    }
+
+    @Test
+    void aPoolStartsCleanlyEveryTimeAndEveryProcessAnswers() throws Exception {
+        // Starting several office processes at once used to crash one now and then, leaving a slot that never
+        // answered. Start a pool of four, five times over; each time all four must render at the same moment.
+        byte[] resume = aResume();
+        for (int round = 0; round < 5; round++) {
+            LibreOfficePool p = new LibreOfficePool(config(4, 200, 30_000));
+            try {
+                var executor = java.util.concurrent.Executors.newFixedThreadPool(4);
+                var futures = new java.util.ArrayList<java.util.concurrent.Future<byte[]>>();
+                for (int i = 0; i < 4; i++) {
+                    futures.add(executor.submit(() -> p.toPdf(resume)));
+                }
+                for (var f : futures) {
+                    assertThat(f.get(25, java.util.concurrent.TimeUnit.SECONDS)).isNotEmpty();
+                }
+                executor.shutdown();
+            } finally {
+                p.close();
+            }
+        }
     }
 
     @Test

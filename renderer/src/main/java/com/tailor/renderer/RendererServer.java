@@ -32,11 +32,7 @@ public final class RendererServer implements AutoCloseable {
     private final DocxConverter converter;
     private final HttpServer http;
     private final ExecutorService requests;
-    private final ExecutorService health = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "renderer-health");
-        t.setDaemon(true);
-        return t;
-    });
+    private final ExecutorService health;
     private final byte[] healthDocx = HealthFixture.docx();
 
     public RendererServer(RendererConfig config, DocxConverter converter) throws IOException {
@@ -46,6 +42,13 @@ public final class RendererServer implements AutoCloseable {
         // One thread per pooled process, plus headroom so /health and /version stay answerable
         // while every process is busy.
         this.requests = Executors.newFixedThreadPool(config.poolSize() + 2);
+        // The health check renders the fixture once per pooled process, all at the same time, so a process that
+        // has stopped answering cannot hide behind the others.
+        this.health = Executors.newFixedThreadPool(Math.max(1, config.poolSize()), r -> {
+            Thread t = new Thread(r, "renderer-health");
+            t.setDaemon(true);
+            return t;
+        });
         http.setExecutor(requests);
         http.createContext("/render", this::render);
         http.createContext("/version", this::version);
@@ -112,20 +115,28 @@ public final class RendererServer implements AutoCloseable {
 
     private void health(HttpExchange ex) throws IOException {
         try (ex) {
-            Future<byte[]> check = health.submit(() -> converter.toPdf(healthDocx));
-            try {
-                byte[] pdf = check.get(config.healthTimeoutMs(), TimeUnit.MILLISECONDS);
-                if (pdf.length > 0) {
-                    json(ex, 200, "{\"status\":\"ok\"}");
-                    return;
-                }
-                json(ex, 503, "{\"status\":\"empty\"}");
-            } catch (TimeoutException e) {
-                check.cancel(true);
-                json(ex, 503, "{\"status\":\"slow\"}");
-            } catch (Exception e) {
-                json(ex, 503, "{\"status\":\"failing\"}");
+            int n = Math.max(1, config.poolSize());
+            java.util.List<Future<byte[]>> checks = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                checks.add(health.submit(() -> converter.toPdf(healthDocx)));
             }
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(config.healthTimeoutMs());
+            String status = "ok";
+            for (Future<byte[]> check : checks) {
+                try {
+                    long left = Math.max(1, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()));
+                    byte[] pdf = check.get(left, TimeUnit.MILLISECONDS);
+                    if (pdf.length == 0) {
+                        status = "empty";
+                    }
+                } catch (TimeoutException e) {
+                    check.cancel(true);
+                    status = "slow";
+                } catch (Exception e) {
+                    status = "failing";
+                }
+            }
+            json(ex, "ok".equals(status) ? 200 : 503, "{\"status\":\"" + status + "\"}");
         }
     }
 

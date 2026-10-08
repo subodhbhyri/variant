@@ -35,6 +35,11 @@ public final class LibreOfficePool implements DocxConverter {
     private final String version;
 
     public LibreOfficePool(RendererConfig config) {
+        this(config, true);
+    }
+
+    /** {@code verifyOnStart == false} skips the startup self-test; only a test of the timeout itself needs that. */
+    LibreOfficePool(RendererConfig config, boolean verifyOnStart) {
         this.requestRoot = config.scratchRoot().resolve("requests");
         Path officeRoot = config.scratchRoot().resolve("office");
         try {
@@ -46,25 +51,125 @@ public final class LibreOfficePool implements DocxConverter {
         // A restart of the renderer must not inherit the previous run's leftovers.
         deleteContents(requestRoot);
 
-        // The pool is as big as the port list: one office process per port.
+        warmUp(config.officeHome(), officeRoot);
+
+        // Starting several LibreOffice processes at the same moment can crash one of them (measured: "Signal 6"
+        // at startup), which would leave a slot that never answers and makes every other request wait out the
+        // render timeout. So: fail fast if a process won't start, prove every process renders before the pool is
+        // used, and if either fails, stop everything and start again.
+        OfficeManager started = null;
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= START_ATTEMPTS && started == null; attempt++) {
+            OfficeManager candidate = build(config, officeRoot);
+            try {
+                candidate.start();
+                if (verifyOnStart) {
+                    selfTest(candidate, config);
+                }
+                started = candidate;
+            } catch (OfficeException | RuntimeException e) {
+                lastFailure = new IllegalStateException("LibreOffice did not start cleanly: " + e.getClass().getSimpleName(), e);
+                log.warn("renderer pool start attempt {} of {} failed: {}", attempt, START_ATTEMPTS, e.getClass().getSimpleName());
+                stopQuietly(candidate);
+                sleepQuietly(1000L * attempt);
+            }
+        }
+        if (started == null) {
+            throw lastFailure != null ? lastFailure : new IllegalStateException("LibreOffice could not be started");
+        }
+        this.manager = started;
+        this.version = probeVersion(config.officeHome());
+        log.info("renderer pool started: size={} maxTasksPerProcess={} timeoutMs={} libreoffice={}",
+                config.poolSize(), config.maxTasksPerProcess(), config.renderTimeoutMs(), version);
+    }
+
+    private static final int START_ATTEMPTS = 3;
+
+    /** One office process per port; the pool is as big as the port list. */
+    private OfficeManager build(RendererConfig config, Path officeRoot) {
         LocalOfficeManager.Builder builder = LocalOfficeManager.builder()
                 .portNumbers(IntStream.range(FIRST_PORT, FIRST_PORT + config.poolSize()).toArray())
                 .maxTasksPerProcess(config.maxTasksPerProcess())
                 .taskExecutionTimeout(config.renderTimeoutMs())
                 .taskQueueTimeout(config.renderTimeoutMs())
+                .startFailFast(true)
                 .workingDir(officeRoot.toFile());
         if (config.officeHome() != null && !config.officeHome().isBlank()) {
             builder.officeHome(config.officeHome());
         }
-        this.manager = builder.build();
+        return builder.build();
+    }
+
+    /** Every process must produce a PDF now (all at once), or the start is not clean. */
+    private void selfTest(OfficeManager candidate, RendererConfig config) throws OfficeException {
+        byte[] fixture = HealthFixture.docx();
+        java.util.List<java.util.concurrent.Future<Boolean>> results = new java.util.ArrayList<>();
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(config.poolSize());
         try {
-            manager.start();
-        } catch (OfficeException e) {
-            throw new IllegalStateException("could not start LibreOffice: " + e.getClass().getSimpleName(), e);
+            for (int i = 0; i < config.poolSize(); i++) {
+                results.add(pool.submit(() -> {
+                    Path dir = requestRoot.resolve("selftest-" + UUID.randomUUID());
+                    try {
+                        Files.createDirectory(dir);
+                        File in = dir.resolve("input.docx").toFile();
+                        File out = dir.resolve("output.pdf").toFile();
+                        Files.write(in.toPath(), fixture);
+                        LocalConverter.make(candidate).convert(in).to(out).execute();
+                        return out.length() > 0;
+                    } finally {
+                        deleteTree(dir);
+                    }
+                }));
+            }
+            for (var r : results) {
+                if (!Boolean.TRUE.equals(r.get(config.renderTimeoutMs() + 10_000, TimeUnit.MILLISECONDS))) {
+                    throw new IllegalStateException("a LibreOffice process produced no PDF");
+                }
+            }
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            throw new IllegalStateException("a LibreOffice process did not answer: " + e.getClass().getSimpleName(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        } finally {
+            pool.shutdownNow();
         }
-        this.version = probeVersion(config.officeHome());
-        log.info("renderer pool started: size={} maxTasksPerProcess={} timeoutMs={} libreoffice={}",
-                config.poolSize(), config.maxTasksPerProcess(), config.renderTimeoutMs(), version);
+    }
+
+    /** Starts and stops one throwaway LibreOffice, so first-run work is not done by several processes at once. */
+    private static void warmUp(String officeHome, Path officeRoot) {
+        String soffice = officeHome == null || officeHome.isBlank() ? "soffice" : officeHome + "/program/soffice";
+        Path profile = officeRoot.resolve("warm-up-" + UUID.randomUUID());
+        try {
+            Process p = new ProcessBuilder(soffice, "--headless", "--norestore", "--terminate_after_init",
+                    "-env:UserInstallation=file://" + profile.toAbsolutePath()).redirectErrorStream(true).start();
+            p.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
+            if (!p.waitFor(60, TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+            }
+        } catch (IOException e) {
+            log.warn("LibreOffice warm-up could not run: {}", e.getClass().getSimpleName());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            deleteTree(profile);
+        }
+    }
+
+    private static void stopQuietly(OfficeManager m) {
+        try {
+            m.stop();
+        } catch (OfficeException | RuntimeException ignored) {
+            // best effort: the next attempt starts its own processes
+        }
+    }
+
+    private static void sleepQuietly(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
