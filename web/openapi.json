@@ -275,10 +275,9 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
-            "type" : [ "integer" ],
+            "type" : "integer",
             "format" : "int32",
-            "default" : 50,
-            "example" : null
+            "default" : 50
           }
         } ],
         "responses" : {
@@ -934,6 +933,117 @@
         "summary" : "Renders an alternative on request. 202 with a job; 200 with the snapshot if it is already rendered.",
         "tags" : [ "snapshot-controller" ]
       }
+    },
+    "/snapshots/{id}/revisions" : {
+      "post" : {
+        "operationId" : "createRevision",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Accepted"
+                }
+              }
+            },
+            "description" : "Queued: snapshot_id is the revision's id once the job succeeds."
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "EDIT_TOO_LONG or SLOT_LOCKED"
+          }
+        },
+        "summary" : "Applies edits as a NEW snapshot (a revision of this one): the edits are applied to this snapshot's document, every one is re-checked, the whole document is verified, and only then is the revision created. The snapshot being edited never changes. If a check or the verification fails nothing is created and the job's rejected result names the slot and the reason (TOO_LONG or VERIFY_FAILED).",
+        "tags" : [ "edit-controller" ]
+      }
+    },
+    "/snapshots/{id}/slots/{slot}/check" : {
+      "post" : {
+        "operationId" : "checkSlot",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slot",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "EDIT_TOO_LONG or SLOT_LOCKED"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RATE_LIMITED"
+          }
+        },
+        "summary" : "Checks one bullet's new text: the parent is rendered with just that slot replaced (one render) and the verdict is FITS, FITS_WITH_PADDING or TOO_LONG. Synchronous (about a second); 30 a minute. Empty text is a blank and always fits. Text is normalized first (trimmed, newlines and tabs to spaces, spaces collapsed, at most 1,000 characters).",
+        "tags" : [ "edit-controller" ]
+      }
     }
   },
   "components" : {
@@ -942,6 +1052,20 @@
         "properties" : {
           "fontChoice" : {
             "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "Accepted" : {
+        "properties" : {
+          "jobId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          },
+          "snapshotId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
             "example" : null
           }
         }
@@ -960,6 +1084,27 @@
             "example" : null
           },
           "message" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "CheckRequest" : {
+        "properties" : {
+          "text" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "EditRequest" : {
+        "properties" : {
+          "slot" : {
+            "type" : [ "integer" ],
+            "format" : "int32",
+            "example" : null
+          },
+          "text" : {
             "type" : [ "string" ],
             "example" : null
           }
@@ -1062,6 +1207,18 @@
           "title" : {
             "type" : [ "string" ],
             "example" : null
+          }
+        }
+      },
+      "RevisionRequest" : {
+        "properties" : {
+          "edits" : {
+            "type" : [ "array" ],
+            "example" : null,
+            "items" : {
+              "$ref" : "#/components/schemas/EditRequest",
+              "example" : null
+            }
           }
         }
       },

@@ -8,6 +8,8 @@ import com.tailor.engine.match.Embedder;
 import com.tailor.engine.match.JdCache;
 import com.tailor.engine.match.JdParser;
 import com.tailor.engine.match.JobDescription;
+import com.tailor.engine.onboard.OnboardReport;
+import com.tailor.web.edit.SnapshotSlots;
 import com.tailor.web.api.ApiException;
 import com.tailor.web.generation.LibraryRepository;
 import com.tailor.web.generation.LibraryService;
@@ -64,7 +66,8 @@ public class MatchService {
     }
 
     /** {@code score} is the engine's total for this resume. {@code label} has project ids replaced by titles. */
-    public record SnapshotSummary(UUID id, int rank, String label, Double score, String status, UUID parentId) {
+    public record SnapshotSummary(UUID id, int rank, String label, Double score, String status, UUID parentId,
+            UUID latestId) {
     }
 
     public record InfeasibleView(String project, String position, String reason) {
@@ -87,10 +90,12 @@ public class MatchService {
     private final FileStorage storage;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final SnapshotSlots slots;
 
     public MatchService(MatchRepository matches, ResumeRepository resumes, LibraryRepository libraries,
             LibraryService libraryService, JobService jobs, RateLimiter limiter, FileStorage storage,
-            TransactionTemplate tx, Clock clock) {
+            TransactionTemplate tx, Clock clock, SnapshotSlots slots) {
+        this.slots = slots;
         this.matches = matches;
         this.resumes = resumes;
         this.libraries = libraries;
@@ -228,7 +233,7 @@ public class MatchService {
         for (Snapshot s : originals) {
             Double score = score(result, s.rank());
             summaries.add(new SnapshotSummary(s.id(), s.rank(), LabelResolver.resolve(s.label(), titles), score,
-                    s.status(), s.parentId()));
+                    s.status(), s.parentId(), matches.latestInChain(s.id(), userId)));
         }
         List<String> missing = new ArrayList<>();
         result.path("missing").forEach(m -> missing.add(m.asText()));
@@ -249,8 +254,20 @@ public class MatchService {
 
     // ---- snapshots -----------------------------------------------------------------------------
 
+    /** A bullet of the snapshot. {@code hintChars} (named as in the onboarding report) is an estimate only. */
+    public record SlotView(int slot, String kind, String position, String text, Integer lines,
+            @com.fasterxml.jackson.annotation.JsonProperty("hintChars") Integer hintChars, boolean editable,
+            String lockReason) {
+    }
+
+    /**
+     * {@code slots}: the job and project bullets. {@code edits}: what this revision changed (null for an original).
+     * {@code revisions}: its direct revisions; {@code latestRevisionId}: the newest one in its whole tree, which is
+     * the one to offer for download by default (this snapshot's own id when it has no revisions).
+     */
     public record SnapshotView(UUID id, int rank, String label, String status, UUID parentId, UUID matchId,
-            JsonNode assembly, List<ProjectView> projects, List<UUID> revisions, Instant createdAt) {
+            JsonNode assembly, List<ProjectView> projects, List<SlotView> slots, JsonNode edits, List<UUID> revisions,
+            UUID latestRevisionId, Instant createdAt) {
     }
 
     public record ProjectView(String position, String projectId, String title, JsonNode bullets, Double score) {
@@ -265,8 +282,25 @@ public class MatchService {
                 p.path("project").asText(null), titles.get(p.path("project").asText()), p.path("bullets"),
                 p.hasNonNull("score") ? p.path("score").asDouble() : null)));
         List<UUID> revisions = matches.revisionsOf(s.id(), userId).stream().map(Snapshot::id).toList();
+        List<SlotView> slotViews = new ArrayList<>();
+        if (Snapshot.RENDERED.equals(s.status())) {
+            OnboardReport report = report(match, userId);
+            for (SnapshotSlots.SlotInfo i : slots.of(s, report)) {
+                if (!"other".equals(i.kind())) {
+                    slotViews.add(new SlotView(i.slot(), i.kind(), i.position(), i.text(), i.lines(), i.hintChars(),
+                            i.editable(), i.editable() ? null : i.lockReason()));
+                }
+            }
+        }
         return new SnapshotView(s.id(), s.rank(), LabelResolver.resolve(s.label(), titles), s.status(), s.parentId(),
-                s.matchId(), s.assembly(), projects, revisions, s.createdAt());
+                s.matchId(), s.assembly(), projects, slotViews, s.edits(), revisions, matches.latestInChain(s.id(), userId),
+                s.createdAt());
+    }
+
+    private OnboardReport report(Match match, UUID userId) {
+        LibraryRepository.Library library = libraries.find(match.libraryId(), userId).orElseThrow(ApiException::notFound);
+        return com.tailor.web.generation.IntakeService.reportOf(
+                resumes.findForUser(library.resumeId(), userId).orElseThrow(ApiException::notFound));
     }
 
     public FileStorage.PresignedLink pdfLink(UUID snapshotId, UUID userId, Duration ttl) {

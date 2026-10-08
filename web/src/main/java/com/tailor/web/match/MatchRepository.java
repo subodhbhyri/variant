@@ -101,6 +101,16 @@ public class MatchRepository {
                 (rs, n) -> snapshot(rs), matchId, userId);
     }
 
+    /** The most recently created snapshot in {@code id}'s tree (itself if it has no revisions): the one to offer by default. */
+    public UUID latestInChain(UUID id, UUID userId) {
+        List<UUID> found = jdbc.queryForList(
+                "WITH RECURSIVE tree AS (SELECT id, created_at FROM snapshots WHERE id = ? AND user_id = ?"
+                        + " UNION ALL SELECT s.id, s.created_at FROM snapshots s JOIN tree t ON s.parent_id = t.id"
+                        + " WHERE s.user_id = ?) SELECT id FROM tree ORDER BY created_at DESC, id DESC LIMIT 1",
+                UUID.class, id, userId, userId);
+        return found.isEmpty() ? id : found.get(0);
+    }
+
     /** {@code parentId}'s revisions, oldest first. */
     public List<Snapshot> revisionsOf(UUID parentId, UUID userId) {
         return jdbc.query("SELECT * FROM snapshots WHERE parent_id = ? AND user_id = ? ORDER BY created_at, id",
