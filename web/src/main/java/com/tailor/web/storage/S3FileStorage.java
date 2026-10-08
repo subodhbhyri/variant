@@ -76,8 +76,11 @@ public class S3FileStorage implements FileStorage {
                             .region(Region.of(props.region()))
                             .credentialsProvider(DefaultCredentialsProvider.create())
                             .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(props.pathStyle()).build());
-                    if (props.endpoint() != null && !props.endpoint().isBlank()) {
-                        builder.endpointOverride(URI.create(props.endpoint()));
+                    // Links go to the user's browser, so they are signed for the address the browser can reach.
+                    String linkEndpoint = props.publicEndpoint() != null && !props.publicEndpoint().isBlank()
+                            ? props.publicEndpoint() : props.endpoint();
+                    if (linkEndpoint != null && !linkEndpoint.isBlank()) {
+                        builder.endpointOverride(URI.create(linkEndpoint));
                     }
                     presigner = builder.build();
                 }

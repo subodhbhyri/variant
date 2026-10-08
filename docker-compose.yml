@@ -58,6 +58,7 @@ services:
       DATABASE_USER: tailor
       DATABASE_PASSWORD: tailor
       S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
       S3_BUCKET: tailor-files
       S3_PATH_STYLE: "true"
       S3_CREATE_BUCKET: "true"
@@ -65,9 +66,20 @@ services:
       AWS_SECRET_ACCESS_KEY: tailor-secret
       AWS_REGION: us-east-1
       RENDERER_URL: http://renderer:8090
+      # Local development only (the api refuses these in APP_ENV=prod):
+      APP_ENV: dev
+      APP_COOKIE_SECURE: "false"
+      APP_MAIL_MODE: log
+      # Replays Phase 4's recorded model answers (Jane Doe's resume) so the whole flow runs without an Anthropic key.
+      # Remove this line and set ANTHROPIC_API_KEY to generate for real.
+      APP_RECORDED_GENERATION_FILE: /fixtures/phase4/recorded_responses.json
+    volumes:
+      - ./fixtures/phase4:/fixtures/phase4:ro
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "8080:8080"
 
@@ -78,9 +90,13 @@ services:
     environment:
       <<: *app-env
       APP_ROLE: worker
+    volumes:
+      - ./fixtures/phase4:/fixtures/phase4:ro
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
       renderer:
         condition: service_started
     networks: [default, internal]

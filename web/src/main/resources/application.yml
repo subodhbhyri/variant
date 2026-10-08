@@ -1,6 +1,8 @@
 app:
   # api (default) or worker: one image, one environment variable (PHASE6_SPEC.md section 2).
   role: ${APP_ROLE:api}
+  # prod refuses the development-only modes below (mail.mode=log, generation.recorded-file).
+  env: ${APP_ENV:dev}
   # Where the api is reached from outside (sign-in links, the Google redirect URI) and the SPA's origin.
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
@@ -16,6 +18,9 @@ app:
     # Sign-in with Google stays off until a client id is set.
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
+  generation:
+    # Local smoke runs only: replay recorded model answers (a recorded_responses.json) instead of calling Anthropic.
+    recorded-file: ${APP_RECORDED_GENERATION_FILE:}
   renderer:
     # The renderer service (PHASE6_SPEC.md section 2.1); only the worker uses it.
     url: ${RENDERER_URL:}
@@ -26,6 +31,7 @@ app:
     bucket: ${S3_BUCKET:tailor-files}
     # Only for MinIO in development: an endpoint, path-style addressing, and creating the bucket.
     endpoint: ${S3_ENDPOINT:}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:}
     path-style: ${S3_PATH_STYLE:false}
     region: ${AWS_REGION:us-east-1}
     sse: ${S3_SSE:}

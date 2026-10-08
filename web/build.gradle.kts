@@ -26,6 +26,8 @@ dependencies {
     // Section 3/10: files in a private S3 bucket (MinIO in development).
     implementation(platform("software.amazon.awssdk:bom:2.28.16"))
     implementation("software.amazon.awssdk:s3")
+    // Section 10: email sign-in links through SES.
+    implementation("software.amazon.awssdk:sesv2")
 
     // Section 4: OpenAPI 3.1 generated from the code. API docs only, no Swagger UI.
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.6.0")

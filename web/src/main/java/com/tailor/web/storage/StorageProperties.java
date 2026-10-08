@@ -13,6 +13,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record StorageProperties(
         @DefaultValue("tailor-files") String bucket,
         String endpoint,
+        /** Only for MinIO: the address a browser reaches it at, when that differs from {@code endpoint} (links are signed for it). */
+        String publicEndpoint,
         @DefaultValue("us-east-1") String region,
         @DefaultValue("false") boolean pathStyle,
         @DefaultValue("") String sse,

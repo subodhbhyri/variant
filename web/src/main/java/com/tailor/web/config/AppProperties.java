@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         @DefaultValue("api") String role,
+        /** {@code dev} or {@code prod}. Local-development conveniences (links in the log, recorded model answers) refuse to run in {@code prod}. */
+        @DefaultValue("dev") String env,
         /** Where the api is reached from outside: used to build sign-in links and the OIDC redirect URI. */
         @DefaultValue("http://localhost:8080") String publicBaseUrl,
         /** The SPA's origin: successful and failed browser sign-ins end here; the only CORS origin. */
