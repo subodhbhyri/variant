@@ -23,6 +23,18 @@ public final class Fixtures {
         return dir("TAILOR_PHASE2_FIXTURES_DIR", "/app/fixtures/phase2");
     }
 
+    public static Path phase3() {
+        return dir("TAILOR_PHASE3_FIXTURES_DIR", "/app/fixtures/phase3");
+    }
+
+    public static byte[] phase3(String name) {
+        try {
+            return Files.readAllBytes(phase3().resolve(name));
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     public static Path phase4() {
         return dir("TAILOR_PHASE4_FIXTURES_DIR", "/app/fixtures/phase4");
     }

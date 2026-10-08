@@ -1,6 +1,8 @@
 package com.tailor.engine.match;
 
 import com.tailor.engine.blocks.BatchAssembler;
+import com.tailor.engine.progress.ProgressListener;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -22,6 +24,7 @@ public final class PipelineTiming implements BatchAssembler.Timing {
     private final long rendersAtStart;
     private final long startNanos = System.nanoTime();
     private final List<Stage> stages = new ArrayList<>();
+    private ProgressListener listener = ProgressListener.NONE;
 
     public PipelineTiming(CountingRenderer counter) {
         this.counter = counter;
@@ -30,6 +33,30 @@ public final class PipelineTiming implements BatchAssembler.Timing {
 
     public PipelineTiming() {
         this(null);
+    }
+
+    /** Tells {@code listener} the stages a caller is told about (PHASE6_SPEC.md revision 3), as they happen. */
+    public PipelineTiming listener(ProgressListener listener) {
+        this.listener = listener == null ? ProgressListener.NONE : listener;
+        return this;
+    }
+
+    public ProgressListener listener() {
+        return listener;
+    }
+
+    @Override
+    public void placed(String position, String project) {
+        listener.progress("place_projects", Map.of("position", position, "project", project));
+    }
+
+    @Override
+    public void marker(String stage, boolean start) {
+        if (start) {
+            listener.started(stage, Map.of());
+        } else {
+            listener.finished(stage, Map.of());
+        }
     }
 
     public <T> T time(String name, Callable<T> work) throws Exception {

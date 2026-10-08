@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tailor.engine.blocks.BlocksAnalyzer;
+import com.tailor.engine.blocks.BlocksReport;
+import com.tailor.engine.blocks.SectionRoles;
 import com.tailor.engine.gate.GateMessages;
 import com.tailor.engine.gate.GateResult;
 import com.tailor.engine.gate.UploadGate;
@@ -15,6 +18,9 @@ import com.tailor.web.jobs.JobType;
 import com.tailor.web.storage.FileStorage;
 import com.tailor.web.storage.StorageKeys;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -160,10 +166,12 @@ public class ResumeService {
     }
 
     /**
-     * Confirms a section's role. The engine decides roles itself from the heading text everywhere it
-     * uses them (analysis, swapping, generation) and has no way to take a different role from the
-     * user, so only the suggested role can be confirmed; anything else is refused instead of being
-     * recorded and then silently ignored downstream.
+     * Confirms or changes a section's role (PHASE6_SPEC.md section 4.2, revision 3). Confirming the role the section
+     * already has changes nothing. A different role is handed to the engine's one role resolver
+     * ({@link SectionRoles}) and the position analysis is run again on the stored normalized document, so the
+     * sections, positions and every later step (intake, generation, matching) use it. No new onboarding is needed.
+     * Intake answers and the library are built on the positions, so once either exists the role is fixed
+     * ({@code ROLE_CHANGE_TOO_LATE}).
      */
     public List<SectionView> confirmRole(UUID resumeId, UUID userId, String key, String role) {
         Resume r = get(resumeId, userId);
@@ -171,15 +179,88 @@ public class ResumeService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "The role must be projects, experience or other.",
                     Map.of("field", "role"));
         }
-        ResumeRepository.SectionRole section = resumes.sections(resumeId, userId).stream()
+        List<ResumeRepository.SectionRole> sections = resumes.sections(resumeId, userId);
+        ResumeRepository.SectionRole section = sections.stream()
                 .filter(s -> s.key().equals(key)).findFirst().orElseThrow(ApiException::notFound);
-        if (!role.equals(section.suggestedRole())) {
-            throw new ApiException(HttpStatus.CONFLICT, "ROLE_CHANGE_UNSUPPORTED",
-                    "This section was recognised as '" + section.suggestedRole() + "'. Changing it isn't supported yet.",
-                    Map.of("suggested", section.suggestedRole(), "requested", role));
+        String current = section.confirmedRole() != null ? section.confirmedRole() : section.suggestedRole();
+        if (role.equals(current)) {
+            resumes.confirmRole(resumeId, userId, key, role);
+            return sectionViews(get(resumeId, userId));
         }
-        resumes.confirmRole(resumeId, userId, key, role);
+        if (!Resume.READY.equals(r.status()) && !Resume.ACCEPTED.equals(r.status())) {
+            throw new ApiException(HttpStatus.CONFLICT, "RESUME_NOT_READY", "This resume's sections can't be changed yet.",
+                    Map.of("status", r.status()));
+        }
+        if (resumes.hasIntakeOrLibrary(resumeId, userId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "ROLE_CHANGE_TOO_LATE",
+                    "Roles can't be changed once you have started the intake or generated material: upload the resume again to start over.");
+        }
+
+        // The role chosen for every heading whose role is not the vocabulary's suggestion, with this change.
+        Map<String, String> headings = headingsByKey(r);
+        Map<String, String> chosen = new LinkedHashMap<>();
+        for (ResumeRepository.SectionRole s : sections) {
+            String effective = s.key().equals(key) ? role : (s.confirmedRole() != null ? s.confirmedRole() : s.suggestedRole());
+            String heading = headings.get(s.key());
+            if (heading != null && !effective.equals(s.suggestedRole())) {
+                chosen.put(heading, effective);
+            }
+        }
+
+        BlocksReport blocks;
+        Path work = null;
+        try {
+            work = Files.createTempFile("roles-", ".docx");
+            Files.write(work, storage.get(r.normalizedKey()));
+            blocks = BlocksAnalyzer.analyze(work, SectionRoles.of(chosen));
+        } catch (IOException e) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Something went wrong. Please try again.");
+        } finally {
+            if (work != null) {
+                try {
+                    Files.deleteIfExists(work);
+                } catch (IOException ignored) {
+                    // a temp file
+                }
+            }
+        }
+        if (blocks.sections().size() != sections.size()) {
+            throw new ApiException(HttpStatus.CONFLICT, "ROLE_CHANGE_UNSUPPORTED",
+                    "That role would change which parts of the resume are sections.",
+                    Map.of("requested", role));
+        }
+
+        ObjectNode report = r.onboardJson().deepCopy();
+        if (chosen.isEmpty()) {
+            report.remove("sectionRoles");
+        } else {
+            ObjectNode roles = report.putObject("sectionRoles");
+            chosen.forEach(roles::put);
+        }
+        // Sections that share a heading follow the same choice: keep their confirmed roles consistent with the engine.
+        Map<String, String> confirmed = new LinkedHashMap<>();
+        for (int i = 0; i < sections.size(); i++) {
+            ResumeRepository.SectionRole s = sections.get(i);
+            String effective = blocks.sections().get(i).role();
+            String was = s.confirmedRole() != null ? s.confirmedRole() : s.suggestedRole();
+            if (s.key().equals(key) || !effective.equals(was)) {
+                confirmed.put(s.key(), effective);
+            }
+        }
+        JsonNode blocksJson = OnboardHandler.BLOCKS_JSON.valueToTree(blocks);
+        tx.executeWithoutResult(status -> resumes.applyRoleChange(resumeId, userId, report, blocksJson, confirmed));
         return sectionViews(get(resumeId, userId));
+    }
+
+    private static Map<String, String> headingsByKey(Resume r) {
+        Map<String, String> headings = new java.util.HashMap<>();
+        if (r.blocksJson() != null) {
+            int i = 0;
+            for (JsonNode s : r.blocksJson().path("sections")) {
+                headings.put("s" + i++, s.path("heading").asText());
+            }
+        }
+        return headings;
     }
 
     /** The user approves the normalized preview: the resume becomes the active one; any other is archived. */

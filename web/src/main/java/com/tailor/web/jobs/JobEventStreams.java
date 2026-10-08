@@ -30,7 +30,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class JobEventStreams {
 
     static final int MAX_STREAMS_PER_USER = 5;
-    private static final long POLL_MS = 500;
+    private static final long POLL_MS = 250;
     private static final long KEEPALIVE_MS = 15_000;
     private static final long MAX_STREAM_MS = 15 * 60_000;
 
@@ -50,7 +50,7 @@ public class JobEventStreams {
         this.json = json;
     }
 
-    public SseEmitter open(UUID jobId, UUID userId) {
+    public SseEmitter open(UUID jobId, UUID userId, int afterSeq) {
         AtomicInteger open = openByUser.computeIfAbsent(userId, u -> new AtomicInteger());
         if (open.incrementAndGet() > MAX_STREAMS_PER_USER) {
             open.decrementAndGet();
@@ -58,7 +58,7 @@ public class JobEventStreams {
                     "Too many open progress streams. Close one and try again.");
         }
         SseEmitter emitter = new SseEmitter(MAX_STREAM_MS);
-        Stream stream = new Stream(jobId, userId, emitter, open);
+        Stream stream = new Stream(jobId, userId, emitter, open, afterSeq);
         stream.future = scheduler.scheduleWithFixedDelay(stream::tick, 0, POLL_MS, TimeUnit.MILLISECONDS);
         emitter.onCompletion(stream::close);
         emitter.onTimeout(stream::close);
@@ -74,9 +74,11 @@ public class JobEventStreams {
         private volatile ScheduledFuture<?> future;
         private volatile boolean closed;
         private String lastSent;
+        private int lastSeq;
         private long lastWrite = System.currentTimeMillis();
 
-        Stream(UUID jobId, UUID userId, SseEmitter emitter, AtomicInteger open) {
+        Stream(UUID jobId, UUID userId, SseEmitter emitter, AtomicInteger open, int afterSeq) {
+            this.lastSeq = afterSeq;
             this.jobId = jobId;
             this.userId = userId;
             this.emitter = emitter;
@@ -94,7 +96,23 @@ public class JobEventStreams {
                     return;
                 }
                 Job job = found.get();
-                JsonNode view = json.valueToTree(JobController.JobView.of(job));
+                // Every event the worker has stored and this client has not seen, in order, as it was recorded.
+                boolean sentEvent = false;
+                if (job.events() != null) {
+                    for (JsonNode event : job.events()) {
+                        int seq = event.path("seq").asInt();
+                        if (seq > lastSeq) {
+                            emitter.send(SseEmitter.event().id(String.valueOf(seq)).name("progress")
+                                    .data(json.writeValueAsString(event), MediaType.APPLICATION_JSON));
+                            lastSeq = seq;
+                            sentEvent = true;
+                        }
+                    }
+                }
+                if (sentEvent) {
+                    lastWrite = System.currentTimeMillis();
+                }
+                JsonNode view = json.valueToTree(JobController.JobView.of(job).withoutEvents());
                 String text = json.writeValueAsString(view);
                 if (!text.equals(lastSent)) {
                     emitter.send(SseEmitter.event().name("job").data(text, MediaType.APPLICATION_JSON));

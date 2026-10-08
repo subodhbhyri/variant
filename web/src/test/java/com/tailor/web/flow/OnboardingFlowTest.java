@@ -229,31 +229,95 @@ class OnboardingFlowTest extends FlowTestBase {
     }
 
     @Test
-    void sectionRolesCanBeConfirmedAsSuggestedButNotChanged() throws Exception {
+    void confirmingTheSuggestedRoleChangesNothingAndBadRequestsAreRefused() throws Exception {
         TestBrowser b = signedInBrowser(uniqueEmail());
         Uploaded up = upload(b, "proj.docx", Files.readAllBytes(Fixtures.corpusDocx().get(0)));
         runJobs();
-        JsonNode sections = resume(b, up.resumeId()).path("sections");
-        JsonNode first = sections.get(0);
+        JsonNode before = resume(b, up.resumeId());
+        JsonNode first = before.path("sections").get(0);
         String key = first.path("key").asText();
         String suggested = first.path("suggested_role").asText();
         assertThat(first.path("confirmed_role").isNull() || first.path("confirmed_role").isMissingNode()).isTrue();
 
-        TestBrowser.Response confirm = b.putJson("/resumes/" + up.resumeId() + "/sections/" + key + "/role", "{\"role\":\"" + suggested + "\"}");
+        TestBrowser.Response confirm = setRole(b, up.resumeId(), key, suggested);
         assertThat(confirm.status()).isEqualTo(200);
         assertThat(JSON.readTree(confirm.body()).get(0).path("confirmed_role").asText()).isEqualTo(suggested);
+        assertThat(resume(b, up.resumeId()).path("blocks")).isEqualTo(before.path("blocks"));
 
-        String other = suggested.equals("other") ? "projects" : "other";
-        TestBrowser.Response change = b.putJson("/resumes/" + up.resumeId() + "/sections/" + key + "/role", "{\"role\":\"" + other + "\"}");
-        assertThat(change.status()).isEqualTo(409);
-        JsonNode error = JSON.readTree(change.body());
-        assertThat(error.path("code").asText()).isEqualTo("ROLE_CHANGE_UNSUPPORTED");
-        assertThat(error.path("details").path("suggested").asText()).isEqualTo(suggested);
+        assertThat(setRole(b, up.resumeId(), key, "nonsense").status()).isEqualTo(400);
+        assertThat(setRole(b, up.resumeId(), "s999", "other").status()).isEqualTo(404);
+    }
 
-        assertThat(b.putJson("/resumes/" + up.resumeId() + "/sections/" + key + "/role", "{\"role\":\"nonsense\"}").status()).isEqualTo(400);
-        assertThat(b.putJson("/resumes/" + up.resumeId() + "/sections/s999/role", "{\"role\":\"other\"}").status()).isEqualTo(404);
-        // The refused change left the confirmed role as it was.
-        assertThat(resume(b, up.resumeId()).path("sections").get(0).path("confirmed_role").asText()).isEqualTo(suggested);
+    private JsonNode sectionByHeading(JsonNode resume, String heading) {
+        for (JsonNode s : resume.path("sections")) {
+            if (heading.equalsIgnoreCase(s.path("heading").asText())) {
+                return s;
+            }
+        }
+        throw new AssertionError("no section " + heading + " in " + resume.path("sections"));
+    }
+
+    private TestBrowser.Response setRole(TestBrowser b, UUID resume, String key, String role) {
+        return b.putJson("/resumes/" + resume + "/sections/" + key + "/role", "{\"role\":\"" + role + "\"}");
+    }
+
+    private JsonNode storedReport(UUID resumeId) throws Exception {
+        return JSON.readTree(jdbc.queryForObject("SELECT onboard_json::text FROM resumes WHERE id = ?", String.class, resumeId));
+    }
+
+    /** PHASE6_SPEC.md revision 3: the user can change a section's role; the position analysis is run again. */
+    @Test
+    void aSectionRoleCanBeChangedAndThePositionsFollow() throws Exception {
+        TestBrowser b = signedInBrowser(uniqueEmail());
+        Uploaded up = upload(b, "proj.docx", Fixtures.phase3("projects_synthetic.docx"));
+        runJobs();
+        JsonNode original = resume(b, up.resumeId());
+        String projectsKey = sectionByHeading(original, "Projects").path("key").asText();
+        assertThat(sectionByHeading(original, "Projects").path("suggested_role").asText()).isEqualTo("projects");
+        assertThat(original.path("blocks").path("positions").size()).isGreaterThan(0);
+        JsonNode originalReport = storedReport(up.resumeId());
+        assertThat(originalReport.has("sectionRoles")).as("no choice, no extra field").isFalse();
+
+        // Projects to other: there is no projects section any more, and the choice is kept for every later step.
+        TestBrowser.Response changed = setRole(b, up.resumeId(), projectsKey, "other");
+        assertThat(changed.status()).as(changed.body()).isEqualTo(200);
+        JsonNode view = resume(b, up.resumeId());
+        assertThat(sectionByHeading(view, "Projects").path("confirmed_role").asText()).isEqualTo("other");
+        assertThat(sectionByHeading(view, "Projects").path("suggested_role").asText()).as("the suggestion is kept").isEqualTo("projects");
+        assertThat(view.path("blocks").path("positions")).isEmpty();
+        assertThat(view.path("blocks").path("projects_section").isNull() || view.path("blocks").path("projects_section").isMissingNode()).isTrue();
+        JsonNode report = storedReport(up.resumeId());
+        assertThat(report.path("sectionRoles").path("Projects").asText()).isEqualTo("other");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) report).remove("sectionRoles");
+        assertThat(report).as("everything else in the report is as onboarding made it").isEqualTo(originalReport);
+        assertThat(b.get("/resumes/" + up.resumeId() + "/intake").body()).doesNotContain("\"kind\":\"project\"");
+
+        // And back: the same positions as the vocabulary found, and the report as it was.
+        assertThat(setRole(b, up.resumeId(), projectsKey, "projects").status()).isEqualTo(200);
+        assertThat(resume(b, up.resumeId()).path("blocks")).isEqualTo(original.path("blocks"));
+        assertThat(storedReport(up.resumeId())).isEqualTo(originalReport);
+    }
+
+    @Test
+    void aSectionNoOneCalledProjectsCanBecomeAProjectsSection() throws Exception {
+        TestBrowser b = signedInBrowser(uniqueEmail());
+        Uploaded up = upload(b, "proj.docx", Fixtures.phase3("projects_synthetic.docx"));
+        runJobs();
+        JsonNode original = resume(b, up.resumeId());
+        String educationKey = sectionByHeading(original, "Education").path("key").asText();
+
+        assertThat(setRole(b, up.resumeId(), educationKey, "projects").status()).isEqualTo(200);
+
+        JsonNode view = resume(b, up.resumeId());
+        assertThat(sectionByHeading(view, "Education").path("confirmed_role").asText()).isEqualTo("projects");
+        assertThat(view.path("blocks").path("project_sections").size()).as("Education is a projects section too").isEqualTo(2);
+        // Roles are about this resume only.
+        TestBrowser other = signedInBrowser(uniqueEmail());
+        Uploaded theirs = upload(other, "proj.docx", Fixtures.phase3("projects_synthetic.docx"));
+        runJobs();
+        JsonNode theirEducation = sectionByHeading(resume(other, theirs.resumeId()), "Education");
+        assertThat(theirEducation.path("confirmed_role").isMissingNode() || theirEducation.path("confirmed_role").isNull()).isTrue();
+        assertThat(resume(other, theirs.resumeId()).path("blocks")).isEqualTo(original.path("blocks"));
     }
 
     @Test

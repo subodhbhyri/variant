@@ -4,6 +4,7 @@ import com.tailor.engine.blocks.BatchAssembler;
 import com.tailor.engine.blocks.BlockSwapper;
 import com.tailor.engine.blocks.LibraryProject;
 import com.tailor.engine.blocks.Position;
+import com.tailor.engine.blocks.SectionRoles;
 import com.tailor.engine.blocks.SwapOutcome;
 import com.tailor.engine.calibrate.BatchValidator;
 import com.tailor.engine.docx.DocxPackage;
@@ -180,12 +181,15 @@ public final class ResumeRenderer {
             }
         }
 
+        // The per-position path: the same two stages are reported (a stage can repeat when the engine retries).
+        timing.marker("place_projects", true);
         AssembledResume jobOnly = new AssembledResume(job, List.of(), null, null);
         Path jobStageOut = workDir.resolve("job-slots-" + System.nanoTime() + ".docx");
         RenderResult jobStage = timing.time("job slots",
                 () -> substituteJobSlots(normalizedDocx, report, jobOnly, jobCandidatesById, renderer, fontMap,
                         workDir, jobStageOut));
         if (!jobStage.ok()) {
+            timing.marker("place_projects", false);
             return new FailSoftResult(jobStage, null, null, rejections);
         }
 
@@ -200,13 +204,15 @@ public final class ResumeRenderer {
                 Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
                 String stageName = "swap " + assignment.position() + "=" + assignment.project();
                 BlockSwapper.Result result = timing.time(stageName,
-                        () -> BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut));
+                        () -> BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut,
+                                SectionRoles.of(report.sectionRoles())));
                 if (result.outcome() != SwapOutcome.OK) {
                     String reason = result.outcome() + (result.detail() == null ? "" : " (" + result.detail() + ")");
                     timing.note(stageName + " FAILED: " + reason);
                     return reason;
                 }
                 current[0] = stepOut;
+                timing.placed(assignment.position(), assignment.project());
                 return null;
             } catch (Exception e) {
                 throw new CompletionException(e);
@@ -219,17 +225,25 @@ public final class ResumeRenderer {
             projects = resolveAssignment(shapes, library, jd, skills, embedder, () -> current[0] = jobStageOut,
                     attemptSwap, degraded, timing);
         } catch (CompletionException e) {
+            timing.marker("place_projects", false);
             throw (Exception) e.getCause();
         }
+        timing.marker("place_projects", false);
         if (projects == null) {
             return new FailSoftResult(RenderResult.failed("no feasible project assignment for every position"),
                     null, null, rejections);
         }
 
         AssembledResume forVerify = new AssembledResume(job, projects, null, null);
-        RenderResult finalCheck = timing.time("final verification",
-                () -> FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
-                        jobCandidatesById, library, renderer, fontMap, workDir));
+        timing.marker("verify", true);
+        RenderResult finalCheck;
+        try {
+            finalCheck = timing.time("final verification",
+                    () -> FinalVerifier.verify(normalizedDocx, current[0], report, forVerify,
+                            jobCandidatesById, library, renderer, fontMap, workDir));
+        } finally {
+            timing.marker("verify", false);
+        }
         if (!finalCheck.ok()) {
             return new FailSoftResult(finalCheck, forVerify, null, rejections);
         }
@@ -338,7 +352,8 @@ public final class ResumeRenderer {
             DocxPackage basePkg = DocxPackage.open(current);
             Path stepOut = workDir.resolve("step-" + assignment.position() + "-" + System.nanoTime() + ".docx");
             BlockSwapper.Result result =
-                    BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut);
+                    BlockSwapper.swap(basePkg, positionIndex, selected, renderer, fontMap, workDir, stepOut,
+                            SectionRoles.of(report.sectionRoles()));
             if (result.outcome() != SwapOutcome.OK) {
                 String detail = result.detail() == null ? "" : " (" + result.detail() + ")";
                 return RenderResult.failed(

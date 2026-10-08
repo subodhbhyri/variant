@@ -127,6 +127,22 @@ public class GenerateHandler implements JobHandler {
                         public boolean cancelled() {
                             return context.cancelled();
                         }
+
+                        // One event per section, as the model works through them: ids, counts and cost only.
+                        @Override
+                        public void sectionStarted(String sectionId, String kind, int step, int of) {
+                            context.events().started("section", Map.of("section", sectionId, "kind", kind, "step", step, "of", of));
+                        }
+
+                        @Override
+                        public void sectionFinished(String sectionId, String status, int calls, double costUsd) {
+                            context.events().finished("section", Map.of("section", sectionId, "status", status, "calls", calls, "cost_usd", costUsd));
+                        }
+
+                        @Override
+                        public void sectionSkipped(String sectionId, String status) {
+                            context.events().progress("section", Map.of("section", sectionId, "status", status));
+                        }
                     });
             context.stage("storing");
             return store(resume, runId, only, result);

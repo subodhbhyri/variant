@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -84,6 +85,21 @@ public class ResumeRepository {
     public boolean confirmRole(UUID resumeId, UUID userId, String key, String role) {
         return jdbc.update("UPDATE section_roles SET confirmed_role = ? WHERE resume_id = ? AND user_id = ? AND section_key = ?",
                 role, resumeId, userId, key) == 1;
+    }
+
+    /** Whether anything built on the positions exists yet: saved intake answers or a generated library. */
+    public boolean hasIntakeOrLibrary(UUID resumeId, UUID userId) {
+        Integer n = jdbc.queryForObject("SELECT (SELECT count(*) FROM intake_sections WHERE resume_id = ? AND user_id = ?)"
+                + " + (SELECT count(*) FROM libraries WHERE resume_id = ? AND user_id = ?)", Integer.class,
+                resumeId, userId, resumeId, userId);
+        return n != null && n > 0;
+    }
+
+    /** A role change: the new position analysis and the report that carries the choice, and the confirmed roles. */
+    public void applyRoleChange(UUID id, UUID userId, JsonNode report, JsonNode blocks, Map<String, String> confirmedByKey) {
+        jdbc.update("UPDATE resumes SET onboard_json = ?::jsonb, blocks_json = ?::jsonb WHERE id = ? AND user_id = ?",
+                write(report), write(blocks), id, userId);
+        confirmedByKey.forEach((key, role) -> confirmRole(id, userId, key, role));
     }
 
     /** Makes {@code id} the user's one active resume; the previous one is archived, never deleted. */

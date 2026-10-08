@@ -46,10 +46,25 @@ public class ResumeController {
 
     private final ResumeService resumes;
     private final StorageProperties storage;
+    private final com.tailor.web.layout.LayoutService layouts;
 
-    public ResumeController(ResumeService resumes, StorageProperties storage) {
+    public ResumeController(ResumeService resumes, StorageProperties storage, com.tailor.web.layout.LayoutService layouts) {
         this.resumes = resumes;
         this.storage = storage;
+        this.layouts = layouts;
+    }
+
+    @Operation(summary = "Where everything is on the onboarded resume's preview page, for the UI: page sizes in PDF points, "
+            + "and every bullet slot and job and project position with the page and box (x, y, w, h from the page's top-left) "
+            + "of each of its lines, whether it is editable and the lock reason. Measured by the engine from the preview PDF; "
+            + "no changes list (nothing has been changed yet).", operationId = "getResumeLayout")
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "RESUME_NOT_READY",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @GetMapping("/resumes/{id}/layout")
+    public com.tailor.web.layout.LayoutService.LayoutView layout(@PathVariable UUID id, @AuthenticationPrincipal AuthUser user) {
+        return layouts.forResume(id, user.id());
     }
 
     @Operation(summary = "Uploads a resume (.docx, at most 2 MB, form field 'file'). The Phase 2 upload gate runs at once: "
@@ -87,10 +102,12 @@ public class ResumeController {
         return new LinkResponse(link.url(), link.expiresAt());
     }
 
-    @Operation(summary = "Confirms a section's role. Only the suggested role can be confirmed for now: any other role "
-            + "is refused with ROLE_CHANGE_UNSUPPORTED, because the engine decides roles itself.",
+    @Operation(summary = "Confirms or changes a section's role (projects, experience or other). A different role re-runs "
+            + "the position analysis with the engine's role override (no new onboarding) and returns every section. "
+            + "ROLE_CHANGE_TOO_LATE once the intake has answers or a library exists; ROLE_CHANGE_UNSUPPORTED if the role "
+            + "would change which parts of the resume are sections.",
             operationId = "confirmSectionRole")
-    @ApiResponse(responseCode = "409", description = "ROLE_CHANGE_UNSUPPORTED",
+    @ApiResponse(responseCode = "409", description = "ROLE_CHANGE_TOO_LATE, ROLE_CHANGE_UNSUPPORTED or RESUME_NOT_READY",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "NOT_FOUND",
             content = @Content(schema = @Schema(implementation = ApiError.class)))

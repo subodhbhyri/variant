@@ -1,7 +1,25 @@
 # PHASE6_SPEC — Web app: API, jobs, storage, edits, AWS
 
-Revision 2 (2026-10-08). Owner decisions: React + Vite frontend; sign-in with Google
+Revision 3 (2026-10-09). Owner decisions: React + Vite frontend; sign-in with Google
 or an email link; edits apply to that resume only.
+
+**What changed in revision 3:** three additions the frontend needs, and one correction.
+
+- **Correction.** Revision 2 said section role changes use "the engine's existing
+  `--section-role` override". There was none: the CLI had no such option and every
+  place that decides a role read the heading's vocabulary directly. The owner approved
+  an engine change to add it (section 4.2.1); with no override the engine's output is
+  byte-identical to before.
+- **Role overrides** are real: one resolver decides every section's role (section 4.2.1).
+- **Page layout** for the UI: `GET /snapshots/{id}/layout` and
+  `GET /resumes/{id}/layout` (section 4.7).
+- **Real progress events**: the engine's own stages with timings, stored with the
+  job and replayable (section 4.6.1).
+- New tests P6-T20 to P6-T24.
+
+The engine changes of revision 3 are additions only: a role resolver, an optional
+progress listener, and line geometry read from the same PDF glyphs the engine already
+measures. Nothing the engine computes changes (P6-T20).
 
 **What changed in revision 2:** the AWS design (about $200/month for dev, $580 for
 prod) is unaffordable before revenue. **v1 runs on one server for $0/month**
@@ -12,7 +30,7 @@ prod) is unaffordable before revenue. **v1 runs on one server for $0/month**
 - sign-in links can no longer be consumed by email scanners (sections 4.1, 9.1);
 - email sign-in can be **switched off** (no domain yet: Google only, section 4.1);
 - edit revisions are verified against the **stored onboarding baseline** (section 6);
-- section role changes use the engine's existing override (section 4.2);
+- section role changes use the engine's existing override (section 4.2; there was none, see revision 3);
 - an **ARM gate** before any ARM server is trusted (section 10A.4);
 - new tests P6-T15 to P6-T19.
 
@@ -163,8 +181,27 @@ Rate limits: 5 email links per address per hour, 20 per IP per hour.
 | `POST /resumes` (multipart, ≤ 2 MB) | Runs the Phase 2 upload gate **synchronously** (no rendering; instant). A rejection returns 422 with the gate's code and nothing is stored. Otherwise stores the original and returns 202 `{resume_id, job_id}` for onboarding. |
 | `GET /resumes/{id}` | Status, onboarding report, section roles and positions (`blocks`), font substitutions. |
 | `GET /resumes/{id}/preview` | A short-lived link to the preview PDF. |
-| `PUT /resumes/{id}/sections/{key}/role` `{role}` | Confirms or changes a section's role (`projects`, `experience`, `other`). Changing a role uses the engine's existing role override (Phase 3, the CLI's `--section-role "HEADING=role"`) and re-runs the position analysis; no new onboarding. `ROLE_CHANGE_UNSUPPORTED` is only for a specific case the engine truly can't handle, named in the response. |
+| `PUT /resumes/{id}/sections/{key}/role` `{role}` | Confirms or changes a section's role (`projects`, `experience`, `other`). A different role is given to the engine's role resolver (section 4.2.1) and the position analysis is run again on the stored normalized document; no new onboarding. Returns every section. `ROLE_CHANGE_TOO_LATE` (409) once the intake has answers or a library exists, because both are built on the positions; `ROLE_CHANGE_UNSUPPORTED` (409) only if the role would change which parts of the resume are sections; `RESUME_NOT_READY` (409) before onboarding finished. |
+| `GET /resumes/{id}/layout` | Where everything is on the preview page (section 4.7). |
 | `POST /resumes/{id}/accept` | The user approves the normalized preview; the resume becomes active. |
+
+#### 4.2.1 Role overrides (engine)
+
+A section's role is decided in one place, `SectionRoles`: the role the heading's
+vocabulary suggests (Phase 3 section 2), unless the user chose another for that heading.
+Overrides are keyed by heading text, ignoring case and extra spaces. Everything that
+needs a role goes through it: section detection (a heading the user named counts as a
+heading even with no vocabulary word), block analysis, swapping, and position analysis
+for generation, matching and the layout.
+
+- The choices travel in `onboard.json` as `sectionRoles` (heading to role). The field is
+  absent when nobody changed a role, so every existing output is byte-identical.
+- CLI: `tailor onboard … --section-role "HEADING=role"` (repeatable) stores them;
+  `tailor blocks` and `tailor swap` read them from the `onboard.json` beside the
+  document, and accept `--section-role` too.
+- Web: a changed role updates `resumes.onboard_json` (`sectionRoles`) and `blocks_json`
+  and the section's `confirmed_role`; the suggestion is kept. Sections that share a
+  heading share the choice.
 
 `NEEDS_USER` (the resume can't keep its page count with stand-in fonts) is reported
 with its options in `details`. How the user picks among them is a 6B question; the API
@@ -210,9 +247,72 @@ into the new library version.
 | `GET /jobs/{id}` | Status (`queued`, `running`, `succeeded`, `failed`), progress, result reference, error code. |
 | `GET /jobs/{id}/events` | Server-sent events carrying the same information as it changes. |
 
-Progress is coarse and honest: named stages (`gate`, `normalize`, `detect`,
-`calibrate`; `generating section 2 of 6`; `assembling`, `verifying`), never an
-invented percentage.
+Progress is honest: named stages the engine really runs, never an invented percentage
+(section 4.6.1).
+
+#### 4.6.1 Progress events
+
+The engine reports what it is doing as it does it (an optional `ProgressListener`; with
+none, nothing is reported and nothing else changes). Each report becomes an **event**
+stored with the job: `{seq, stage, state, at_ms, duration_ms?, detail}`.
+
+- `state` is `started`, `progress` (a real step inside a stage) or `finished`. `at_ms`
+  is the time since the run began; a `finished` event also has `duration_ms`. `detail`
+  holds ids, counts and codes only, never resume, notes or posting text.
+- Events are written the moment they happen (the worker never sleeps, batches or
+  invents one). A stage the handler left open when it ends is finished at that moment.
+  A retried run starts its events again.
+- `GET /jobs/{id}` returns `events` (the replay of a finished job). The stream
+  `GET /jobs/{id}/events` sends each stored event first as an SSE `progress` event
+  (`id` = `seq`) and new ones as they are recorded (the stream looks at the job every
+  250 ms), and a `job` event with the status (without the list) when it changes.
+  `Last-Event-ID` resumes after the last `seq` received. A finished job replays all its
+  events and ends.
+
+| Job | Stages, in order |
+|---|---|
+| `onboard` | `safety_checks`, `fonts`, `find_bullets` (`detail`: `found` = editable bullets, `total` = bullets detected), `measure_lines`, `storing` (a rejection ends the list where the engine stopped, with its code in `detail.reason`) |
+| `match` | `read_posting`, `check_earlier_postings` (`detail.reused`), `choose_material`, `place_projects` (one `progress` event per project put in a position: `position`, `project`), `verify`, `deliver`. A reused match skips to `deliver`. If the engine retries (its batched placement failed its check and it places position by position), `place_projects` and `verify` appear again. |
+| `generate` | `preparing`, then for each section a `section` stage (`started`: `section`, `kind`, `step`, `of`; `finished`: `status`, `calls`, `cost_usd`), a `section` `progress` event for a section skipped by the user or the cost limit, then `storing` |
+| `render_alternative`, `edit_revision` | the handler's own named stages (`rendering`, `checking`, `applying`, `building`, `verifying`, `storing`), each started and finished with its time |
+
+Coarse `progress.stage` (the latest stage started) stays for clients that want only that.
+
+### 4.7 Page layout
+
+`GET /snapshots/{id}/layout` (a rendered snapshot; `SNAPSHOT_NOT_RENDERED` 409 for a
+stored alternative) and `GET /resumes/{id}/layout` (an onboarded resume's preview;
+`RESUME_NOT_READY` 409). Another user's id is a 404. Coordinates are **PDF points from
+the page's top-left corner**; a line box is `{page, x, y, w, h}` where `y` is the top
+(baseline minus the tallest font ascent on the line) and `h` runs to the lowest descent.
+They are the engine's own measurement of the stored PDF's glyphs (the same line
+clustering as every other measurement), not estimated from text.
+
+```json
+{"pages":   [{"page_index": 0, "width": 612.0, "height": 792.0}],
+ "slots":   [{"slot": 4, "kind": "job", "position": "job-0", "editable": true, "lock_reason": null,
+              "line_count": 2, "lines": [{"page": 0, "x": 72.0, "y": 301.2, "w": 468.0, "h": 11.6}, "..."]}],
+ "positions": [{"id": "P1", "kind": "project", "block": "paragraph", "swappable": true, "reason": null,
+                "slots": [9, 10, 11], "lines": ["... header and bullets, line by line ..."]}],
+ "changes": ["... snapshots only ..."]}
+```
+
+- Every bullet slot of the document appears, with `kind` (`job`, `project`, `other`), the
+  position it belongs to, `editable` and, when not, the `lock_reason` (the onboarding's
+  reasons, plus `not_job_or_project`). `lines` is empty for a blanked bullet.
+- Every job (`job-N`) and project (`PN`) position appears with all its lines from its
+  header to its last bullet, `swappable` and the engine's `reason`. An `inline` position
+  keeps its bullets in its one paragraph and has no `slots`.
+- `changes` (snapshots only; none for a resume) is what differs from the onboarded
+  resume:
+  - `bullet_rewritten`: `slot`, `position`, `old_text`, `new_text`, `lines`,
+    `words_added` (words in the new text not in the old, counted with multiplicity). A
+    blanked bullet has an empty `new_text`.
+  - `project_placed`: `position`, `project` (its title, never a library id) and
+    `previous` (the title that position had in the onboarded resume).
+  - `stack_trimmed`: `position`, `project`, `kept` and `dropped` stack items, in the
+    order the match ranked them; only when something was dropped to fit the header's line.
+- A stored snapshot never changes, so its layout is computed once and kept.
 
 ---
 
@@ -527,6 +627,8 @@ green throughout (the engine must not change behaviour).
     storage.
 12. **6.12 Single-server deployment** (section 10A): `deploy/` compose, Caddy, scripts,
     README. Then the owner creates the server, runs the ARM gate and deploys.
+13. **6.13 Revision 3 changes:** the role resolver and `--section-role` (engine, CLI, web),
+    the progress listener and stored events, line geometry and the layout endpoints.
 
 ---
 
@@ -553,6 +655,11 @@ green throughout (the engine must not change behaviour).
 | P6-T17 | Backups: `backup.sh` then `restore.sh` into an empty stack reproduces users, libraries, snapshots and files; the archive can't be read without the private key. |
 | P6-T18 | Revisions: three successive edit revisions each stay within 0.5 pt of the onboarding baseline on every fixed line. |
 | P6-T19 | Single-server exposure: from outside the host only 80 and 443 answer (plus 22); Postgres and the api are unreachable directly; the renderer still cannot reach any outside host. |
+| P6-T20 | **Engine unchanged.** With no role overrides and no listener, `test`, `corpusTest`, `corpus-check` and every golden are unchanged; `onboard.json`, `normalized.docx`, `preview.pdf`, `baseline.json` and a match's output are byte-identical with and without a progress listener; `PdfLines.extract` returns the same lines as before. |
+| P6-T21 | Role overrides: the resolver gives the vocabulary's answer with no override and the user's with one (a heading with no vocabulary word becomes a projects section); the CLI's `--section-role` is stored in `onboard.json` and used by `blocks` and `swap`; `PUT …/sections/{key}/role` changes the sections, positions, intake form and layout, and changing it back restores the original `blocks` and `onboard.json`; `ROLE_CHANGE_TOO_LATE` after intake answers; one user's change never touches another's. |
+| P6-T22 | Layout: pages and every slot and position have boxes from the engine's measurement; a slot's lines equal its calibrated line count; `editable` and `lock_reason` agree with the snapshot's slot list; another user's snapshot or resume is a 404 and an unrendered alternative a 409; a revision's layout lists its edit and leaves its parent's layout identical. |
+| P6-T23 | Changes: `bullet_rewritten` carries the onboarded text as `old_text`, the snapshot's as `new_text`, the line count and `words_added`; there is one `project_placed` per assignment with a title and the previous title; `stack_trimmed` lists what was dropped. |
+| P6-T24 | Progress events: onboarding, matching and generation report exactly the stages of section 4.6.1 in order, with `at_ms` never going back and a `duration_ms` on every finished stage; each project put in a position is one `progress` event; one `section` pair per generated section; no resume, notes or posting text in any event; a finished job replays all its events over `GET` and the stream, and `Last-Event-ID` resumes; a retried run starts its events again. |
 
 ---
 

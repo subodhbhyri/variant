@@ -47,6 +47,18 @@ public final class GenerationRunner {
 
         boolean cancelled();
 
+        /** The model is about to be asked about this section (PHASE6_SPEC.md revision 3: one event per section). */
+        default void sectionStarted(String sectionId, String kind, int step, int of) {
+        }
+
+        /** That section is done: its status (OK, ...), the calls it took and what they cost. */
+        default void sectionFinished(String sectionId, String status, int calls, double costUsd) {
+        }
+
+        /** The section needed no model call: it was skipped by the user or the cost limit was reached. */
+        default void sectionSkipped(String sectionId, String status) {
+        }
+
         Progress NONE = new Progress() {
             @Override
             public void step(String stage, int step, int of) {
@@ -140,14 +152,17 @@ public final class GenerationRunner {
             IntakeSection section = sectionsById.get(sectionId);
             if (section == null || "SKIPPED".equals(section.mode())) {
                 reportSections.put(sectionId, ReportEntry.locked("SKIPPED"));
+                progress.sectionSkipped(sectionId, "SKIPPED");
                 continue;
             }
             if (!tracker.canGenerate()) {
                 reportSections.put(sectionId, ReportEntry.locked("COST_LIMIT"));
+                progress.sectionSkipped(sectionId, "COST_LIMIT");
                 continue;
             }
             stop(progress);
             progress.step("generating", ++done, total);
+            progress.sectionStarted(sectionId, "job", done, total);
             Position job = positions.jobPositions().get(i);
             TargetBuilder.SectionTarget target = TargetBuilder.forJob(job, report, positions, section.mode());
             List<Integer> slotIndices = positions.bulletSlotIndices(job);
@@ -166,6 +181,7 @@ public final class GenerationRunner {
             tracker.recordAll(result.callUsages());
             jobVariants.put(sectionId, keptOnly(result.finalResults()));
             reportSections.put(sectionId, ReportEntry.of(result, tracker.prices(), null));
+            progress.sectionFinished(sectionId, result.status(), result.callUsages().size(), reportSections.get(sectionId).costUsd());
         }
 
         TargetBuilder.SectionTarget projectTarget = TargetBuilder.forProjects(report, positions);
@@ -180,14 +196,17 @@ public final class GenerationRunner {
             }
             if ("SKIPPED".equals(section.mode())) {
                 reportSections.put(section.id(), ReportEntry.locked("SKIPPED"));
+                progress.sectionSkipped(section.id(), "SKIPPED");
                 continue;
             }
             if (!tracker.canGenerate()) {
                 reportSections.put(section.id(), ReportEntry.locked("COST_LIMIT"));
+                progress.sectionSkipped(section.id(), "COST_LIMIT");
                 continue;
             }
             stop(progress);
             progress.step("generating", ++done, total);
+            progress.sectionStarted(section.id(), "project", done, total);
             List<String> currentBullets = List.of();
             Integer existingIndex = existingProjectIndex(section.id());
             if (existingIndex != null && existingIndex < positions.projectPositions().size()) {
@@ -223,6 +242,7 @@ public final class GenerationRunner {
                     toLibraryLinks(fields), fields == null ? null : fields.date(),
                     keptBulletsInOrder(result.finalResults()), homeSection));
             reportSections.put(section.id(), ReportEntry.of(result, tracker.prices(), coverage));
+            progress.sectionFinished(section.id(), result.status(), result.callUsages().size(), reportSections.get(section.id()).costUsd());
         }
         return new Result(jobVariants, libraryProjects, reportSections, tracker.totalUsd(), tracker.callCount());
     }

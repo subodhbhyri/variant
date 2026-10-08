@@ -127,7 +127,7 @@ public class JobRepository {
                     }
                 }
                 jdbc.update("UPDATE jobs SET status = 'running', attempts = attempts + 1, started_at = ?,"
-                                + " lease_until = ?, worker_id = ?, progress = NULL WHERE id = ?",
+                                + " lease_until = ?, worker_id = ?, progress = NULL, events = '[]'::jsonb WHERE id = ?",
                         ts(now), ts(now.plus(lease)), workerId, c.id());
                 return c.id();
             }
@@ -141,6 +141,16 @@ public class JobRepository {
         return jdbc.update("UPDATE jobs SET lease_until = ? WHERE id = ? AND status = 'running'"
                         + " AND worker_id = ? AND attempts = ?",
                 ts(clock.instant().plus(lease)), id, workerId, attempt) == 1;
+    }
+
+    /**
+     * Appends one event to the job's stored events and sets the coarse progress to match, fenced by this run. The
+     * event is written when it happens; nothing is held back.
+     */
+    public boolean appendEvent(UUID id, String workerId, int attempt, JsonNode event, JsonNode progress) {
+        return jdbc.update("UPDATE jobs SET events = events || ?::jsonb, progress = COALESCE(?::jsonb, progress)"
+                + " WHERE id = ? AND status = 'running' AND worker_id = ? AND attempts = ?",
+                write(json.createArrayNode().add(event)), progress == null ? null : write(progress), id, workerId, attempt) == 1;
     }
 
     public boolean setProgress(UUID id, String workerId, int attempt, JsonNode progress) {
@@ -165,8 +175,8 @@ public class JobRepository {
 
     /** Puts a failed run back in the queue for its one retry. */
     public boolean requeue(UUID id, String workerId, int attempt) {
-        return jdbc.update("UPDATE jobs SET status = 'queued', lease_until = NULL, worker_id = NULL, progress = NULL"
-                + " WHERE id = ? AND status = 'running' AND worker_id = ? AND attempts = ?", id, workerId, attempt) == 1;
+        return jdbc.update("UPDATE jobs SET status = 'queued', lease_until = NULL, worker_id = NULL, progress = NULL,"
+                + " events = '[]'::jsonb WHERE id = ? AND status = 'running' AND worker_id = ? AND attempts = ?", id, workerId, attempt) == 1;
     }
 
     /**
@@ -184,8 +194,8 @@ public class JobRepository {
                             rs.getInt("attempts")), ts(now));
             for (Expired e : expired) {
                 if (e.attempts() < e.type().maxAttempts()) {
-                    jdbc.update("UPDATE jobs SET status = 'queued', lease_until = NULL, worker_id = NULL, progress = NULL"
-                            + " WHERE id = ?", e.id());
+                    jdbc.update("UPDATE jobs SET status = 'queued', lease_until = NULL, worker_id = NULL, progress = NULL,"
+                            + " events = '[]'::jsonb WHERE id = ?", e.id());
                     log.warn("job {} ({}) lost its worker on attempt {}; queued again", e.id(), e.type().dbName(), e.attempts());
                 } else {
                     jdbc.update("UPDATE jobs SET status = 'failed', error_code = 'WORKER_LOST', finished_at = ?,"
@@ -221,7 +231,8 @@ public class JobRepository {
                 instant(rs, "created_at"),
                 instant(rs, "started_at"),
                 instant(rs, "finished_at"),
-                instant(rs, "lease_until"));
+                instant(rs, "lease_until"),
+                read(rs, "events"));
     }
 
     private JsonNode read(ResultSet rs, String column) throws SQLException {

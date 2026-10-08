@@ -2,6 +2,7 @@ package com.tailor.web.jobs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tailor.engine.progress.ProgressListener;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
@@ -110,6 +111,7 @@ public class JobProcessor {
         }, beatMs, beatMs, TimeUnit.MILLISECONDS);
         try {
             Map<String, Object> result = run.get(limit.toMillis(), TimeUnit.MILLISECONDS);
+            context.finishOpen();
             if (!jobs.succeed(job.id(), workerId, job.attempts(), json.valueToTree(result == null ? Map.of() : result))) {
                 log.warn("job {} finished after losing its lease; result discarded", job.id());
             }
@@ -118,6 +120,7 @@ public class JobProcessor {
             run.cancel(true);
             infrastructureFailure(job, "JOB_TIMEOUT");
         } catch (ExecutionException e) {
+            context.finishOpen();
             if (e.getCause() instanceof JobRejection rejection) {
                 reject(job, rejection);
             } else {
@@ -163,10 +166,14 @@ public class JobProcessor {
         }
     }
 
-    /** Progress is written fenced by this run, so a stale run cannot overwrite a newer one. */
+    /** Progress and events are written fenced by this run, so a stale run cannot overwrite a newer one. */
     private final class RunContext implements JobHandler.Context {
         private final Job job;
         private final AtomicBoolean cancelled = new AtomicBoolean();
+        private final long runStartNanos = System.nanoTime();
+        private final Map<String, Long> openSince = new java.util.LinkedHashMap<>();
+        private String implicitStage;
+        private int seq;
 
         RunContext(Job job) {
             this.job = job;
@@ -177,13 +184,77 @@ public class JobProcessor {
         }
 
         @Override
-        public void stage(String stage) {
-            write(json.createObjectNode().put("stage", stage));
+        public synchronized void stage(String stage) {
+            if (implicitStage != null) {
+                event(implicitStage, "finished", Map.of());
+            }
+            implicitStage = stage;
+            event(stage, "started", Map.of());
         }
 
         @Override
         public void step(String stage, int step, int of) {
             write(json.createObjectNode().put("stage", stage).put("step", step).put("of", of));
+        }
+
+        @Override
+        public ProgressListener events() {
+            return new ProgressListener() {
+                @Override
+                public void started(String stage, Map<String, Object> detail) {
+                    event(stage, "started", detail);
+                }
+
+                @Override
+                public void progress(String stage, Map<String, Object> detail) {
+                    event(stage, "progress", detail);
+                }
+
+                @Override
+                public void finished(String stage, Map<String, Object> detail) {
+                    event(stage, "finished", detail);
+                }
+            };
+        }
+
+        /** Finishes the stage the handler opened with {@link #stage} and any the engine left open. */
+        synchronized void finishOpen() {
+            if (implicitStage != null) {
+                event(implicitStage, "finished", Map.of());
+                implicitStage = null;
+            }
+            for (String stage : new java.util.ArrayList<>(openSince.keySet())) {
+                event(stage, "finished", Map.of());
+            }
+        }
+
+        /** Records one event now. Never throws into the engine: a lost lease just marks the run cancelled. */
+        private synchronized void event(String stage, String state, Map<String, Object> detail) {
+            try {
+                long atMs = (System.nanoTime() - runStartNanos) / 1_000_000;
+                ObjectNode e = json.createObjectNode();
+                e.put("seq", ++seq);
+                e.put("stage", stage);
+                e.put("state", state);
+                e.put("at_ms", atMs);
+                if ("started".equals(state)) {
+                    openSince.put(stage, System.nanoTime());
+                } else if ("finished".equals(state)) {
+                    Long since = openSince.remove(stage);
+                    if (since != null) {
+                        e.put("duration_ms", (System.nanoTime() - since) / 1_000_000);
+                    }
+                }
+                if (detail != null && !detail.isEmpty()) {
+                    e.set("detail", json.valueToTree(detail));
+                }
+                ObjectNode progress = "started".equals(state) ? json.createObjectNode().put("stage", stage) : null;
+                if (!jobs.appendEvent(job.id(), workerId, job.attempts(), e, progress)) {
+                    cancelled.set(true);
+                }
+            } catch (RuntimeException ex) {
+                log.warn("job {} event {} {} not stored: {}", job.id(), stage, state, ex.getClass().getName());
+            }
         }
 
         @Override

@@ -25,6 +25,7 @@ import com.tailor.web.match.MatchRows.Snapshot;
 import com.tailor.web.resumes.Resume;
 import com.tailor.web.resumes.ResumeRepository;
 import com.tailor.web.storage.FileStorage;
+import com.tailor.engine.progress.ProgressListener;
 import com.tailor.web.storage.StorageKeys;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -111,26 +112,32 @@ public class MatchHandler implements JobHandler {
             throw new JobRejection("REONBOARD_REQUIRED", Map.of("resume_id", resume.id().toString()));
         }
 
-        context.stage("parsing");
+        ProgressListener events = context.events();
+        events.started("read_posting");
         SkillsDictionary skills = SkillsDictionary.loadDefault();
         JobDescription jd = JdParser.parse(posting.text(), skills);
+        events.finished("read_posting", Map.of("skills", jd.skills().size()));
 
-        context.stage("checking earlier postings");
+        events.started("check_earlier_postings");
         Match source = similarEarlierMatch(userId, library, jd, skills);
+        events.finished("check_earlier_postings", Map.of("reused", source != null));
         if (source != null) {
+            events.started("deliver");
             UUID matchId = UUID.randomUUID();
             matches.insertMatch(new Match(matchId, userId, postingId, library.id(), SNAKE.createObjectNode(), source.id(),
                     clock.instant()));
+            events.finished("deliver", Map.of("reused", true));
             log.info("posting {} reuses match {}", postingId, source.id());
             return Map.of("matchId", matchId.toString(), "cacheHit", true);
         }
 
-        context.stage("matching");
         Path work = Files.createTempDirectory("match-" + postingId);
         try {
             Path resume1Docx = work.resolve("resume-1.docx");
             Computed computed = contexts.with(resume, library, (ctx, dir) -> {
-                MatchRunner.Result result = MatchRunner.runOne(ctx, posting.text(), work, resume1Docx);
+                // The posting was read above (read_posting is already reported); the engine reports the rest as it runs.
+                MatchRunner.Result result = MatchRunner.runOne(ctx, posting.text(), work, resume1Docx,
+                        withoutRead(events));
                 if (result.renderFailureReason() != null) {
                     return new Computed(result, null, null);
                 }
@@ -142,11 +149,37 @@ public class MatchHandler implements JobHandler {
                 throw new JobRejection("NO_FEASIBLE_RESUME", Map.of("reason", computed.result().renderFailureReason()));
             }
 
-            context.stage("storing");
-            return store(userId, posting, library, jd, computed, work.resolve("resume-1.docx"));
+            events.started("deliver");
+            Map<String, Object> stored = store(userId, posting, library, jd, computed, work.resolve("resume-1.docx"));
+            events.finished("deliver", Map.of("resumes", computed.result().resumes().size()));
+            return stored;
         } finally {
             deleteTree(work);
         }
+    }
+
+    /** The engine reads the posting again inside its run; the handler has already reported that stage, so drop the repeat. */
+    private static ProgressListener withoutRead(ProgressListener target) {
+        return new ProgressListener() {
+            @Override
+            public void started(String stage, Map<String, Object> detail) {
+                if (!"read_posting".equals(stage)) {
+                    target.started(stage, detail);
+                }
+            }
+
+            @Override
+            public void progress(String stage, Map<String, Object> detail) {
+                target.progress(stage, detail);
+            }
+
+            @Override
+            public void finished(String stage, Map<String, Object> detail) {
+                if (!"read_posting".equals(stage)) {
+                    target.finished(stage, detail);
+                }
+            }
+        };
     }
 
     private record Computed(MatchRunner.Result result, List<MatchBatchSummary.Infeasible> infeasible, Path pdf) {

@@ -76,6 +76,14 @@ public final class BatchAssembler {
         <T> T time(String name, Callable<T> work) throws Exception;
 
         void note(String name);
+
+        /** A real step of the engine's progress (PHASE6_SPEC.md revision 3): a project put in a position. */
+        default void placed(String position, String project) {
+        }
+
+        /** The start or end of one of the stages a caller is told about (place_projects, verify). */
+        default void marker(String stage, boolean start) {
+        }
     }
 
     /** The whole-document check of the finished assembly; production runs the stored-baseline verifier. */
@@ -152,6 +160,27 @@ public final class BatchAssembler {
             List<String> job, Map<String, ModelResponse.BulletCandidate> jobCandidatesById, List<Plan> plans,
             Renderer renderer, Check check, Path workDir, Path outputDocx, Timing timing) throws Exception {
         Timing t = timing == null ? NO_TIMING : timing;
+        // place_projects is reported from the start of the batch until the placements are made (just before the
+        // check), or until the batch gives up, whichever is first.
+        boolean[] placing = {true};
+        t.marker("place_projects", true);
+        Runnable placementsDone = () -> {
+            if (placing[0]) {
+                placing[0] = false;
+                t.marker("place_projects", false);
+            }
+        };
+        try {
+            return assembleInner(normalizedDocx, baseline, baselinePdf, report, job, jobCandidatesById, plans, renderer,
+                    check, workDir, outputDocx, t, placementsDone);
+        } finally {
+            placementsDone.run();
+        }
+    }
+
+    private static Result assembleInner(Path normalizedDocx, StoredBaseline baseline, Path baselinePdf, OnboardReport report,
+            List<String> job, Map<String, ModelResponse.BulletCandidate> jobCandidatesById, List<Plan> plans,
+            Renderer renderer, Check check, Path workDir, Path outputDocx, Timing t, Runnable placementsDone) throws Exception {
 
         SectionPositions positions = SectionPositions.detect(normalizedDocx, report);
         if (positions.jobPositions().isEmpty()) {
@@ -469,6 +498,7 @@ public final class BatchAssembler {
                     if (pad != null) {
                         Padder.pad(paragraph, pad);
                     }
+                    t.placed("P" + pl.index(), pl.project().id());
                     continue;
                 }
                 Element header = BlockSwapper.resolveBodyChild(fin.doc(), pl.bodyIndex());
@@ -481,6 +511,7 @@ public final class BatchAssembler {
                     DateTabConverter.rightAlignDateTab(fin.doc(), header, pl.dateEdge());
                 }
                 finalText.put(pl.index(), DomUtil.allText(header));
+                t.placed("P" + pl.index(), pl.project().id());
             }
             rels.flush();
             fin.pkg().writePart("word/document.xml", XmlSerialize.toBytes(fin.doc()));
@@ -510,7 +541,14 @@ public final class BatchAssembler {
         ordered.sort(Comparator.comparingInt(IndexedRegion::bodyIndex));
         List<Verifier.Region> regions = ordered.stream().map(IndexedRegion::region).toList();
 
-        Verified verified = t.time("combined verification", () -> check.run(assembled, regions, workDir));
+        placementsDone.run();
+        t.marker("verify", true);
+        Verified verified;
+        try {
+            verified = t.time("combined verification", () -> check.run(assembled, regions, workDir));
+        } finally {
+            t.marker("verify", false);
+        }
         if (!verified.ok()) {
             return failed("final whole-document check: " + verified.detail());
         }

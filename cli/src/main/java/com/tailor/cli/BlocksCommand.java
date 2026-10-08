@@ -7,6 +7,7 @@ import com.tailor.engine.blocks.BlocksReport;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Parameters;
 
 /** {@code tailor blocks <onboarded.docx>} — PHASE3_SPEC.md section 8: sections, roles, positions, shapes, reasons. */
@@ -16,10 +17,13 @@ public final class BlocksCommand implements Callable<Integer> {
     @Parameters(index = "0", description = "An already-onboarded (normalized) .docx")
     private Path onboardedPath;
 
+    @Mixin
+    private SectionRoleOptions roles = new SectionRoleOptions();
+
     @Override
     public Integer call() {
         try {
-            BlocksReport report = BlocksAnalyzer.analyze(onboardedPath);
+            BlocksReport report = BlocksAnalyzer.analyze(onboardedPath, roles.forDocx(onboardedPath));
             ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report));
             return 0;

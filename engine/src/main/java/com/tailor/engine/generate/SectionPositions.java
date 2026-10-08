@@ -5,6 +5,7 @@ import com.tailor.engine.blocks.PositionBuilder;
 import com.tailor.engine.blocks.ProjectSections;
 import com.tailor.engine.blocks.Section;
 import com.tailor.engine.blocks.SectionDetector;
+import com.tailor.engine.blocks.SectionRoles;
 import com.tailor.engine.docx.DocxPackage;
 import com.tailor.engine.docx.SafeXml;
 import com.tailor.engine.numbering.NumberingResolver;
@@ -74,6 +75,12 @@ public final class SectionPositions {
         return projectEntries;
     }
 
+    /** Every bullet slot of the document these positions were read from, in document order (the same
+     * {@link Slot}s, and the same DOM, as the positions' own paragraphs). */
+    public List<Slot> slots() {
+        return slotByElement.values().stream().sorted(java.util.Comparator.comparingInt(Slot::index)).toList();
+    }
+
     /** A paragraph-kind position's bullets, resolved to their {@link Slot#index()} in document
      * order; empty for an inline-kind position (its bullets aren't separate slots). */
     public List<Integer> bulletSlotIndices(Position position) {
@@ -127,7 +134,7 @@ public final class SectionPositions {
             }
         }
 
-        List<Section> sections = SectionDetector.detect(doc);
+        List<Section> sections = SectionDetector.detect(doc, SectionRoles.of(onboardReport.sectionRoles()));
         Section experienceSection = sections.stream().filter(s -> "experience".equals(s.role())).findFirst()
                 .orElse(null);
         List<Position> jobPositions = experienceSection == null ? List.of()

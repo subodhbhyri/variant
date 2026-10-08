@@ -66,6 +66,23 @@ public class JobTestHandlers {
                     context.stage("detect");
                     context.step("generating", 2, 6);
                 }
+                case "events" -> {
+                    // What the engine does: stages with a start, steps inside, and an end with what it found.
+                    context.events().started("alpha", Map.of("n", 1));
+                    TimeUnit.MILLISECONDS.sleep(40);
+                    context.events().progress("alpha", Map.of("position", "P0", "project", "quill"));
+                    context.events().finished("alpha", Map.of("found", 2, "total", 3));
+                    context.stage("beta");
+                    TimeUnit.MILLISECONDS.sleep(10);
+                }
+                case "events-then-boom-once" -> {
+                    if (RUNS.get(job.id().toString()).get() == 1) {
+                        context.events().started("first-attempt", Map.of());
+                        throw new IllegalStateException(SECRET);
+                    }
+                    context.events().started("second-attempt", Map.of());
+                    context.events().finished("second-attempt", Map.of());
+                }
                 case "hold" -> {
                     String key = job.payload().path("key").asText();
                     if (!HOLDS.computeIfAbsent(key, k -> new CountDownLatch(1)).await(60, TimeUnit.SECONDS)) {

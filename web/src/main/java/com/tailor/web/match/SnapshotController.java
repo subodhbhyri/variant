@@ -2,6 +2,7 @@ package com.tailor.web.match;
 
 import com.tailor.web.api.ApiError;
 import com.tailor.web.auth.AuthUser;
+import com.tailor.web.layout.LayoutService;
 import com.tailor.web.storage.FileStorage;
 import com.tailor.web.storage.StorageProperties;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,10 +33,25 @@ public class SnapshotController {
 
     private final MatchService matches;
     private final StorageProperties storage;
+    private final LayoutService layouts;
 
-    public SnapshotController(MatchService matches, StorageProperties storage) {
+    public SnapshotController(MatchService matches, StorageProperties storage, LayoutService layouts) {
         this.matches = matches;
         this.storage = storage;
+        this.layouts = layouts;
+    }
+
+    @Operation(summary = "Where everything is on the page, for the UI: page sizes in PDF points; every bullet slot and every job "
+            + "and project position with the page and box (x, y, w, h from the page's top-left) of each of its lines, whether it "
+            + "is editable and the lock reason; and the changes from the onboarded resume (bullet_rewritten, project_placed, "
+            + "stack_trimmed). Measured by the engine from the stored PDF.", operationId = "getSnapshotLayout")
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND (also for another user's snapshot)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "SNAPSHOT_NOT_RENDERED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @GetMapping("/snapshots/{id}/layout")
+    public LayoutService.LayoutView layout(@PathVariable UUID id, @AuthenticationPrincipal AuthUser user) {
+        return layouts.forSnapshot(id, user.id());
     }
 
     @Operation(summary = "Renders an alternative on request. 202 with a job; 200 with the snapshot if it is already rendered.",

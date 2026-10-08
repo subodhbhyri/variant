@@ -46,9 +46,9 @@ public class OnboardHandler implements JobHandler {
 
     private static final Logger log = LoggerFactory.getLogger(OnboardHandler.class);
     /** `tailor blocks` prints snake_case; the onboarding report is the engine's own camelCase. Both as the CLI writes them. */
-    private static final ObjectMapper BLOCKS_JSON =
+    static final ObjectMapper BLOCKS_JSON =
             new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-    private static final ObjectMapper REPORT_JSON = new ObjectMapper();
+    static final ObjectMapper REPORT_JSON = new ObjectMapper();
 
     private final ResumeRepository resumes;
     private final FileStorage storage;
@@ -93,13 +93,12 @@ public class OnboardHandler implements JobHandler {
         UUID resumeId = resume.id();
         resumes.markOnboarding(resumeId, userId);
 
-        context.stage("gate");
         byte[] original = storage.get(resume.originalKey());
 
         Path out = Files.createTempDirectory("onboard-" + resumeId);
         try {
-            context.stage("processing");
-            OnboardReport report = new OnboardPipeline(renderer, FontMap.loadDefault()).run(original, out);
+            // The pipeline reports safety_checks, fonts, find_bullets and measure_lines as it does them.
+            OnboardReport report = new OnboardPipeline(renderer, FontMap.loadDefault()).run(original, out, context.events());
             JsonNode reportJson = REPORT_JSON.valueToTree(report);
 
             if (!report.accepted()) {

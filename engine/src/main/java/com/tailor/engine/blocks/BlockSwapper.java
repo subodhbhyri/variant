@@ -73,7 +73,13 @@ public final class BlockSwapper {
 
     public static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
             Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx) throws Exception {
-        Located base = locate(basePkg, positionIndex, renderer, workDir);
+        return swap(basePkg, positionIndex, project, renderer, fontMap, workDir, outputDocx, SectionRoles.NONE);
+    }
+
+    /** As above, with the roles the user chose for some headings: positions are numbered by those roles. */
+    public static Result swap(DocxPackage basePkg, int positionIndex, LibraryProject project,
+            Renderer renderer, FontMap fontMap, Path workDir, Path outputDocx, SectionRoles roles) throws Exception {
+        Located base = locate(basePkg, positionIndex, renderer, workDir, roles);
         Position position = base.position();
 
         if (project.bullets().size() < position.bullets()) {
@@ -363,8 +369,8 @@ public final class BlockSwapper {
 
     // --- shared helpers --------------------------------------------------------------------
 
-    private static Located locate(DocxPackage basePkg, int positionIndex, Renderer renderer, Path workDir)
-            throws Exception {
+    private static Located locate(DocxPackage basePkg, int positionIndex, Renderer renderer, Path workDir,
+            SectionRoles roles) throws Exception {
         DocxPackage pkg = basePkg.copy();
         Document doc = SafeXml.parse(pkg.readPart("word/document.xml"));
         Element numberingRoot = pkg.hasPart("word/numbering.xml")
@@ -395,7 +401,7 @@ public final class BlockSwapper {
             }
         }
 
-        List<Section> sections = SectionDetector.detect(doc);
+        List<Section> sections = SectionDetector.detect(doc, roles);
         List<ProjectSections.Entry> projectEntries = ProjectSections.detect(
                 sections, slotByElement::containsKey, slotByElement, lockReasonBySlotIndex);
         if (projectEntries.isEmpty()) {

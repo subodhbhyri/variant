@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
@@ -26,6 +27,9 @@ public final class OnboardCommand implements Callable<Integer> {
     @Parameters(index = "1", description = "Output directory")
     private Path outDir;
 
+    @Mixin
+    private SectionRoleOptions roles = new SectionRoleOptions();
+
     @Option(names = "--skip-calibration", description = "Reserved; calibration always runs for now.")
     private boolean skipCalibration;
 
@@ -38,6 +42,12 @@ public final class OnboardCommand implements Callable<Integer> {
             OnboardPipeline pipeline = new OnboardPipeline(renderer, fontMap);
 
             OnboardReport report = pipeline.run(upload, outDir);
+            if (report.accepted() && !roles.fromOptions().isEmpty()) {
+                // The roles the user chose are kept in onboard.json, where generate, match and blocks read them.
+                com.tailor.engine.blocks.SectionRoles.of(roles.fromOptions()); // rejects a bad role before anything is written
+                report = report.withSectionRoles(roles.fromOptions());
+                report.writeTo(outDir.resolve("onboard.json"));
+            }
             if (report.accepted()) {
                 System.out.printf("accepted pages=%d shrink_pt=%.1f editable=%d%n",
                         report.pages(), report.shrinkPt(), report.editableCount());

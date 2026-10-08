@@ -28,11 +28,16 @@ public final class SectionDetector {
     }
 
     public static List<Section> detect(Document doc) {
+        return detect(doc, SectionRoles.NONE);
+    }
+
+    /** As {@link #detect(Document)}, with the roles the user chose for some headings (see {@link SectionRoles}). */
+    public static List<Section> detect(Document doc, SectionRoles roles) {
         List<Element> paras = bodyParagraphs(doc);
 
         List<Element> vocabHits = new ArrayList<>();
         for (Element p : paras) {
-            if (isShort(p) && Vocab.roleOf(text(p)).isPresent()) {
+            if (isShort(p) && roles.isHeadingText(text(p))) {
                 vocabHits.add(p);
             }
         }
@@ -54,7 +59,7 @@ public final class SectionDetector {
         // Never treat the first 3 paragraphs (the name/contact block) as a heading unless vocabulary.
         List<Element> filteredHeads = new ArrayList<>();
         for (Element p : heads) {
-            if (Vocab.roleOf(text(p)).isPresent() || paras.indexOf(p) > 2) {
+            if (roles.isHeadingText(text(p)) || paras.indexOf(p) > 2) {
                 filteredHeads.add(p);
             }
         }
@@ -69,7 +74,7 @@ public final class SectionDetector {
             int i = idx.get(k);
             int end = k + 1 < idx.size() ? idx.get(k + 1) : paras.size();
             String headingText = text(paras.get(i)).strip();
-            String role = Vocab.roleOf(headingText).orElse("other");
+            String role = roles.resolve(headingText);
             sections.add(new Section(headingText, role, List.copyOf(paras.subList(i + 1, end))));
         }
         return sections;

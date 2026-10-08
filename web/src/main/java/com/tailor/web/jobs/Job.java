@@ -19,7 +19,8 @@ public record Job(
         Instant createdAt,
         Instant startedAt,
         Instant finishedAt,
-        Instant leaseUntil) {
+        Instant leaseUntil,
+        JsonNode events) {
 
     public enum Status {
         QUEUED, RUNNING, SUCCEEDED, FAILED;

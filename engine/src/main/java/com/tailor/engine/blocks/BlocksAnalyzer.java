@@ -30,6 +30,11 @@ public final class BlocksAnalyzer {
     }
 
     public static BlocksReport analyze(Path onboardedDocx) throws IOException {
+        return analyze(onboardedDocx, SectionRoles.NONE);
+    }
+
+    /** As {@link #analyze(Path)}, with the roles the user chose for some headings. */
+    public static BlocksReport analyze(Path onboardedDocx, SectionRoles roles) throws IOException {
         DocxPackage pkg = DocxPackage.open(onboardedDocx);
         Document doc = SafeXml.parse(pkg.readPart("word/document.xml"));
         Element numberingRoot = pkg.hasPart("word/numbering.xml")
@@ -44,7 +49,7 @@ public final class BlocksAnalyzer {
             slotByElement.put(s.element(), s);
         }
 
-        List<Section> sections = SectionDetector.detect(doc);
+        List<Section> sections = SectionDetector.detect(doc, roles);
 
         // No renderer here, so no fresh Locker run for the render-based shared_lines lock —
         // only the cheap Phase 1 bullet-lock check applies for this inspection-only entry point.

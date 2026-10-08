@@ -7,6 +7,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
@@ -32,13 +35,42 @@ public final class PdfLines {
     public record Line(int pageIndex, double y, String normalizedText) {
     }
 
-    private record CharPos(double y, double x, String unicode) {
+    /** A page's size in PDF points (1/72 inch). */
+    public record PageSize(int pageIndex, double width, double height) {
+    }
+
+    /**
+     * One extracted line's box, in PDF points from the page's top-left corner: {@code x} the left edge of its first
+     * glyph, {@code w} up to the right edge of its last, {@code y} the top (the baseline minus the tallest font ascent on
+     * the line) and {@code h} the height down to the lowest font descent. It describes the same line as the
+     * {@link Line} at the same position in {@link #extract}'s result (the same clustering), and is measured from the
+     * same glyphs, not re-derived from text.
+     */
+    public record LineBox(int pageIndex, double x, double y, double w, double h, double baseline) {
+    }
+
+    /** Pages, lines and line boxes of one PDF; {@code lines} and {@code boxes} correspond one to one. */
+    public record Layout(List<PageSize> pages, List<Line> lines, List<LineBox> boxes) {
+    }
+
+    private record CharPos(double y, double x, String unicode, double xEnd, double top, double bottom) {
     }
 
     private static final double LINE_THRESHOLD_PT = 3.0;
 
     public static List<Line> extract(Path pdfPath) throws IOException {
+        return scan(pdfPath, false).lines();
+    }
+
+    /** As {@link #extract}, with each line's box and each page's size (PHASE6_SPEC.md revision 3). */
+    public static Layout extractLayout(Path pdfPath) throws IOException {
+        return scan(pdfPath, true);
+    }
+
+    private static Layout scan(Path pdfPath, boolean withBoxes) throws IOException {
         List<Line> lines = new ArrayList<>();
+        List<LineBox> boxes = withBoxes ? new ArrayList<>() : null;
+        List<PageSize> pages = new ArrayList<>();
         int[] currentPage = {-1};
         List<CharPos> pageBuffer = new ArrayList<>();
 
@@ -48,7 +80,7 @@ public final class PdfLines {
                 protected void writeString(String text, List<TextPosition> positions) throws IOException {
                     int pageIndex = getCurrentPageNo() - 1;
                     if (pageIndex != currentPage[0]) {
-                        flushPage(currentPage[0], pageBuffer, lines);
+                        flushPage(currentPage[0], pageBuffer, lines, boxes);
                         pageBuffer.clear();
                         currentPage[0] = pageIndex;
                     }
@@ -57,18 +89,41 @@ public final class PdfLines {
                         if (u == null || u.isBlank()) {
                             continue;
                         }
-                        pageBuffer.add(new CharPos(tp.getYDirAdj(), tp.getXDirAdj(), u));
+                        pageBuffer.add(withBoxes ? boxed(tp, u) : new CharPos(tp.getYDirAdj(), tp.getXDirAdj(), u, 0, 0, 0));
                     }
                 }
             };
             stripper.setSortByPosition(true);
             stripper.getText(doc);
-            flushPage(currentPage[0], pageBuffer, lines);
+            flushPage(currentPage[0], pageBuffer, lines, boxes);
+            if (withBoxes) {
+                for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                    PDPage page = doc.getPage(i);
+                    PDRectangle box = page.getCropBox();
+                    boolean turned = page.getRotation() == 90 || page.getRotation() == 270;
+                    pages.add(new PageSize(i, turned ? box.getHeight() : box.getWidth(), turned ? box.getWidth() : box.getHeight()));
+                }
+            }
         }
-        return lines;
+        return new Layout(pages, lines, boxes);
     }
 
-    private static void flushPage(int pageIndex, List<CharPos> pageChars, List<Line> out) {
+    /** A glyph with the extent of its font's ascent and descent, from the PDF's own font descriptor. */
+    private static CharPos boxed(TextPosition tp, String unicode) {
+        double baseline = tp.getYDirAdj();
+        double size = tp.getFontSizeInPt();
+        double ascent = tp.getHeightDir();
+        double descent = 0;
+        PDFontDescriptor descriptor = tp.getFont() == null ? null : tp.getFont().getFontDescriptor();
+        if (descriptor != null && descriptor.getAscent() > 0) {
+            ascent = descriptor.getAscent() * size / 1000.0;
+            descent = Math.abs(descriptor.getDescent()) * size / 1000.0;
+        }
+        double x = tp.getXDirAdj();
+        return new CharPos(baseline, x, unicode, x + tp.getWidthDirAdj(), baseline - ascent, baseline + descent);
+    }
+
+    private static void flushPage(int pageIndex, List<CharPos> pageChars, List<Line> out, List<LineBox> boxesOut) {
         if (pageIndex < 0 || pageChars.isEmpty()) {
             return;
         }
@@ -93,6 +148,19 @@ public final class PdfLines {
                 sb.append(c.unicode());
             }
             out.add(new Line(pageIndex, cluster.get(0).y(), normalize(sb.toString())));
+            if (boxesOut != null) {
+                double left = Double.MAX_VALUE;
+                double right = -Double.MAX_VALUE;
+                double top = Double.MAX_VALUE;
+                double bottom = -Double.MAX_VALUE;
+                for (CharPos c : cluster) {
+                    left = Math.min(left, c.x());
+                    right = Math.max(right, c.xEnd());
+                    top = Math.min(top, c.top());
+                    bottom = Math.max(bottom, c.bottom());
+                }
+                boxesOut.add(new LineBox(pageIndex, left, top, right - left, bottom - top, cluster.get(0).y()));
+            }
         }
     }
 

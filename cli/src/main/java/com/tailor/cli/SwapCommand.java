@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
@@ -35,6 +36,9 @@ public final class SwapCommand implements Callable<Integer> {
 
     @Parameters(index = "2", description = "Output directory")
     private Path outDir;
+
+    @Mixin
+    private SectionRoleOptions roles = new SectionRoleOptions();
 
     @Option(names = "--place", description = "Pn=projectId, repeatable", required = true)
     private Map<String, String> placements = new LinkedHashMap<>();
@@ -70,7 +74,8 @@ public final class SwapCommand implements Callable<Integer> {
                 DocxPackage basePkg = DocxPackage.open(current);
                 Path stepOutput = workDir.resolve("step-" + posKey + ".docx");
                 BlockSwapper.Result result =
-                        BlockSwapper.swap(basePkg, posIndex, project, renderer, fontMap, workDir, stepOutput);
+                        BlockSwapper.swap(basePkg, posIndex, project, renderer, fontMap, workDir, stepOutput,
+                                roles.forDocx(onboardedPath));
                 if (result.outcome() != SwapOutcome.OK) {
                     String detail = result.detail() == null ? "" : " (" + result.detail() + ")";
                     System.err.println(posKey + "=" + e.getValue() + ": " + result.outcome() + detail);

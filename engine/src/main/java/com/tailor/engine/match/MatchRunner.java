@@ -12,6 +12,7 @@ import com.tailor.engine.generate.ModelResponse.BulletCandidate;
 import com.tailor.engine.generate.SkillsDictionary;
 import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.onboard.OnboardReport;
+import com.tailor.engine.progress.ProgressListener;
 import com.tailor.engine.render.Renderer;
 import com.tailor.engine.verify.Verifier;
 import java.io.IOException;
@@ -108,7 +109,17 @@ public final class MatchRunner {
     }
 
     public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut) throws Exception {
-        return runOne(ctx, jdText, workDir, resume1DocxOut, productionCheck(ctx));
+        return runOne(ctx, jdText, workDir, resume1DocxOut, productionCheck(ctx), ProgressListener.NONE);
+    }
+
+    /**
+     * As above, telling {@code listener} what the engine is doing as it does it (PHASE6_SPEC.md revision 3):
+     * {@code read_posting}, {@code choose_material}, {@code place_projects} (with a {@code progress} call per project
+     * put in a position), then {@code verify}. Nothing else about the run changes.
+     */
+    public static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut, ProgressListener listener)
+            throws Exception {
+        return runOne(ctx, jdText, workDir, resume1DocxOut, productionCheck(ctx), listener);
     }
 
     /** The whole-document check of the batched assembly: resume #1 against the stored baseline. */
@@ -125,9 +136,18 @@ public final class MatchRunner {
      * whole-document check; package-visible so a test can force that check to fail. */
     static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut,
             BatchAssembler.Check check) throws Exception {
-        PipelineTiming timing = new PipelineTiming(ctx.counter());
+        return runOne(ctx, jdText, workDir, resume1DocxOut, check, ProgressListener.NONE);
+    }
+
+    static Result runOne(Context ctx, String jdText, Path workDir, Path resume1DocxOut,
+            BatchAssembler.Check check, ProgressListener listener) throws Exception {
+        PipelineTiming timing = new PipelineTiming(ctx.counter()).listener(listener);
         Embedder scoring = new CachingEmbedder(ctx.embedder());
+        listener.started("read_posting");
         JobDescription jd = timing.time("parse", () -> JdParser.parse(jdText, ctx.skills()));
+        listener.finished("read_posting", Map.of("skills", jd.skills().size()));
+
+        listener.started("choose_material");
         List<AssembledResume> resumes = Alternatives.top3(
                 ctx.shapes(), ctx.jobCandidates(), ctx.library(), jd, ctx.skills(), scoring, timing);
 
@@ -136,6 +156,7 @@ public final class MatchRunner {
             List<String> materialTexts = MissingSkills.materialTexts(wholeResume, ctx.jobCandidates(), ctx.library());
             return MissingSkills.compute(jd, materialTexts, ctx.skills());
         });
+        listener.finished("choose_material", Map.of("resumes", resumes.size(), "missing_skills", missing.size()));
 
         ResumeRenderer.BatchInputs batch = new ResumeRenderer.BatchInputs(ctx.baseline(), ctx.baselinePdf(), check);
 

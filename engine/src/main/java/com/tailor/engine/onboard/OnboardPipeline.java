@@ -17,6 +17,7 @@ import com.tailor.engine.layout.UnknownFonts;
 import com.tailor.engine.measure.PdfLines;
 import com.tailor.engine.measure.StoredBaseline;
 import com.tailor.engine.numbering.NumberingResolver;
+import com.tailor.engine.progress.ProgressListener;
 import com.tailor.engine.render.RenderException;
 import com.tailor.engine.render.Renderer;
 import com.tailor.engine.slots.DocxBulletDetection;
@@ -77,9 +78,21 @@ public final class OnboardPipeline {
     }
 
     public OnboardReport run(byte[] upload, Path outDir) throws IOException, RenderException {
+        return run(upload, outDir, ProgressListener.NONE);
+    }
+
+    /**
+     * As {@link #run(byte[], Path)}, telling {@code listener} what it is doing as it does it (PHASE6_SPEC.md revision 3):
+     * {@code safety_checks} (the upload gate), {@code fonts} (font substitution and the page rule), {@code find_bullets}
+     * (bullet detection and locking: {@code found} editable of {@code total} bullets) and {@code measure_lines}
+     * (calibration). Nothing else about the run changes.
+     */
+    public OnboardReport run(byte[] upload, Path outDir, ProgressListener listener) throws IOException, RenderException {
         Files.createDirectories(outDir);
 
+        listener.started("safety_checks");
         GateResult gate = UploadGate.check(upload);
+        listener.finished("safety_checks", gate.accepted() ? Map.of() : Map.of("reason", gate.reason()));
         if (!gate.accepted()) {
             OnboardReport report = OnboardReport.rejected(gate.reason(), GateMessages.forReason(gate.reason()));
             report.writeTo(outDir.resolve("onboard.json"));
@@ -99,7 +112,7 @@ public final class OnboardPipeline {
         Path workDir = Files.createTempDirectory("onboard-work");
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            Future<PipelineOutcome> future = executor.submit(() -> runPipeline(gate, workDir));
+            Future<PipelineOutcome> future = executor.submit(() -> runPipeline(gate, workDir, listener));
             PipelineOutcome outcome;
             try {
                 outcome = future.get(deadline.toMillis(), TimeUnit.MILLISECONDS);
@@ -155,7 +168,9 @@ public final class OnboardPipeline {
         return outcome.report();
     }
 
-    private PipelineOutcome runPipeline(GateResult gate, Path workDir) throws IOException, RenderException {
+    private PipelineOutcome runPipeline(GateResult gate, Path workDir, ProgressListener listener)
+            throws IOException, RenderException {
+        listener.started("fonts");
         Path uploadDocx = workDir.resolve("upload.docx");
         DocxPackage sourcePkg = DocxPackage.fromGatedUpload(gate);
         sourcePkg.save(uploadDocx);
@@ -171,6 +186,7 @@ public final class OnboardPipeline {
             try {
                 pageResult = pageRule.apply(uploadDocx, fontMap, normalizedDst, workDir);
             } catch (TooManyPagesException e) {
+                listener.finished("fonts", Map.of("reason", GateReason.TOO_MANY_PAGES));
                 return PipelineOutcome.rejected(GateReason.TOO_MANY_PAGES, GateMessages.forReason(GateReason.TOO_MANY_PAGES));
             }
         } else {
@@ -194,6 +210,7 @@ public final class OnboardPipeline {
                     }
                 }
                 if (chosenCandidate == null) {
+                    listener.finished("fonts", Map.of("reason", GateReason.NEEDS_USER));
                     return PipelineOutcome.rejected(GateReason.NEEDS_USER, GateMessages.needsUser(MAX_PAGES));
                 }
                 // Only Phase 1 font-map pairs are metric-compatible (PHASE2_SPEC.md 4.3 point 4).
@@ -203,16 +220,21 @@ public final class OnboardPipeline {
             pageResult = resolved;
         }
 
+        listener.finished("fonts", Map.of("pages", pageResult.pages(), "substituted", fontSubs.size()));
+
+        listener.started("find_bullets");
         List<Slot> slots = DocxBulletDetection.detect(normalizedDst);
         List<PdfLines.Line> lines = PdfLines.extract(pageResult.pdf());
         Map<Integer, String> glyphBySlotIndex = glyphsOf(normalizedDst, slots);
         List<Locker.LockedSlot> locked = Locker.lock(slots, lines, glyphBySlotIndex);
         int editableCount = (int) locked.stream().filter(Locker.LockedSlot::editable).count();
 
+        listener.finished("find_bullets", Map.of("found", editableCount, "total", slots.size()));
         if (editableCount < MIN_EDITABLE) {
             return PipelineOutcome.rejected(GateReason.TOO_FEW_EDITABLE, GateMessages.tooFewEditable(editableCount));
         }
 
+        listener.started("measure_lines");
         String prose = ProseSource.fromSlots(slots, CALIBRATION_PROSE_LENGTH);
         BatchCalibrator.Result calibration;
         try {
@@ -220,6 +242,8 @@ public final class OnboardPipeline {
         } catch (Exception e) {
             throw new RenderException("calibration failed during onboarding", e);
         }
+
+        listener.finished("measure_lines", Map.of("measured", calibration.lineCounts().size()));
 
         List<OnboardReport.SlotReport> slotReports = new ArrayList<>();
         for (int i = 0; i < slots.size(); i++) {
