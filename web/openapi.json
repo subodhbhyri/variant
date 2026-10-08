@@ -267,6 +267,138 @@
         "tags" : [ "me-controller" ]
       }
     },
+    "/postings" : {
+      "get" : {
+        "operationId" : "listPostings",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : [ "integer" ],
+            "format" : "int32",
+            "default" : 50,
+            "example" : null
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PostingSummary"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The user's postings, newest first.",
+        "tags" : [ "posting-controller" ]
+      },
+      "post" : {
+        "operationId" : "createPosting",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PostingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : { }
+              }
+            },
+            "description" : "Cache hit: the match."
+          },
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : { }
+              }
+            },
+            "description" : "Matching queued."
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NO_ACTIVE_RESUME or NO_LIBRARY"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "JD_TOO_LONG or another posting problem"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "POSTING_LIMIT: 200 postings a day"
+          }
+        },
+        "summary" : "Adds a job posting (text, at most 20,000 characters) and matches it against the active resume's newest library. A cache hit (same library version and a same or near-identical posting) is answered at once with 200 and the match; otherwise 202 with a job to follow.",
+        "tags" : [ "posting-controller" ]
+      }
+    },
+    "/postings/{id}/match" : {
+      "get" : {
+        "operationId" : "getMatch",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also for another user's posting)"
+          }
+        },
+        "summary" : "The match: resume #1's snapshot, the scored alternatives, missing skills and infeasible reasons. Project ids in labels are already replaced by titles. status is pending, ready or failed.",
+        "tags" : [ "posting-controller" ]
+      }
+    },
     "/resumes" : {
       "post" : {
         "operationId" : "uploadResume",
@@ -710,6 +842,98 @@
         "summary" : "Confirms a section's role. Only the suggested role can be confirmed for now: any other role is refused with ROLE_CHANGE_UNSUPPORTED, because the engine decides roles itself.",
         "tags" : [ "resume-controller" ]
       }
+    },
+    "/snapshots/{id}" : {
+      "get" : {
+        "operationId" : "getSnapshot",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also for another user's snapshot)"
+          }
+        },
+        "summary" : "A snapshot: its assembly (with project titles), status and revision chain.",
+        "tags" : [ "snapshot-controller" ]
+      }
+    },
+    "/snapshots/{id}/pdf" : {
+      "get" : {
+        "operationId" : "getSnapshotPdf",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "SNAPSHOT_NOT_RENDERED"
+          }
+        },
+        "summary" : "A short-lived (5 minute) download link for the snapshot's PDF, issued only after the ownership check.",
+        "tags" : [ "snapshot-controller" ]
+      }
+    },
+    "/snapshots/{id}/render" : {
+      "post" : {
+        "operationId" : "renderAlternative",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : { }
+              }
+            },
+            "description" : "Rendering queued."
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND"
+          }
+        },
+        "summary" : "Renders an alternative on request. 202 with a job; 200 with the snapshot if it is already rendered.",
+        "tags" : [ "snapshot-controller" ]
+      }
     }
   },
   "components" : {
@@ -806,6 +1030,36 @@
             "example" : null
           },
           "url" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "PostingRequest" : {
+        "properties" : {
+          "text" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "PostingSummary" : {
+        "properties" : {
+          "createdAt" : {
+            "type" : [ "string" ],
+            "format" : "date-time",
+            "example" : null
+          },
+          "id" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          },
+          "status" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "title" : {
             "type" : [ "string" ],
             "example" : null
           }

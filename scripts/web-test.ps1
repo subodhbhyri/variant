@@ -9,7 +9,10 @@
 param(
     [string[]]$Tasks = @(':web:test'),
     [switch]$UpdateOpenApi,
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    # Parent folder of the all-MiniLM-L6-v2 model directory (as in run-private.ps1). When present it is mounted
+    # read-only and the match tests use the real model and compare with the engine's golden outputs.
+    [string]$ModelsDir = 'C:/Users/ashok/javaworld/models'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -53,6 +56,10 @@ try {
     $env_args = @('-e', "TEST_DB_URL=jdbc:postgresql://${pg}:5432/tailor_test",
         '-e', "TEST_S3_ENDPOINT=http://${minio}:9000")
     $mounts = @('-v', 'tailor-gradle:/root/.gradle')
+    if (Test-Path (Join-Path $ModelsDir 'all-MiniLM-L6-v2')) {
+        $mounts += @('-v', "${ModelsDir}:/models:ro")
+        $env_args += @('-e', 'VARIANT_MODEL_DIR=/models/all-MiniLM-L6-v2')
+    }
     if ($UpdateOpenApi) {
         $spec = Join-Path $root 'web/openapi.json'
         if (-not (Test-Path $spec)) { New-Item -ItemType File -Path $spec | Out-Null }

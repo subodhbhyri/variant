@@ -77,7 +77,7 @@ public class LibraryService {
     }
 
     private SectionView section(String id, List<LibraryRepository.Item> items, JsonNode report) {
-        boolean project = id.startsWith("project-");
+        boolean project = !id.startsWith("job-"); // any other section id is a project (project-N, project-new-N)
         Map<String, TreeMap<Integer, String>> byCandidate = new LinkedHashMap<>();
         for (LibraryRepository.Item i : items) {
             byCandidate.computeIfAbsent(i.candidateId(), k -> new TreeMap<>()).put(i.length(), i.text());
@@ -119,6 +119,17 @@ public class LibraryService {
             run.report().fields().forEachRemaining(e -> out.putIfAbsent(e.getKey(), e.getValue()));
         }
         return out;
+    }
+
+    /** Project id to title, for turning ids in labels and reasons into names the user knows. */
+    public Map<String, String> projectTitles(UUID libraryId, UUID userId) {
+        Map<String, String> titles = new LinkedHashMap<>();
+        for (LibraryRepository.Item item : libraries.items(libraryId, userId)) {
+            if (!item.sectionId().startsWith("job-") && item.projectHeader() != null && item.projectHeader().hasNonNull("title")) {
+                titles.putIfAbsent(item.sectionId(), item.projectHeader().get("title").asText());
+            }
+        }
+        return titles;
     }
 
     public static String variantId(String sectionId, String candidateId, int length) {

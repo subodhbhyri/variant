@@ -50,6 +50,15 @@ public abstract class FlowTestBase extends AbstractApiTest {
         registry.add("app.storage.create-bucket", () -> "true");
         registry.add("app.storage.bucket", () -> BUCKET);
         registry.add("app.jobs.run-handlers", () -> "true");
+        // The real model when its directory is mounted (scripts/web-test.ps1 does that), else the engine's fixture
+        // embedder, as `tailor match --embedder fake`. One property set for every flow test class, so they share
+        // one Spring context (and one port).
+        registry.add("app.match.embedder", FlowTestBase::embedderKind);
+    }
+
+    protected static String embedderKind() {
+        String dir = System.getenv("VARIANT_MODEL_DIR");
+        return dir == null || dir.isBlank() ? "fake" : "minilm";
     }
 
     @Autowired

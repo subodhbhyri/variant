@@ -43,6 +43,11 @@ public class JobService {
         return jobs.findByIdempotencyKey(userId, idempotencyKey.trim());
     }
 
+    /** The user's job, or null. */
+    public Job find(UUID jobId, UUID userId) {
+        return jobs.findForUser(jobId, userId).orElse(null);
+    }
+
     public Job getForUser(UUID jobId, UUID userId) {
         return jobs.findForUser(jobId, userId).orElseThrow(ApiException::notFound);
     }
