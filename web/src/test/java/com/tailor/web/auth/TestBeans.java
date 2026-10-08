@@ -42,15 +42,16 @@ public class TestBeans {
         }
     }
 
+    /** Real time plus an offset the test can move: it ticks, and it can jump ahead (link expiry, leases). */
     public static final class MutableClock extends Clock {
-        private volatile Instant now = Instant.now();
+        private volatile Duration offset = Duration.ZERO;
 
         public void advance(Duration d) {
-            now = now.plus(d);
+            offset = offset.plus(d);
         }
 
         public void reset() {
-            now = Instant.now();
+            offset = Duration.ZERO;
         }
 
         @Override
@@ -65,7 +66,7 @@ public class TestBeans {
 
         @Override
         public Instant instant() {
-            return now;
+            return Instant.now().plus(offset);
         }
     }
 

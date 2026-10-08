@@ -127,6 +127,74 @@
         "tags" : [ "health-controller" ]
       }
     },
+    "/jobs/{id}" : {
+      "get" : {
+        "operationId" : "getJob",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also for another user's job)"
+          }
+        },
+        "summary" : "A job's status (queued, running, succeeded, failed), progress, result and error code.",
+        "tags" : [ "job-controller" ]
+      }
+    },
+    "/jobs/{id}/events" : {
+      "get" : {
+        "operationId" : "getJobEvents",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also for another user's job)"
+          },
+          "429" : {
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "TOO_MANY_STREAMS: at most 5 open streams per user"
+          }
+        },
+        "summary" : "Server-sent events with the same JobView, sent as the job changes; the stream ends when the job is succeeded or failed.",
+        "tags" : [ "job-controller" ]
+      }
+    },
     "/me" : {
       "delete" : {
         "operationId" : "deleteMe",

@@ -88,6 +88,33 @@ public final class TestBrowser {
         }
     }
 
+    /**
+     * Opens a server-sent-events stream and returns every {@code data:} payload received until the
+     * server closes the stream (or {@code maxWait} passes, which fails the call).
+     */
+    public List<String> events(String path, java.time.Duration maxWait) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path))
+                .timeout(maxWait).header("Accept", "text/event-stream");
+        if (!cookies.isEmpty()) {
+            StringBuilder header = new StringBuilder();
+            cookies.forEach((k, v) -> header.append(header.isEmpty() ? "" : "; ").append(k).append('=').append(v));
+            request.header("Cookie", header.toString());
+        }
+        try {
+            HttpResponse<java.util.stream.Stream<String>> response =
+                    http.send(request.build(), HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException("stream answered " + response.statusCode());
+            }
+            return response.body().filter(l -> l.startsWith("data:")).map(l -> l.substring(5).trim()).toList();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** Asks for the CSRF cookie, as the SPA does before its first state-changing request. */
     public void primeCsrf() {
         get("/auth/csrf");

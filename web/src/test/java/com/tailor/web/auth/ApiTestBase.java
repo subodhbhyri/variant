@@ -18,7 +18,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * rate-limit and token tables and uses its own email addresses.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
-@Import(TestBeans.class)
+@Import({TestBeans.class, com.tailor.web.jobs.JobTestHandlers.class})
 public abstract class ApiTestBase {
 
     protected static final StubOidcProvider GOOGLE = StubOidcProvider.start();
