@@ -1,5 +1,20 @@
 app:
   role: api
+  # Where the api is reached from outside (sign-in links, the Google redirect URI) and the SPA's origin.
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  mail:
+    # log = print sign-in links to the log (local development only); ses = send them.
+    mode: ${APP_MAIL_MODE:log}
+    from: ${APP_MAIL_FROM:noreply@localhost}
+  cookie:
+    # Only false for local plain-HTTP development.
+    secure: ${APP_COOKIE_SECURE:true}
+    domain: ${APP_COOKIE_DOMAIN:}
+  google:
+    # Sign-in with Google stays off until a client id is set.
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
 
 spring:
   application:
@@ -13,12 +28,29 @@ spring:
     locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
+  session:
+    # Section 9.1: server-side sessions in PostgreSQL (the tables are Flyway's), 14-day idle expiry.
+    store-type: jdbc
+    timeout: 14d
+    jdbc:
+      initialize-schema: never
 
 server:
   port: ${PORT:8080}
+  # Behind the ALB: honour X-Forwarded-For / -Proto from the (private-range) proxy only.
+  forward-headers-strategy: native
   error:
     include-message: never
     include-stacktrace: never
+  servlet:
+    session:
+      timeout: 14d
+      cookie:
+        name: SESSION
+        http-only: true
+        secure: ${app.cookie.secure}
+        same-site: lax
+        # A shared parent domain (e.g. .example.com) comes from SERVER_SERVLET_SESSION_COOKIE_DOMAIN.
 
 management:
   endpoints:

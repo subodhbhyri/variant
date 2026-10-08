@@ -58,9 +58,10 @@ class OpenApiContractTest {
     }
 
     @Test
-    void unknownPathsUseTheSharedErrorShape() throws Exception {
-        mvc.perform(get("/nope")).andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+    void protectedPathsUseTheSharedErrorShapeWhenAnonymous() throws Exception {
+        // Unknown and protected paths look the same to an anonymous caller, so nothing can be probed.
+        mvc.perform(get("/nope")).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
                 .andExpect(jsonPath("$.message").isString());
     }
 

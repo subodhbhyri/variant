@@ -38,7 +38,8 @@ class MigrationsTest {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = ?", String.class, schema);
         assertThat(tables).contains("users", "login_tokens", "resumes", "section_roles", "intake_sections",
                 "libraries", "library_items", "generation_runs", "postings", "matches", "snapshots", "jobs",
-                "usage_ledger", "alias_queue");
+                "usage_ledger", "alias_queue", "spring_session", "spring_session_attributes", "rate_events",
+                "storage_deletions");
     }
 
     @Test
@@ -194,7 +195,7 @@ class MigrationsTest {
     void flywayRecordsOneMigrationPerFile() {
         Set<String> versions = Set.copyOf(jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL", String.class));
-        assertThat(versions).contains("1");
+        assertThat(versions).contains("1", "2");
     }
 
     // ---- row helpers -------------------------------------------------------------------------

@@ -13,6 +13,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    // Section 9.1: server-side sessions in PostgreSQL, Google OpenID Connect, CSRF.
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    implementation("org.springframework.session:spring-session-jdbc")
+
     // Section 3: Flyway migrations on PostgreSQL 16.
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
@@ -31,4 +36,11 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 }
 tasks.named<Jar>("jar") {
     enabled = false
+}
+
+tasks.withType<Test> {
+    testLogging {
+        // Show why an assertion failed in the console output (the report is inside a throwaway container).
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }

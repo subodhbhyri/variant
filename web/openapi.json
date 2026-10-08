@@ -9,6 +9,102 @@
     "url" : "/"
   } ],
   "paths" : {
+    "/auth/csrf" : {
+      "get" : {
+        "operationId" : "csrf",
+        "responses" : {
+          "204" : {
+            "description" : "The cookie is set."
+          }
+        },
+        "summary" : "Sets the CSRF cookie (XSRF-TOKEN); send its value back in the X-XSRF-TOKEN header on every POST, PUT and DELETE.",
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/auth/email" : {
+      "post" : {
+        "operationId" : "requestEmailLink",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "If the address is valid, a link is on its way."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "INVALID_EMAIL"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RATE_LIMITED: 5 links per address and 20 per IP per hour."
+          }
+        },
+        "summary" : "Sends a sign-in link by email. Always 202 for a valid address, whether or not it has an account, so it can't be used to probe accounts.",
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/auth/email/verify" : {
+      "get" : {
+        "operationId" : "verifyEmailLink",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "302" : {
+            "description" : "Redirect to the app."
+          }
+        },
+        "summary" : "Spends a sign-in link (single use, 15 minutes), starts the session and redirects to the app. A bad, used or expired link redirects to {app}/signin?error=SIGNIN_LINK_INVALID.",
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/auth/logout" : {
+      "post" : {
+        "operationId" : "logout",
+        "responses" : {
+          "204" : {
+            "description" : "Signed out (also when there was no session)."
+          }
+        },
+        "summary" : "Ends the session.",
+        "tags" : [ "auth-controller" ]
+      }
+    },
     "/healthz" : {
       "get" : {
         "operationId" : "health",
@@ -17,12 +113,10 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "type" : [ "object" ],
+                  "type" : "object",
                   "additionalProperties" : {
-                    "type" : [ "string" ],
-                    "example" : null
-                  },
-                  "example" : null
+                    "type" : "string"
+                  }
                 }
               }
             },
@@ -32,7 +126,76 @@
         "summary" : "Liveness check for the load balancer",
         "tags" : [ "health-controller" ]
       }
+    },
+    "/me" : {
+      "delete" : {
+        "operationId" : "deleteMe",
+        "responses" : {
+          "204" : {
+            "description" : "Deleted."
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "UNAUTHENTICATED"
+          }
+        },
+        "summary" : "Deletes the account and all its data. Database rows go at once; stored files within 24 hours.",
+        "tags" : [ "me-controller" ]
+      },
+      "get" : {
+        "operationId" : "getMe",
+        "responses" : {
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "UNAUTHENTICATED"
+          }
+        },
+        "summary" : "The signed-in user, their active resume id (null if none) and a usage summary.",
+        "tags" : [ "me-controller" ]
+      }
     }
   },
-  "components" : { }
+  "components" : {
+    "schemas" : {
+      "ApiError" : {
+        "properties" : {
+          "code" : {
+            "type" : [ "string" ],
+            "example" : null
+          },
+          "details" : {
+            "type" : [ "object" ],
+            "additionalProperties" : {
+              "example" : null
+            },
+            "example" : null
+          },
+          "message" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "EmailRequest" : {
+        "properties" : {
+          "email" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      }
+    }
+  }
 }
