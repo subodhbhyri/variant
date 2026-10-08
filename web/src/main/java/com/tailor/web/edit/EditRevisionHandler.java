@@ -60,7 +60,7 @@ import org.w3c.dom.Element;
  *   <li>{@code check}: one slot with new text on the parent's document, one render, the engine's verdict
  *       ({@code FITS}, {@code FITS_WITH_PADDING} or {@code TOO_LONG}). Nothing is stored.</li>
  *   <li>{@code revision}: all the edits applied to the parent's document, every one re-checked, then the whole
- *       document verified against the parent's own stored render with the engine's {@link Verifier}. Only if all
+ *       document verified against the resume's stored onboarding baseline with the engine's {@link Verifier}. Only if all
  *       of that passes is a NEW snapshot created, with its files, linked to the parent. The parent is never
  *       touched. If anything fails nothing is stored: no row and no file.</li>
  * </ul>
@@ -130,7 +130,7 @@ public class EditRevisionHandler implements JobHandler {
                     return check(job, ctx, report, parentDocx, work);
                 }
                 context.stage("applying");
-                return revise(job, context, ctx, report, parent, revisionId, parentDocx, work);
+                return revise(job, context, ctx, report, parent, revisionId, parentDocx, work, dir);
             });
         } finally {
             deleteTree(work);
@@ -184,7 +184,8 @@ public class EditRevisionHandler implements JobHandler {
     }
 
     private Map<String, Object> revise(Job job, Context context, com.tailor.engine.match.MatchRunner.Context ctx,
-            OnboardReport report, Snapshot parent, UUID revisionId, Path parentDocx, Path work) throws Exception {
+            OnboardReport report, Snapshot parent, UUID revisionId, Path parentDocx, Path work, Path contextDir)
+            throws Exception {
         UUID userId = parent.userId();
         List<Edit> edits = new ArrayList<>();
         for (JsonNode e : job.payload().path("edits")) {
@@ -275,44 +276,19 @@ public class EditRevisionHandler implements JobHandler {
         Path revisedDocx = work.resolve("revised.docx");
         pkg.save(revisedDocx);
 
-        // 3. Verify the whole document against the chain's ROOT snapshot (the original, which was verified against the
-        //    onboarding and has never been edited): same pages, every untouched line where it was, every edited slot at
-        //    its line count, fonts clean. Comparing with the root, with the edits of the whole chain, rather than with
-        //    the parent keeps drift from building up across revisions and lets a blanked bullet get text again (a
-        //    blank has no text to anchor on). Unverified output is never stored.
+        // 3. Verify the whole document against the resume's stored ONBOARDING BASELINE (baseline.json, PHASE6_SPEC.md
+        //    section 6), never against the parent or an earlier snapshot: same pages, every line the original had and
+        //    this document did not change still where the original had it (0.5 pt), every changed bullet or header at
+        //    its line count, fonts clean. Checking each revision against its parent would let drift add up; checking
+        //    against the baseline keeps every revision within 0.5 pt of the original. Unverified output is never stored.
         context.stage("verifying");
-        List<Snapshot> chain = chainOf(parent);
-        Snapshot root = chain.get(0);
-        Path rootDocx = work.resolve("root.docx");
-        Path rootPdf = work.resolve("root.pdf");
-        Files.write(rootDocx, storage.get(root.docxKey()));
-        Files.write(rootPdf, storage.get(root.pdfKey()));
-        StoredBaseline rootBaseline = StoredBaseline.measure(rootPdf);
-        List<SnapshotSlots.SlotInfo> rootInfo = SnapshotSlots.describe(rootDocx, report);
-        List<Slot> revisedSlots = com.tailor.engine.slots.DocxBulletDetection.detect(revisedDocx);
-        if (revisedSlots.size() != rootInfo.size()) {
-            throw new JobRejection("VERIFY_FAILED", Map.of("reason", "the edit changed the number of bullets"));
+        StoredBaseline baseline = StoredBaseline.readFrom(contextDir.resolve("baseline.json"));
+        List<Verifier.Region> regions = BaselineRegions.build(contextDir.resolve("normalized.docx"), revisedDocx, report,
+                baseline, ctx.renderer(), work);
+        if (regions == null) {
+            throw new JobRejection("VERIFY_FAILED", Map.of("reason", "the edit changed the structure of the resume"));
         }
-        Map<Integer, SlotEdit> cumulative = new LinkedHashMap<>();
-        for (Snapshot ancestor : chain) {
-            if (ancestor.edits() != null) {
-                for (JsonNode e : ancestor.edits()) {
-                    cumulative.put(e.path("slot").asInt(), kindOf(e.path("result").asText()));
-                }
-            }
-        }
-        cumulative.putAll(kinds);
-        List<Verifier.Region> regions = new ArrayList<>();
-        for (int i = 0; i < rootInfo.size(); i++) {
-            SlotEdit kind = cumulative.get(i);
-            String before = rootInfo.get(i).text();
-            if (kind == null) {
-                regions.add(Verifier.Region.unchanged(before));
-            } else {
-                regions.add(new Verifier.Region(before, revisedSlots.get(i).text(), rootInfo.get(i).lines(), kind));
-            }
-        }
-        Verifier.Checked verified = Verifier.verifyRegionsAgainstBaseline(rootBaseline, revisedDocx, ctx.renderer(),
+        Verifier.Checked verified = Verifier.verifyRegionsAgainstBaseline(baseline, revisedDocx, ctx.renderer(),
                 ctx.fontMap(), regions, work);
         if (!verified.report().ok()) {
             Map<String, Object> details = new LinkedHashMap<>();
@@ -338,26 +314,6 @@ public class EditRevisionHandler implements JobHandler {
     }
 
     // ---- helpers -------------------------------------------------------------------------------
-
-    /** The snapshots from the chain's root (an original) down to and including {@code snapshot}. */
-    private List<Snapshot> chainOf(Snapshot snapshot) {
-        java.util.LinkedList<Snapshot> chain = new java.util.LinkedList<>();
-        Snapshot current = snapshot;
-        chain.addFirst(current);
-        while (current.parentId() != null) {
-            current = matches.findSnapshot(current.parentId(), current.userId()).orElseThrow();
-            chain.addFirst(current);
-        }
-        return chain;
-    }
-
-    private static SlotEdit kindOf(String result) {
-        return switch (result) {
-            case "BLANKED" -> SlotEdit.BLANKED;
-            case "FITS_WITH_PADDING" -> SlotEdit.PADDED;
-            default -> SlotEdit.SUBSTITUTED;
-        };
-    }
 
     private Path rootDocx(Snapshot snapshot, Path work) throws IOException {
         Snapshot root = snapshot;

@@ -57,6 +57,9 @@ public class LoginTokenService {
      * exists, so none of this depends on that.
      */
     public void request(String rawEmail, String clientIp) {
+        if (!props.mail().enabled()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "EMAIL_SIGNIN_DISABLED", "Signing in by email isn't available.");
+        }
         String email = UserRepository.normalizeEmail(rawEmail == null ? "" : rawEmail);
         if (email.length() > 254 || !EMAIL.matcher(email).matches()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_EMAIL", "Enter a valid email address.");
@@ -89,13 +92,8 @@ public class LoginTokenService {
 
     /** Spends the link and returns its email, or empty if it is unknown, expired or already used. */
     public Optional<String> consume(String token) {
-        byte[] raw;
-        try {
-            raw = Base64.getUrlDecoder().decode(token == null ? "" : token);
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        }
-        if (raw.length != 32) {
+        byte[] raw = decode(token);
+        if (raw == null) {
             return Optional.empty();
         }
         Timestamp now = Timestamp.from(clock.instant());
@@ -104,6 +102,31 @@ public class LoginTokenService {
                 "UPDATE login_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?"
                         + " RETURNING email", String.class, now, sha256(raw), now);
         return emails.stream().findFirst();
+    }
+
+    /**
+     * The email a link is for, if it is still good, WITHOUT spending it. Used by the confirmation page that
+     * {@code GET /auth/email/verify} shows: mail scanners open links before people do, and a GET that spent the
+     * token would burn every one of them (PHASE6_SPEC.md sections 4.1 and 9.1).
+     */
+    public Optional<String> peek(String token) {
+        byte[] raw = decode(token);
+        if (raw == null) {
+            return Optional.empty();
+        }
+        List<String> emails = jdbc.queryForList(
+                "SELECT email FROM login_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
+                String.class, sha256(raw), Timestamp.from(clock.instant()));
+        return emails.stream().findFirst();
+    }
+
+    private static byte[] decode(String token) {
+        try {
+            byte[] raw = Base64.getUrlDecoder().decode(token == null ? "" : token);
+            return raw.length == 32 ? raw : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     static byte[] sha256(byte[] data) {

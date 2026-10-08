@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -36,6 +37,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
  * reachable bucket and tests that never touch files cost nothing.
  */
 @Component
+@ConditionalOnProperty(name = "app.storage.mode", havingValue = "s3", matchIfMissing = true)
 public class S3FileStorage implements FileStorage {
 
     private final StorageProperties props;

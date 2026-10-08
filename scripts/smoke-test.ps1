@@ -16,6 +16,19 @@
 .PARAMETER LogGroup
   The api log group, for -MailFrom cloudwatch.
 
+.PARAMETER SessionCookie
+  The value of the SESSION cookie of a browser that is already signed in (sign in with Google in the browser, then copy
+  it from the developer tools: Application > Cookies). For a real server, where email sign-in is off and there is no
+  sign-in link to read. The account is kept (never deleted) and the script does not sign out.
+
+.PARAMETER Insecure
+  Accept a self-signed certificate (curl -k): for the local production-like stack (deploy/docker-compose.prod.yml
+  with Caddy's local certificate authority). Never for a real deployment.
+
+.PARAMETER ComposeArgs
+  Extra arguments for docker compose, as one string, when reading the sign-in link from the log, e.g.
+  '-p variant-test -f deploy/docker-compose.prod.yml' (the deploy test passes the production stack's files).
+
 .PARAMETER Latency
   Also time the three fixture postings (cache misses) against the PHASE6_SPEC.md section 5 targets.
 
@@ -30,6 +43,9 @@ param(
     [string]$BaseUrl = 'http://localhost:8080',
     [ValidateSet('compose', 'cloudwatch')][string]$MailFrom = 'compose',
     [string]$LogGroup = '',
+    [string]$SessionCookie = '',
+    [switch]$Insecure,
+    [string]$ComposeArgs = $env:SMOKE_COMPOSE_ARGS,
     [switch]$Latency,
     [switch]$KeepAccount,
     [string]$Resume = (Join-Path $PSScriptRoot '..\fixtures\phase2\ok_synthetic.docx'),
@@ -69,6 +85,7 @@ function Call([string]$method, [string]$path, [string]$json = $null, [string]$fi
         $token = (Select-String -Path $jar -Pattern 'XSRF-TOKEN\s+(\S+)' -ErrorAction SilentlyContinue | Select-Object -Last 1)
         if ($token) { $curlArgs += @('-H', "X-XSRF-TOKEN: $($token.Matches[0].Groups[1].Value)") }
     }
+    if ($Insecure) { $curlArgs += '-k' }
     foreach ($k in $headers.Keys) { $curlArgs += @('-H', "${k}: $($headers[$k])") }
     $bodyFile = $null
     if ($file) {
@@ -114,7 +131,7 @@ function SignInLink([string]$email) {
     $deadline = (Get-Date).AddSeconds(45)
     while ((Get-Date) -lt $deadline) {
         $text = if ($MailFrom -eq 'compose') {
-            (docker compose logs api --since 2m 2>&1 | Out-String)
+            (docker compose @($ComposeArgs -split ' ' | Where-Object { $_ }) logs api --since 2m 2>&1 | Out-String)
         } else {
             (aws logs filter-log-events --log-group-name $LogGroup --filter-pattern "`"$email`"" --start-time ([DateTimeOffset]::UtcNow.AddMinutes(-2).ToUnixTimeMilliseconds()) --query 'events[].message' --output text | Out-String)
         }
@@ -125,9 +142,22 @@ function SignInLink([string]$email) {
     throw "no sign-in link for $email in the $MailFrom log"
 }
 
+# Spends the sign-in link the way a person does: the link only shows a confirmation page; the button posts the token.
+function OpenLink([string]$link) {
+    $page = Call 'GET' $link
+    Expect $page 200 'GET sign-in link (confirmation page)'
+    if ($page.Body -notmatch 'Continue as') { throw 'the sign-in link did not show the confirmation page' }
+    $token = [regex]::Match($link, 'token=([A-Za-z0-9_-]+)').Groups[1].Value
+    $r = Call 'POST' '/auth/email/verify' (@{ token = $token } | ConvertTo-Json -Compress)
+    Expect $r 200 'POST /auth/email/verify'
+}
+
 function Download([string]$url, [string]$what) {
     $tmp = [IO.Path]::GetTempFileName()
-    & curl.exe -s -L -o $tmp $url
+    # -b: in the single-server deployment the api streams the file and wants the session; S3 links ignore the cookie.
+    $dl = @('-s', '-L', '-b', $jar, '-o', $tmp)
+    if ($Insecure) { $dl += '-k' }
+    & curl.exe @dl $url
     $head = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($tmp), 0, 5)
     $size = (Get-Item $tmp).Length
     Remove-Item $tmp
@@ -135,19 +165,35 @@ function Download([string]$url, [string]$what) {
     return $size
 }
 
+if ($SessionCookie) {
+    # A cookie-jar line for the server's host (curl's Netscape format; #HttpOnly_ marks an HttpOnly cookie).
+    $hostName = ([uri]$BaseUrl).Host
+    [IO.File]::WriteAllText($jar, "#HttpOnly_$hostName`tFALSE`t/`tTRUE`t0`tSESSION`t$SessionCookie`n", (New-Object Text.UTF8Encoding($false)))
+    $KeepAccount = [switch]$true
+}
+
 $email = "smoke+" + ([guid]::NewGuid().ToString('N').Substring(0, 10)) + "@example.com"
 $ctx = @{}
 try {
     Step 'health' { $r = Call 'GET' '/healthz'; Expect $r 200 'GET /healthz'; "role=$($r.Json.role)" }
 
+    if ($SessionCookie) {
+        Step 'use the signed-in session' {
+            $r = Call 'GET' '/auth/csrf'; Expect $r 204 'GET /auth/csrf'
+            $me = Call 'GET' '/me'; Expect $me 200 'GET /me (is the SESSION cookie current?)'
+            $ctx.user = $me.Json.id
+            "user $($me.Json.id)"
+        }
+    } else {
     Step 'sign in with an email link' {
         $r = Call 'GET' '/auth/csrf'; Expect $r 204 'GET /auth/csrf'
         $r = Call 'POST' '/auth/email' (@{ email = $email } | ConvertTo-Json -Compress); Expect $r 202 'POST /auth/email'
         $link = SignInLink $email
-        $r = Call 'GET' $link; Expect $r 302 'GET /auth/email/verify'
+        OpenLink $link
         $me = Call 'GET' '/me'; Expect $me 200 'GET /me'
         $ctx.user = $me.Json.id
         "user $($me.Json.id)"
+    }
     }
 
     Step 'upload the resume (gate runs now)' {
@@ -258,10 +304,12 @@ try {
         }
     }
 
-    Step 'sign out' {
-        $r = Call 'POST' '/auth/logout' '{}'; Expect $r 204 'POST logout'
-        $me = Call 'GET' '/me'; Expect $me 401 'GET /me after logout'
-        'signed out'
+    if (-not $SessionCookie) {
+        Step 'sign out' {
+            $r = Call 'POST' '/auth/logout' '{}'; Expect $r 204 'POST logout'
+            $me = Call 'GET' '/me'; Expect $me 401 'GET /me after logout'
+            'signed out'
+        }
     }
 
     if (-not $KeepAccount) {
@@ -270,7 +318,7 @@ try {
             $r = Call 'GET' '/auth/csrf'
             Call 'POST' '/auth/email' (@{ email = $email } | ConvertTo-Json -Compress) | Out-Null
             $link = SignInLink $email
-            Call 'GET' $link | Out-Null
+            OpenLink $link
             $d = Call 'DELETE' '/me'; Expect $d 204 'DELETE /me'
             $me = Call 'GET' '/me'; Expect $me 401 'GET /me after delete'
             'account and data removed (stored files follow within 24 hours)'

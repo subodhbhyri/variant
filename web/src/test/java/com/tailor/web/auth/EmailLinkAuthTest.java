@@ -9,6 +9,80 @@ import org.junit.jupiter.api.Test;
 /** P6-T1, email links: single use, 15-minute life, the same answer for known and unknown addresses. */
 class EmailLinkAuthTest extends ApiTestBase {
 
+    private static TestBrowser.Response spend(TestBrowser b, String token) {
+        if (b.cookie("XSRF-TOKEN") == null) {
+            b.primeCsrf();
+        }
+        return b.postJson("/auth/email/verify", "{\"token\":\"" + token + "\"}");
+    }
+
+    // ---- P6-T16: a scanner's GET must not spend the link ----
+
+    @Test
+    void aScannerOpeningTheLinkDoesNotSpendIt() {
+        String email = uniqueEmail();
+        TestBrowser b = browser();
+        b.primeCsrf();
+        b.postJson("/auth/email", "{\"email\":\"" + email + "\"}");
+        String link = mail.last().link();
+
+        TestBrowser scanner = browser();
+        for (int i = 0; i < 3; i++) {
+            TestBrowser.Response page = scanner.get(link);
+            assertThat(page.status()).isEqualTo(200);
+            assertThat(page.headers().firstValue("Content-Type").orElse("")).startsWith("text/html");
+            assertThat(page.body()).contains("Continue as " + email).contains("method=\"post\"");
+            assertThat(page.headers().firstValue("Cache-Control").orElse("")).contains("no-store");
+            assertThat(page.setCookies().stream().anyMatch(c -> c.startsWith("SESSION="))).isFalse();
+        }
+        assertThat(scanner.get("/me").status()).isEqualTo(401);
+        assertThat(count("SELECT count(*) FROM login_tokens WHERE used_at IS NOT NULL")).isZero();
+        assertThat(count("SELECT count(*) FROM users WHERE email = ?", email)).isZero();
+
+        // The person then clicks the button on the page: the form post signs them in, once.
+        TestBrowser person = browser();
+        String page = person.get(link).body();
+        String csrf = person.cookie("XSRF-TOKEN");
+        assertThat(page).contains("name=\"_csrf\" value=\"" + csrf + "\"");
+        TestBrowser.Response signedIn = person.postForm("/auth/email/verify",
+                "token=" + mail.last().token() + "&_csrf=" + csrf);
+        assertThat(signedIn.status()).isEqualTo(303);
+        assertThat(signedIn.location()).isEqualTo(FRONTEND);
+        assertThat(person.get("/me").status()).isEqualTo(200);
+
+        TestBrowser.Response second = spend(browser(), mail.last().token());
+        assertThat(second.status()).isEqualTo(400);
+        assertThat(count("SELECT count(*) FROM users WHERE email = ?", email)).isEqualTo(1);
+    }
+
+    @Test
+    void configListsTheSigninMethodsThatAreOn() {
+        TestBrowser.Response config = browser().get("/config"); // public: no session, no CSRF cookie needed
+        assertThat(config.status()).isEqualTo(200);
+        assertThat(config.body()).isEqualTo("{\"signin\":[\"google\",\"email\"]}");
+    }
+
+    @Test
+    void thePostNeedsTheCsrfToken() {
+        TestBrowser b = browser();
+        b.primeCsrf();
+        b.postJson("/auth/email", "{\"email\":\"" + uniqueEmail() + "\"}");
+        TestBrowser.Response r = b.postJsonWithoutCsrf("/auth/email/verify", "{\"token\":\"" + mail.last().token() + "\"}");
+        assertThat(r.status()).isEqualTo(403);
+        TestBrowser.Response form = b.postForm("/auth/email/verify", "token=" + mail.last().token());
+        assertThat(form.status()).isEqualTo(403);
+        assertThat(count("SELECT count(*) FROM login_tokens WHERE used_at IS NOT NULL")).isZero();
+    }
+
+    @Test
+    void theConfirmationPageNamesTheAccountAndEscapesIt() {
+        TestBrowser b = browser();
+        b.primeCsrf();
+        b.postJson("/auth/email", "{\"email\":\"a'b<i>@example.com\"}");
+        String page = browser().get(mail.last().link()).body();
+        assertThat(page).doesNotContain("<i>").contains("a&#39;b&lt;i&gt;@example.com");
+    }
+
     @Test
     void aLinkSignsTheUserInOnceAndCreatesTheAccount() {
         String email = uniqueEmail();
@@ -20,9 +94,9 @@ class EmailLinkAuthTest extends ApiTestBase {
         assertThat(mail.all()).hasSize(1);
         assertThat(mail.last().to()).isEqualTo(email);
 
-        TestBrowser.Response verify = b.get(mail.last().link());
-        assertThat(verify.status()).isEqualTo(302);
-        assertThat(verify.location()).isEqualTo(FRONTEND);
+        TestBrowser.Response verify = spend(b, mail.last().token());
+        assertThat(verify.status()).isEqualTo(200);
+        assertThat(verify.body()).contains("\"redirect\":\"" + FRONTEND + "\"");
 
         TestBrowser.Response me = b.get("/me");
         assertThat(me.status()).isEqualTo(200);
@@ -37,13 +111,17 @@ class EmailLinkAuthTest extends ApiTestBase {
         first.primeCsrf();
         first.postJson("/auth/email", "{\"email\":\"" + email + "\"}");
         String link = mail.last().link();
+        String token = mail.last().token();
 
-        assertThat(first.get(link).location()).isEqualTo(FRONTEND);
+        assertThat(spend(first, token).status()).isEqualTo(200);
 
         TestBrowser second = browser();
-        TestBrowser.Response again = second.get(link);
-        assertThat(again.status()).isEqualTo(302);
-        assertThat(again.location()).isEqualTo(FRONTEND + "/signin?error=SIGNIN_LINK_INVALID");
+        TestBrowser.Response page = second.get(link); // the page is not shown for a link that is already spent
+        assertThat(page.status()).isEqualTo(302);
+        assertThat(page.location()).isEqualTo(FRONTEND + "/signin?error=SIGNIN_LINK_INVALID");
+        TestBrowser.Response again = spend(second, token);
+        assertThat(again.status()).isEqualTo(400);
+        assertThat(again.body()).contains("\"code\":\"SIGNIN_LINK_INVALID\"");
         assertThat(second.get("/me").status()).isEqualTo(401);
     }
 
@@ -58,6 +136,7 @@ class EmailLinkAuthTest extends ApiTestBase {
 
         TestBrowser.Response verify = b.get(mail.last().link());
         assertThat(verify.location()).isEqualTo(FRONTEND + "/signin?error=SIGNIN_LINK_INVALID");
+        assertThat(spend(b, mail.last().token()).status()).isEqualTo(400);
         assertThat(b.get("/me").status()).isEqualTo(401);
         assertThat(count("SELECT count(*) FROM users WHERE email = ?", email)).isZero();
     }
@@ -70,7 +149,8 @@ class EmailLinkAuthTest extends ApiTestBase {
 
         clock.advance(Duration.ofMinutes(14).plusSeconds(50));
 
-        assertThat(b.get(mail.last().link()).location()).isEqualTo(FRONTEND);
+        assertThat(b.get(mail.last().link()).status()).isEqualTo(200);
+        assertThat(spend(b, mail.last().token()).status()).isEqualTo(200);
     }
 
     @Test
@@ -81,7 +161,7 @@ class EmailLinkAuthTest extends ApiTestBase {
         laptop.postJson("/auth/email", "{\"email\":\"" + email + "\"}");
 
         TestBrowser phone = browser(); // no cookies from the laptop
-        assertThat(phone.get(mail.last().link()).location()).isEqualTo(FRONTEND);
+        assertThat(spend(phone, mail.last().token()).status()).isEqualTo(200);
         assertThat(phone.get("/me").status()).isEqualTo(200);
         assertThat(laptop.get("/me").status()).isEqualTo(401);
     }

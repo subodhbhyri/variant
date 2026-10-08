@@ -82,7 +82,9 @@ class IsolationTest extends MatchFlowBase {
         ids.put("/jobs", jobId);
         Map<String, String> others = Map.of("key", "s0", "sid", "job-0", "vid", variant, "slot", "0");
 
-        TestBrowser stranger = signedInBrowser(uniqueEmail());
+        String strangerEmail = uniqueEmail();
+        TestBrowser stranger = signedInBrowser(strangerEmail);
+        UUID strangerId = userId(strangerEmail); // other tests' users share the database: look at this stranger only
         long strangerObjects = 0;
         List<Op> ops = idBearingOperations();
         assertThat(ops.size()).as("the OpenAPI document lists the id-bearing endpoints").isGreaterThanOrEqualTo(19);
@@ -105,11 +107,11 @@ class IsolationTest extends MatchFlowBase {
         }
 
         // And none of those calls changed anything of A's or created anything for B.
-        assertThat(count("SELECT count(*) FROM jobs WHERE type IN ('render_alternative', 'edit_revision', 'generate') AND user_id <> ?", a.userId()))
+        assertThat(count("SELECT count(*) FROM jobs WHERE type IN ('render_alternative', 'edit_revision', 'generate') AND user_id = ?", strangerId))
                 .isEqualTo(strangerObjects);
-        assertThat(count("SELECT count(*) FROM snapshots WHERE user_id <> ?", a.userId())).isZero();
-        assertThat(count("SELECT count(*) FROM intake_sections WHERE user_id <> ?", a.userId())).isZero();
-        assertThat(count("SELECT count(*) FROM libraries WHERE user_id <> ?", a.userId())).isZero();
+        assertThat(count("SELECT count(*) FROM snapshots WHERE user_id = ?", strangerId)).isZero();
+        assertThat(count("SELECT count(*) FROM intake_sections WHERE user_id = ?", strangerId)).isZero();
+        assertThat(count("SELECT count(*) FROM libraries WHERE user_id = ?", strangerId)).isZero();
         assertThat(count("SELECT count(*) FROM intake_sections WHERE resume_id = ?", a.resumeId())).isEqualTo(1);
         assertThat(count("SELECT count(*) FROM libraries WHERE resume_id = ?", a.resumeId())).isEqualTo(1);
     }

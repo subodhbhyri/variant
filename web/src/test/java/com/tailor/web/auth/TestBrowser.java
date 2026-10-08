@@ -62,6 +62,29 @@ public final class TestBrowser {
         return send("POST", path, json, true);
     }
 
+    /** An HTML form post (application/x-www-form-urlencoded). No CSRF header: a form carries its token in the body. */
+    public Response postForm(String path, String formBody) {
+        String url = path.startsWith("http") ? path : base + path;
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(formBody));
+        if (!cookies.isEmpty()) {
+            StringBuilder header = new StringBuilder();
+            cookies.forEach((k, v) -> header.append(header.isEmpty() ? "" : "; ").append(k).append('=').append(v));
+            request.header("Cookie", header.toString());
+        }
+        try {
+            HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            remember(response.headers());
+            return new Response(response.statusCode(), response.body(), response.headers());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     public Response postJsonWithoutCsrf(String path, String json) {
         return send("POST", path, json, false);
     }

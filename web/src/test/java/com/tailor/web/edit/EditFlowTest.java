@@ -389,6 +389,67 @@ class EditFlowTest extends MatchFlowBase {
         assertThat(snapshotOf(a, m.snapshotId()).path("latest_revision_id").asText()).isEqualTo(second.toString());
     }
 
+    /** P6-T18 (PHASE6_SPEC.md section 6): drift can't add up, because every revision is checked against the baseline. */
+    @Test
+    void threeSuccessiveRevisionsEachStayWithinHalfAPointOfTheOnboardingBaseline() throws Exception {
+        Matched m = matched();
+        Account a = m.account();
+        Path baselineFile = Files.createTempFile("baseline", ".json");
+        Files.write(baselineFile, storage.get(StorageKeys.baseline(a.userId(), a.resumeId())));
+        com.tailor.engine.measure.StoredBaseline baseline = com.tailor.engine.measure.StoredBaseline.readFrom(baselineFile);
+
+        byte[] rootPdf = pdfOf(a, m.snapshotId());
+        assertThat(pageCount(rootPdf)).isEqualTo(baseline.pages());
+        List<PdfLines.Line> rootLines = linesOf(rootPdf);
+        List<PdfLines.Line> fixed = baseline.lines().stream().filter(l -> hasLineNear(rootLines, l)).toList();
+        assertThat(fixed.size()).as("the headings, employers and untouched lines the match leaves in place").isGreaterThanOrEqualTo(5);
+        UUID parent = m.snapshotId();
+        JsonNode view = m.view();
+        int[] used = new int[3];
+        for (int round = 0; round < 3; round++) {
+            JsonNode target = editableSlot(view, 1, java.util.Arrays.copyOf(used, round));
+            int index = target.path("slot").asInt();
+            used[round] = index;
+            String newText = "Round " + (round + 1) + " rewrite of this bullet in my own words with a real result";
+            JsonNode job = job(a, revise(m, parent, "[{\"slot\":" + index + ",\"text\":" + quote(newText) + "}]"));
+            assertThat(job.path("status").asText()).as("round " + (round + 1) + ": " + job).isEqualTo("succeeded");
+            parent = UUID.fromString(job.path("result").path("snapshotId").asText());
+            byte[] revisionPdf = pdfOf(a, parent);
+            assertThat(pageCount(revisionPdf)).as("revision " + (round + 1) + ": pages").isEqualTo(baseline.pages());
+            assertFixedLinesStayWithinHalfAPoint(fixed, revisionPdf, "revision " + (round + 1));
+        }
+        // The chain really is three deep, and all three edits are in the last one.
+        JsonNode last = snapshotOf(a, parent);
+        for (int round = 0; round < 3; round++) {
+            assertThat(slot(last, used[round]).path("text").asText()).startsWith("Round " + (round + 1));
+        }
+    }
+
+    /** True if {@code lines} has a line with this text on this page within half a point of {@code y}. */
+    private static boolean hasLineNear(List<PdfLines.Line> lines, PdfLines.Line want) {
+        return lines.stream().anyMatch(l -> l.normalizedText().equals(want.normalizedText())
+                && l.pageIndex() == want.pageIndex() && Math.abs(l.y() - want.y()) <= 0.5);
+    }
+
+    private static List<PdfLines.Line> linesOf(byte[] pdf) throws Exception {
+        Path file = Files.createTempFile("snapshot", ".pdf");
+        Files.write(file, pdf);
+        return PdfLines.extract(file);
+    }
+
+    /**
+     * The lines of the onboarded original that the matched snapshot left exactly where they were (headings, employers,
+     * dates, untouched bullets; whatever the match tailored or swapped is a changed region and is not among them).
+     * Every revision must still hold each of them within half a point of where the ORIGINAL had them.
+     */
+    private static void assertFixedLinesStayWithinHalfAPoint(List<PdfLines.Line> fixed, byte[] pdf, String what) throws Exception {
+        List<PdfLines.Line> now = linesOf(pdf);
+        for (PdfLines.Line want : fixed) {
+            assertThat(hasLineNear(now, want)).as(what + ": \"" + want.normalizedText() + "\" is within 0.5 pt of the original (page "
+                    + want.pageIndex() + ", y " + want.y() + ")").isTrue();
+        }
+    }
+
     @Test
     void aRevisionThatFailsIsNotCreatedAndStoresNothing() throws Exception {
         Matched m = matched();

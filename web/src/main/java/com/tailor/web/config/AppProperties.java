@@ -17,8 +17,15 @@ public record AppProperties(
         @DefaultValue Cookie cookie,
         @DefaultValue Google google) {
 
-    /** {@code mode}: {@code log} prints links to the log (local development only), {@code ses} sends them. */
+    /**
+     * {@code mode}: {@code log} prints links to the log (local development only), {@code ses} sends them, and
+     * {@code off} turns email sign-in off (no domain to send from yet: Google only; PHASE6_SPEC.md section 10A.3).
+     */
     public record Mail(@DefaultValue("log") String mode, @DefaultValue("noreply@localhost") String from) {
+
+        public boolean enabled() {
+            return !"off".equalsIgnoreCase(mode);
+        }
     }
 
     /** {@code secure} is true everywhere except local plain-HTTP development. */

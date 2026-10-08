@@ -71,9 +71,9 @@ public abstract class AbstractApiTest {
         TestBrowser b = browser();
         b.primeCsrf();
         b.postJson("/auth/email", "{\"email\":\"" + email + "\"}");
-        TestBrowser.Response verify = b.get("/auth/email/verify?token=" + mail.last().token());
-        if (verify.status() != 302 || !FRONTEND.equals(verify.location())) {
-            throw new IllegalStateException("sign-in failed: " + verify.status() + " " + verify.location());
+        TestBrowser.Response verify = b.postJson("/auth/email/verify", "{\"token\":\"" + mail.last().token() + "\"}");
+        if (verify.status() != 200) {
+            throw new IllegalStateException("sign-in failed: " + verify.status() + " " + verify.body());
         }
         return b;
     }

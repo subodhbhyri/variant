@@ -66,7 +66,7 @@ public class SecurityConfig {
                 // An anonymous 401 must not create a session row; there is no "return to the page you wanted".
                 .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/healthz", "/v3/api-docs", "/v3/api-docs/**",
+                        .requestMatchers("/auth/**", "/config", "/healthz", "/v3/api-docs", "/v3/api-docs/**",
                                 "/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

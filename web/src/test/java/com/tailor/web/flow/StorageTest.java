@@ -97,7 +97,7 @@ class StorageTest extends FlowTestBase {
     @Test
     void deletingAPrefixAlsoRemovesOldVersionsAndDeleteMarkers() {
         // Spec section 10 keeps versioning on in AWS; section 9.4 still requires a deleted account's files to be gone.
-        var props = new com.tailor.web.storage.StorageProperties("tailor-versioned-" + UUID.randomUUID().toString().substring(0, 8),
+        var props = new com.tailor.web.storage.StorageProperties("s3", null, null, "tailor-versioned-" + UUID.randomUUID().toString().substring(0, 8),
                 System.getenv("TEST_S3_ENDPOINT"), null, "us-east-1", true, "", true, Duration.ofMinutes(5));
         com.tailor.web.storage.S3FileStorage versioned = new com.tailor.web.storage.S3FileStorage(props);
         versioned.countPrefix("x/"); // creates the bucket

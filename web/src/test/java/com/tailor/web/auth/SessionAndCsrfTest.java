@@ -99,6 +99,6 @@ class SessionAndCsrfTest extends ApiTestBase {
         TestBrowser b = browser();
         b.primeCsrf();
         b.postJson("/auth/email", "{\"email\":\"" + email + "\"}");
-        return b.get(mail.last().link());
+        return b.postJson("/auth/email/verify", "{\"token\":\"" + mail.last().token() + "\"}");
     }
 }

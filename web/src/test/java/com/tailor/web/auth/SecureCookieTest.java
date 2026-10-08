@@ -38,7 +38,7 @@ class SecureCookieTest {
         assertThat(csrfCookie).contains("Secure").contains("SameSite=Lax").doesNotContain("HttpOnly");
 
         b.postJson("/auth/email", "{\"email\":\"secure-cookie@example.com\"}");
-        TestBrowser.Response verify = b.get("/auth/email/verify?token=" + mail.last().token());
+        TestBrowser.Response verify = b.postJson("/auth/email/verify", "{\"token\":\"" + mail.last().token() + "\"}");
 
         String session = verify.setCookies().stream().filter(c -> c.startsWith("SESSION=")).findFirst().orElseThrow();
         assertThat(session).contains("Secure").contains("HttpOnly").contains("SameSite=Lax");

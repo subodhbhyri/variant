@@ -75,7 +75,7 @@
     },
     "/auth/email/verify" : {
       "get" : {
-        "operationId" : "verifyEmailLink",
+        "operationId" : "confirmEmailLink",
         "parameters" : [ {
           "in" : "query",
           "name" : "token",
@@ -85,11 +85,49 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "description" : "The confirmation page (text/html)."
+          },
           "302" : {
-            "description" : "Redirect to the app."
+            "description" : "Redirect to the app's sign-in page: the link is not valid."
           }
         },
-        "summary" : "Spends a sign-in link (single use, 15 minutes), starts the session and redirects to the app. A bad, used or expired link redirects to {app}/signin?error=SIGNIN_LINK_INVALID.",
+        "summary" : "Shows a confirmation page for a sign-in link (\"Continue as {email}\", one button) WITHOUT spending the link: email scanners open links before people do. A bad, used or expired link redirects to {app}/signin?error=SIGNIN_LINK_INVALID.",
+        "tags" : [ "auth-controller" ]
+      },
+      "post" : {
+        "operationId" : "verifyEmailLink",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : { }
+              }
+            },
+            "description" : "Signed in."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "SIGNIN_LINK_INVALID"
+          }
+        },
+        "summary" : "Spends a sign-in link (single use, 15 minutes) and starts the session. JSON {\"token\"} gets 200 {\"redirect\"}; the confirmation page's form post gets a redirect to the app. A bad, used or expired link is 400 SIGNIN_LINK_INVALID (or a redirect to {app}/signin?error=SIGNIN_LINK_INVALID). CSRF-protected like every other POST.",
         "tags" : [ "auth-controller" ]
       }
     },
@@ -103,6 +141,25 @@
         },
         "summary" : "Ends the session.",
         "tags" : [ "auth-controller" ]
+      }
+    },
+    "/config" : {
+      "get" : {
+        "operationId" : "getConfig",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicConfig"
+                }
+              }
+            },
+            "description" : "The enabled sign-in methods."
+          }
+        },
+        "summary" : "Public, no session: the sign-in methods that are switched on (\"google\", \"email\").",
+        "tags" : [ "config-controller" ]
       }
     },
     "/healthz" : {
@@ -1210,6 +1267,18 @@
           }
         }
       },
+      "PublicConfig" : {
+        "properties" : {
+          "signin" : {
+            "type" : [ "array" ],
+            "example" : null,
+            "items" : {
+              "type" : [ "string" ],
+              "example" : null
+            }
+          }
+        }
+      },
       "RevisionRequest" : {
         "properties" : {
           "edits" : {
@@ -1241,6 +1310,14 @@
             "example" : null
           },
           "notes" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "TokenRequest" : {
+        "properties" : {
+          "token" : {
             "type" : [ "string" ],
             "example" : null
           }

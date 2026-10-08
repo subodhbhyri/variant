@@ -28,6 +28,10 @@ app:
     # The worker role turns this on; the api role never runs engine jobs.
     run-handlers: ${APP_RUN_JOB_HANDLERS:false}
   storage:
+    # s3 (S3 in AWS, MinIO in development) or filesystem (the single-server deployment; PHASE6_SPEC.md section 3.1).
+    mode: ${APP_STORAGE_MODE:s3}
+    dir: ${APP_STORAGE_DIR:}
+    link-secret: ${APP_STORAGE_LINK_SECRET:}
     bucket: ${S3_BUCKET:tailor-files}
     # Only for MinIO in development: an endpoint, path-style addressing, and creating the bucket.
     endpoint: ${S3_ENDPOINT:}
