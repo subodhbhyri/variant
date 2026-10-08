@@ -1,2 +1,2 @@
 rootProject.name = "resume-tailor"
-include("engine", "cli")
+include("engine", "cli", "web")

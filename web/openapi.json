@@ -1,0 +1,38 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "Every error body is {code, message, details}. The frontend must handle every code.",
+    "title" : "Resume Tailor API",
+    "version" : "6.0"
+  },
+  "servers" : [ {
+    "url" : "/"
+  } ],
+  "paths" : {
+    "/healthz" : {
+      "get" : {
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : [ "object" ],
+                  "additionalProperties" : {
+                    "type" : [ "string" ],
+                    "example" : null
+                  },
+                  "example" : null
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Liveness check for the load balancer",
+        "tags" : [ "health-controller" ]
+      }
+    }
+  },
+  "components" : { }
+}
