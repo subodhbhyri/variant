@@ -70,6 +70,11 @@ public class JobRepository {
         });
     }
 
+    /** The user's job created with this Idempotency-Key within the last 24 hours, if any. */
+    public Optional<Job> findByIdempotencyKey(UUID userId, String key) {
+        return findByKey(userId, key, clock.instant().minus(Duration.ofHours(24)));
+    }
+
     private Optional<Job> findByKey(UUID userId, String key, Instant since) {
         return jdbc.query("SELECT * FROM jobs WHERE user_id = ? AND idempotency_key = ? AND created_at > ?",
                 mapper(), userId, key, ts(since)).stream().findFirst();

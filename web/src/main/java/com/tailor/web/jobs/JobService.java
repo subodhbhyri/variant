@@ -35,6 +35,14 @@ public class JobService {
         return jobs.enqueue(userId, type, body, key);
     }
 
+    /** The job this user already created with {@code idempotencyKey} in the last 24 hours, if any. */
+    public java.util.Optional<Job> existing(UUID userId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        return jobs.findByIdempotencyKey(userId, idempotencyKey.trim());
+    }
+
     public Job getForUser(UUID jobId, UUID userId) {
         return jobs.findForUser(jobId, userId).orElseThrow(ApiException::notFound);
     }

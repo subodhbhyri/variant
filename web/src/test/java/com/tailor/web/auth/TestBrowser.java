@@ -66,6 +66,49 @@ public final class TestBrowser {
         return send("POST", path, json, false);
     }
 
+    /** A multipart/form-data POST with one file part, with the CSRF header like any state-changing request. */
+    public Response postFile(String path, String field, String filename, byte[] content, String... headers) {
+        String boundary = "----tailor" + System.nanoTime();
+        java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+        String crlf = new String(new char[] {13, 10}); // CR LF, as multipart requires
+        String head = "--" + boundary + crlf
+                + "Content-Disposition: form-data; name=\"" + field + "\"; filename=\"" + filename + "\"" + crlf
+                + "Content-Type: application/octet-stream" + crlf + crlf;
+        body.writeBytes(head.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        body.writeBytes(content);
+        body.writeBytes((crlf + "--" + boundary + "--" + crlf).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()));
+        if (!cookies.isEmpty()) {
+            StringBuilder header = new StringBuilder();
+            cookies.forEach((k, v) -> header.append(header.isEmpty() ? "" : "; ").append(k).append('=').append(v));
+            request.header("Cookie", header.toString());
+        }
+        if (cookies.containsKey("XSRF-TOKEN")) {
+            request.header("X-XSRF-TOKEN", cookies.get("XSRF-TOKEN"));
+        }
+        for (int i = 0; i + 1 < headers.length; i += 2) {
+            request.header(headers[i], headers[i + 1]);
+        }
+        try {
+            HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            remember(response.headers());
+            return new Response(response.statusCode(), response.body(), response.headers());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** A PUT with a JSON body and the CSRF header. */
+    public Response putJson(String path, String json) {
+        return send("PUT", path, json, true);
+    }
+
     public Response delete(String path) {
         return send("DELETE", path, null, true);
     }

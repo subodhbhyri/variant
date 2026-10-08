@@ -72,7 +72,7 @@ class JobApiTest extends ApiTestBase {
 
         assertThat(body.path("status").asText()).isEqualTo("failed");
         assertThat(body.path("rejected").asBoolean()).isTrue();
-        assertThat(body.path("errorCode").asText()).isEqualTo("NEEDS_USER");
+        assertThat(body.path("error_code").asText()).isEqualTo("NEEDS_USER");
         assertThat(body.path("result").path("details").path("options").size()).isEqualTo(2);
     }
 

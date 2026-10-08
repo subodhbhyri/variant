@@ -135,9 +135,8 @@
           "name" : "id",
           "required" : true,
           "schema" : {
-            "type" : [ "string" ],
-            "format" : "uuid",
-            "example" : null
+            "type" : "string",
+            "format" : "uuid"
           }
         } ],
         "responses" : {
@@ -164,9 +163,8 @@
           "name" : "id",
           "required" : true,
           "schema" : {
-            "type" : [ "string" ],
-            "format" : "uuid",
-            "example" : null
+            "type" : "string",
+            "format" : "uuid"
           }
         } ],
         "responses" : {
@@ -233,10 +231,231 @@
         "summary" : "The signed-in user, their active resume id (null if none) and a usage summary.",
         "tags" : [ "me-controller" ]
       }
+    },
+    "/resumes" : {
+      "post" : {
+        "operationId" : "uploadResume",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : [ "object" ],
+                "example" : null,
+                "properties" : {
+                  "file" : {
+                    "type" : [ "string" ],
+                    "format" : "binary",
+                    "example" : null
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "description" : "Stored; onboarding queued."
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "A gate code: FILE_TOO_LARGE, ENCRYPTED_OR_LEGACY, NOT_A_DOCX, TOO_MANY_ENTRIES, DUPLICATE_ENTRY, UNSAFE_PATH, ZIP_BOMB, MACROS, EMBEDDED_OBJECT, EXTERNAL_RESOURCE, UNSAFE_XML, TRACKED_CHANGES"
+          }
+        },
+        "summary" : "Uploads a resume (.docx, at most 2 MB, form field 'file'). The Phase 2 upload gate runs at once: a rejection is a 422 with the gate's code and nothing is stored. Otherwise the resume is stored and an onboarding job is queued.",
+        "tags" : [ "resume-controller" ]
+      }
+    },
+    "/resumes/{id}" : {
+      "get" : {
+        "operationId" : "getResume",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND (also for another user's resume)"
+          }
+        },
+        "summary" : "Status, onboarding report (without bullet text), section roles, positions (blocks) and font substitutions.",
+        "tags" : [ "resume-controller" ]
+      }
+    },
+    "/resumes/{id}/accept" : {
+      "post" : {
+        "operationId" : "acceptResume",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AcceptRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RESUME_NOT_READY or FONT_CHOICE_UNSUPPORTED"
+          }
+        },
+        "summary" : "The user approves the normalized preview: the resume becomes the active one (the previous active resume is archived) and any unconfirmed section role is confirmed as suggested. font_choice is reserved for NEEDS_USER and is refused for now.",
+        "tags" : [ "resume-controller" ]
+      }
+    },
+    "/resumes/{id}/preview" : {
+      "get" : {
+        "operationId" : "getResumePreview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "RESUME_NOT_READY: onboarding hasn't produced a preview"
+          }
+        },
+        "summary" : "A short-lived (5 minute) link to the normalized preview PDF.",
+        "tags" : [ "resume-controller" ]
+      }
+    },
+    "/resumes/{id}/sections/{key}/role" : {
+      "put" : {
+        "operationId" : "confirmSectionRole",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "ROLE_CHANGE_UNSUPPORTED"
+          }
+        },
+        "summary" : "Confirms a section's role. Only the suggested role can be confirmed for now: any other role is refused with ROLE_CHANGE_UNSUPPORTED, because the engine decides roles itself.",
+        "tags" : [ "resume-controller" ]
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "AcceptRequest" : {
+        "properties" : {
+          "fontChoice" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
       "ApiError" : {
         "properties" : {
           "code" : {
@@ -260,6 +479,28 @@
         "properties" : {
           "email" : {
             "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "RoleRequest" : {
+        "properties" : {
+          "role" : {
+            "type" : [ "string" ],
+            "example" : null
+          }
+        }
+      },
+      "UploadResponse" : {
+        "properties" : {
+          "jobId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
+            "example" : null
+          },
+          "resumeId" : {
+            "type" : [ "string" ],
+            "format" : "uuid",
             "example" : null
           }
         }

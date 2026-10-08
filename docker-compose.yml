@@ -24,8 +24,8 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+    # MinIO no longer publishes images on Docker Hub or Quay; bitnamilegacy/minio is the last community build.
+    image: bitnamilegacy/minio:latest
     environment:
       MINIO_ROOT_USER: tailor
       MINIO_ROOT_PASSWORD: tailor-secret
@@ -33,7 +33,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - miniodata:/data
+      - miniodata:/bitnami/minio/data
 
   renderer:
     build:
@@ -59,6 +59,8 @@ services:
       DATABASE_PASSWORD: tailor
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: tailor-files
+      S3_PATH_STYLE: "true"
+      S3_CREATE_BUCKET: "true"
       AWS_ACCESS_KEY_ID: tailor
       AWS_SECRET_ACCESS_KEY: tailor-secret
       AWS_REGION: us-east-1

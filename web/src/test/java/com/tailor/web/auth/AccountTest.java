@@ -35,7 +35,7 @@ class AccountTest extends ApiTestBase {
         String email = uniqueEmail();
         TestBrowser b = signedInBrowser(email);
         UUID user = idOf(email);
-        assertThat(b.get("/me").body()).contains("\"usage\":{\"generations\":0,\"tailorings\":0,\"alternatives\":0,\"costUsd\":0");
+        assertThat(b.get("/me").body()).contains("\"usage\":{\"generations\":0,\"tailorings\":0,\"alternatives\":0,\"cost_usd\":0");
 
         giveRows(user);
         jdbc.update("INSERT INTO usage_ledger (id, user_id, kind, idempotency_key, cost_usd) VALUES (?, ?, 'generation', ?, 0.25)",
@@ -45,8 +45,8 @@ class AccountTest extends ApiTestBase {
 
         String body = b.get("/me").body();
         assertThat(body).contains("\"id\":\"" + user + "\"").contains("\"email\":\"" + email + "\"");
-        assertThat(body).contains("\"activeResumeId\":\"")
-                .contains("\"generations\":1").contains("\"alternatives\":1").contains("\"costUsd\":0.25");
+        assertThat(body).contains("\"active_resume_id\":\"")
+                .contains("\"generations\":1").contains("\"alternatives\":1").contains("\"cost_usd\":0.25");
     }
 
     @Test

@@ -23,10 +23,19 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
+    // Section 3/10: files in a private S3 bucket (MinIO in development).
+    implementation(platform("software.amazon.awssdk:bom:2.28.16"))
+    implementation("software.amazon.awssdk:s3")
+
     // Section 4: OpenAPI 3.1 generated from the code. API docs only, no Swagger UI.
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.6.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // The flow tests run a real renderer service in the test JVM (it needs LibreOffice: @Tag("corpus")).
+    testImplementation(project(":renderer")) {
+        // Spring Boot logs with Logback; the renderer image logs with slf4j-simple. Two backends clash.
+        exclude(group = "org.slf4j", module = "slf4j-simple")
+    }
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

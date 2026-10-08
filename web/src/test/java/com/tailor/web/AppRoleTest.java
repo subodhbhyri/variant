@@ -23,7 +23,7 @@ class AppRoleTest {
     void workerRoleHasNoWebServerAndNoControllers() {
         try (ConfigurableApplicationContext ctx = new SpringApplicationBuilder(WebApplication.class)
                 .web(WebApplicationType.NONE)
-                .run("--app.role=worker",
+                .run("--app.role=worker", "--app.renderer.url=http://localhost:9",
                         "--spring.datasource.url=" + TestDatabase.url(),
                         "--spring.datasource.username=" + TestDatabase.user(),
                         "--spring.datasource.password=" + TestDatabase.password())) {
