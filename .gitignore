@@ -34,3 +34,5 @@ infra/bootstrap/.terraform/
 *.tfstate*
 *.tfvars
 !*.tfvars.example
+deploy/.env
+deploy/.env.test

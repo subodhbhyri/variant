@@ -1,0 +1,62 @@
+# Caddy: automatic HTTPS (Let's Encrypt, HTTP challenge: nothing but ports 80 and 443 is needed), the single-page app
+# at /, and the api at /api/* (same origin, so the session cookie is first-party and no CORS is involved).
+#
+# `handle_path /api/*` removes the /api prefix before proxying, so the api sees /auth/csrf, /resumes, ... and builds
+# every absolute URL it hands out from APP_PUBLIC_BASE_URL (= https://{host}/api): sign-in links, the Google redirect
+# URI, download links. Caddy sets X-Forwarded-For/-Proto/-Host itself and discards any the client sent, and the api
+# believes them only from Caddy's fixed address (docker-compose.prod.yml).
+{
+	servers {
+		timeouts {
+			read_header 10s
+		}
+	}
+}
+
+{$APP_HOST} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	handle_path /api/* {
+		reverse_proxy api:8080 {
+			# Job progress is a server-sent-events stream: never buffer it.
+			flush_interval -1
+			transport http {
+				response_header_timeout 120s
+			}
+		}
+	}
+
+	handle {
+		root * /srv/site
+		try_files {path} /index.html
+		file_server
+	}
+
+	request_body {
+		max_size 4MB
+	}
+
+	log {
+		output stdout
+		# Sign-in links carry a token in the query string and requests carry session cookies: keep both out of the log.
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace token REDACTED
+				}
+				request>headers>Cookie delete
+				request>headers>X-Xsrf-Token delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+}

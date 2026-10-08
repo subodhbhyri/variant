@@ -63,6 +63,8 @@ COPY --from=build /app/web/build/libs/web.jar /app/web.jar
 COPY --chmod=0755 docker/web-entrypoint.sh /app/entrypoint.sh
 COPY --from=build /opt/native-libs /opt/native-libs
 COPY --from=models /models /opt/models
+# The single-server deployment keeps files here (a volume mounted over it inherits this owner and mode 700).
+RUN mkdir -p /data/storage && chown tailor:tailor /data/storage && chmod 700 /data/storage
 ENV VARIANT_MODEL_DIR=/opt/models/all-MiniLM-L6-v2 \
     APP_MATCH_EMBEDDER=minilm \
     JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75 -Donnxruntime.native.path=/opt/native-libs/onnxruntime -DRUST_LIBRARY_PATH=/opt/native-libs/tokenizers/libtokenizers.so"

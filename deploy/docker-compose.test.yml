@@ -1,0 +1,18 @@
+# TEST ONLY (scripts/deploy-test.ps1): the production stack with the development conveniences switched on so that a
+# script can sign in (links in the log) and generate without an Anthropic key (recorded answers). Never used on a server.
+# docker compose -f docker-compose.prod.yml -f docker-compose.test.yml ...
+services:
+  api:
+    environment:
+      APP_ENV: dev
+      APP_MAIL_MODE: log
+      APP_RECORDED_GENERATION_FILE: /fixtures/phase4/recorded_responses.json
+    volumes:
+      - ${FIXTURES_PATH:-../fixtures/phase4}:/fixtures/phase4:ro
+  worker:
+    environment:
+      APP_ENV: dev
+      APP_MAIL_MODE: log
+      APP_RECORDED_GENERATION_FILE: /fixtures/phase4/recorded_responses.json
+    volumes:
+      - ${FIXTURES_PATH:-../fixtures/phase4}:/fixtures/phase4:ro
